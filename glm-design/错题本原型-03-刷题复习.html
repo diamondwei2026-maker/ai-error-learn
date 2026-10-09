@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>错题本原型 · 文件 3 · 刷题复习</title>
+<style>
+/* ================= 原型外层（规格页） ================= */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --green: #07C160; --green-deep: #06AD56; --green-text: #067A3E;
+  --green-bg: #E8F8EF; --green-bg-strong: #C6F0D8;
+  --link: #576B95; --blue: #10AEFF; --blue-text: #0A6EBD; --blue-bg: #E6F6FF;
+  --orange: #FA9D3B; --orange-text: #9A5B00; --orange-bg: #FEF3E6;
+  --red: #FA5151; --red-bg: #FEEDED;
+  --ink: #1A1A1A; --ink-2: #787878; --ink-3: #B3B3B3;
+  --line: rgba(0, 0, 0, .08); --page: #F7F7F7; --card: #FFFFFF;
+  --r-s: 8px; --r-m: 12px; --r-l: 16px;
+  --font: "PingFang SC", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+  --shadow-float: 0 6px 20px rgba(0, 0, 0, .06);
+}
+body {
+  font-family: var(--font); color: var(--ink);
+  background-color: #ECEEF1;
+  background-image: radial-gradient(rgba(28, 39, 60, .06) 1.1px, transparent 1.1px);
+  background-size: 24px 24px;
+  -webkit-font-smoothing: antialiased;
+}
+.shell-header { max-width: 1480px; margin: 0 auto; padding: 56px 40px 8px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: #6B7480; display: flex; align-items: center; gap: 10px; }
+.eyebrow::before { content: ""; width: 28px; height: 2px; background: var(--green); }
+.shell-title { font-size: 30px; font-weight: 700; letter-spacing: .01em; margin-top: 14px; color: #171A1F; }
+.shell-title .count { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--green-text); background: var(--green-bg); border: 1px solid rgba(7, 193, 96, .28); padding: 4px 10px; border-radius: 999px; vertical-align: 7px; margin-left: 10px; }
+.flow { margin-top: 12px; font-size: 13.5px; color: #565E6A; line-height: 1.8; }
+.flow b { color: #171A1F; font-weight: 600; }
+.file-nav { margin-top: 12px; font-size: 13px; color: #6B7480; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.file-nav .cur { color: #171A1F; font-weight: 600; }
+.file-nav a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(87, 107, 149, .45); padding-bottom: 1px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-top: 22px; padding: 14px 18px; background: rgba(255, 255, 255, .72); border: 1px solid rgba(0, 0, 0, .06); border-radius: 14px; width: fit-content; max-width: 100%; }
+.lg { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #424A56; white-space: nowrap; }
+.lg i { width: 15px; height: 15px; border-radius: 5px; border: 1px solid rgba(0, 0, 0, .14); }
+.lg code { font-family: var(--mono); font-size: 10.5px; color: #8A9099; }
+.meta { margin-top: 12px; font-size: 12px; color: #8A9099; line-height: 1.9; max-width: 960px; }
+.proto-grid { max-width: 1480px; margin: 0 auto; padding: 40px 40px 100px; display: grid; grid-template-columns: repeat(auto-fit, minmax(375px, 1fr)); gap: 88px 56px; justify-items: center; }
+.screen-cell { display: flex; flex-direction: column; align-items: center; }
+.screen-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.screen-no { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--green-text); background: var(--green-bg); border: 1px solid rgba(7, 193, 96, .3); border-radius: 999px; padding: 3px 10px; }
+.screen-name { font-size: 15.5px; font-weight: 700; color: #171A1F; }
+.screen-route { font-family: var(--mono); font-size: 11px; color: #9AA1AB; }
+.phone-notes { margin-top: 24px; width: 375px; max-width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.note { display: flex; gap: 8px; font-size: 12px; line-height: 1.75; color: #565E6A; }
+.note-tag { flex: none; margin-top: 3px; font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 5px; font-weight: 600; }
+.t-design { color: var(--blue-text); background: var(--blue-bg); }
+.t-inter { color: var(--green-text); background: var(--green-bg); }
+.shell-footer { max-width: 1480px; margin: 0 auto; padding: 0 40px 56px; font-size: 12px; color: #9AA1AB; line-height: 1.9; }
+@media (max-width: 460px) {
+  .shell-header { padding: 40px 20px 8px; }
+  .proto-grid { padding: 32px 16px 80px; gap: 64px 24px; }
+  .phone-notes { width: 100%; }
+  .shell-footer { padding: 0 20px 40px; }
+}
+
+/* ================= 手机框与系统层 ================= */
+.phone { position: relative; width: 375px; height: 812px; border-radius: 47px; background: var(--page); overflow: hidden; flex: none;
+  box-shadow: 0 0 0 11px #111318, 0 0 0 12.5px #34383F, 0 34px 70px -18px rgba(16, 20, 28, .4), 0 14px 30px rgba(16, 20, 28, .18); }
+.island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 98px; height: 27px; border-radius: 999px; background: #0A0C10; z-index: 96; }
+.statusbar { position: absolute; top: 0; left: 0; right: 0; height: 44px; z-index: 92; display: flex; align-items: center; justify-content: space-between; padding: 2px 27px 0 34px; color: #0E1116; font-family: var(--mono); font-size: 14.5px; font-weight: 600; letter-spacing: .3px; pointer-events: none; }
+.statusbar--light { color: #FFFFFF; }
+.sicons { display: flex; align-items: center; gap: 6px; }
+.home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 135px; height: 5px; border-radius: 999px; background: rgba(12, 14, 18, .9); z-index: 97; pointer-events: none; }
+
+/* 毛玻璃 ①②③④（含 @supports 降级） */
+.glass-nav { background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
+.glass-tab { background: rgba(255, 255, 255, .80); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); }
+.glass-bar { background: rgba(255, 255, 255, .66); -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%); }
+.glass-panel { background: rgba(255, 255, 255, .90); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-nav, .glass-tab, .glass-bar, .glass-panel { background: rgba(255, 255, 255, .96); }
+}
+
+/* 导航栏 / tabBar / 吸底操作条 */
+.chrome-top { position: absolute; top: 0; left: 0; right: 0; z-index: 80; padding-top: 44px; border-bottom: 1px solid var(--line); }
+.nav-row { height: 44px; position: relative; display: flex; align-items: center; justify-content: center; }
+.nav-title { font-size: 17px; font-weight: 600; color: var(--ink); letter-spacing: .2px; }
+.nav-btn { position: absolute; top: 0; height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; color: var(--ink); }
+.nav-back { left: 6px; }
+.nav-right { right: 6px; color: var(--ink-2); }
+.tabbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 82; border-top: 1px solid var(--line); padding-bottom: 21px; }
+.tab-row { height: 56px; display: flex; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: var(--ink-2); }
+.tab.active { color: var(--green); font-weight: 600; }
+.action-bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 82; border-top: 1px solid var(--line); padding: 12px 16px 30px; }
+.bar-row { display: flex; gap: 12px; }
+.bar-row .btn { flex: 1; }
+.bar-row .btn.main { flex: 1.5; }
+
+/* 页面主体 */
+.body { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.body::-webkit-scrollbar { display: none; }
+.body--home { padding-top: 44px; }
+.body--nav { padding-top: 89px; }
+.body--tab { padding-bottom: 79px; }
+.body--bar { padding-bottom: 118px; }
+.page-pad { padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ================= 通用组件 ================= */
+.icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 16px; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 7px; height: 48px; border-radius: 999px; border: none; font-family: inherit; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; }
+.btn-primary { background: var(--green); color: #FFFFFF; }
+.btn-primary:active { background: var(--green-deep); }
+.btn-secondary { background: #FFFFFF; color: var(--ink); border: 1px solid rgba(0, 0, 0, .1); }
+.btn-danger { background: #FFFFFF; color: var(--red); border: 1px solid rgba(250, 81, 81, .4); }
+.btn:active { transform: scale(.985); }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.chip .icon { width: 13px; height: 13px; }
+.chip-green { background: var(--green-bg); color: var(--green-text); }
+.chip-blue { background: var(--blue-bg); color: var(--blue-text); }
+.chip-orange { background: var(--orange-bg); color: var(--orange-text); }
+.chip-gray { background: #F2F2F2; color: #8C8C8C; }
+
+/* ================= 刷题 ================= */
+.quiz-head { display: flex; align-items: flex-end; justify-content: space-between; padding: 2px 2px 0; }
+.qh-left { display: flex; align-items: baseline; }
+.qh-cur { font-size: 27px; font-weight: 600; color: var(--green-text); line-height: 1; font-variant-numeric: tabular-nums; }
+.qh-total { font-size: 13px; color: var(--ink-2); margin-left: 5px; }
+.quiz-bar { height: 6px; border-radius: 999px; background: rgba(0, 0, 0, .06); overflow: hidden; margin-top: 10px; }
+.quiz-bar i { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+.flip { perspective: 1000px; margin-top: 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.flip-inner { position: relative; height: 452px; transform-style: preserve-3d; transition: transform .4s cubic-bezier(.3, .8, .4, 1); }
+.flip.flipped .flip-inner { transform: rotateY(180deg); }
+.flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: #FFF; border: 1px solid var(--line); border-radius: var(--r-l); padding: 18px; display: flex; flex-direction: column; }
+.flip-back { transform: rotateY(180deg); }
+.q-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.q-time { font-size: 12px; color: var(--ink-3); flex: none; }
+.quiz-q { font-size: 15.5px; line-height: 26px; margin-top: 14px; }
+.quiz-cover { margin-top: auto; border: 1.5px dashed #D6DADD; border-radius: var(--r-m); height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--ink-2); }
+.quiz-cover .icon { color: #BFC5CB; }
+.quiz-cover .c1 { font-size: 14px; font-weight: 600; }
+.quiz-cover .c2 { font-size: 12px; color: var(--ink-3); }
+.quiz-q-sm { font-size: 13.5px; line-height: 21px; color: var(--ink-2); margin-top: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ans-block { background: var(--green-bg); border-radius: var(--r-m); padding: 12px 14px; margin-top: 12px; }
+.ans-label { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--green-text); }
+.ans-label .icon { color: var(--green); }
+.ans-text2 { font-size: 14.5px; line-height: 23px; margin-top: 7px; }
+.src-row { display: flex; align-items: center; gap: 12px; }
+.src-row.sm { margin-top: auto; padding-top: 12px; }
+.src-thumb { width: 72px; height: 72px; border-radius: var(--r-s); overflow: hidden; border: 1px solid var(--line); flex: none; background: #EFEFEF; }
+.src-row.sm .src-thumb { width: 64px; height: 64px; }
+.src-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.src-t { font-size: 14px; font-weight: 600; }
+.src-link { font-size: 13px; color: var(--link); display: inline-flex; align-items: center; gap: 4px; }
+
+/* ================= 本轮完成 ================= */
+.done-wrap { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 36px 40px; text-align: center; }
+.done-icon { width: 78px; height: 78px; border-radius: 999px; background: var(--green); color: #FFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 14px var(--green-bg); animation: pop .45s cubic-bezier(.2, .9, .3, 1.4); }
+@keyframes pop { from { transform: scale(.5); opacity: 0; } }
+.done-title { font-size: 22px; font-weight: 600; margin-top: 34px; letter-spacing: .5px; }
+.done-sub { font-size: 14px; color: var(--ink-2); margin-top: 8px; }
+.done-stats { display: flex; margin-top: 26px; padding: 16px 8px; width: 100%; }
+.lstat { flex: 1; text-align: center; }
+.lstat + .lstat { border-left: 1px solid var(--line); }
+.lstat .n { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lstat .n .u { font-size: 12px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.lstat .n.green { color: var(--green-text); }
+.lstat .l { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; }
+.done-btns { margin-top: 26px; display: flex; flex-direction: column; gap: 12px; width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- 图标库（线性 · 描边 1.8 · currentColor） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.6 12 4l8 6.6v8.2a1.6 1.6 0 0 1-1.6 1.6H15v-5.6H9v5.6H5.6A1.6 1.6 0 0 1 4 18.8Z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><rect x="6.5" y="3.5" width="14" height="17" rx="2.6"/><path d="M2.5 8h4M2.5 12h4M2.5 16h4"/></symbol>
+  <symbol id="i-cards" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2.6"/><path d="M5.2 15.5h-.7A2.5 2.5 0 0 1 2 13V5a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 15 5v.7"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M8.2 3.3 6.7 5.5H5.5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1.2l-1.5-2.2Z"/><circle cx="12" cy="13" r="3.6"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.6"/><circle cx="8.7" cy="9.6" r="1.6"/><path d="m5 17.6 4.6-4.6 3.1 3.1 2.6-2.6 3.7 3.7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5v-2a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5v2M6.5 6.5l.9 12.1a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9l.9-12.1M10 10.5v6.5M14 10.5v6.5"/></symbol>
+  <symbol id="i-arrowr" viewBox="0 0 24 24"><path d="M4.5 12h15M13.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-arrowl" viewBox="0 0 24 24"><path d="M19.5 12h-15M10.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4.5v15M4.5 12h15"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.6 21.4 19.7a1.3 1.3 0 0 1-1.1 1.9H3.7a1.3 1.3 0 0 1-1.1-1.9ZM12 9.8v4.4M12 17.4v.01"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 6.5h3c5.4 0 7.6 11 13 11h1M3.5 17.5h3c2.1 0 3.6-1.7 4.8-3.6M13.7 10c1.2-1.9 2.7-3.5 4.8-3.5h1M17.5 3.5l3 3-3 3M17.5 14.5l3 3-3 3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.3 15.3 5 5"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M16.8 3.2a2.4 2.4 0 0 1 3.4 3.4L7.6 19.2 3.5 20.5l1.3-4.1Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.6"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5h6.5L10.5 21.5 19.5 10.5H13Z"/></symbol>
+</defs></svg>
+
+<header class="shell-header">
+  <div class="eyebrow">错题管理小程序 · UI 原型 v1.1 · MVP 核心闭环</div>
+  <h1 class="shell-title">文件 3 · 刷题复习<span class="count">3 屏</span></h1>
+  <p class="flow">流程：<b>10 卡片正面</b> ⇄ <b>11 卡片背面</b>（0.4s 3D 翻面）→ 下一题循环 → <b>12 本轮完成</b></p>
+  <nav class="file-nav">
+    <a href="错题本原型-01-录入与入库.html">文件 1 · 录入与入库</a>
+    <a href="错题本原型-02-题库管理.html">文件 2 · 题库管理</a>
+    <span class="cur">◉ 文件 3 · 刷题复习</span>
+  </nav>
+  <div class="legend">
+    <span class="lg"><i style="background:#07C160"></i>微信绿 <code>#07C160</code></span>
+    <span class="lg"><i style="background:#067A3E"></i>深绿文字 <code>#067A3E</code></span>
+    <span class="lg"><i style="background:#E8F8EF"></i>浅绿底 <code>#E8F8EF</code></span>
+    <span class="lg"><i style="background:#10AEFF"></i>信息蓝 <code>#10AEFF</code></span>
+    <span class="lg"><i style="background:#576B95"></i>链接蓝 <code>#576B95</code></span>
+    <span class="lg"><i style="background:#FA9D3B"></i>警示橙 <code>#FA9D3B</code></span>
+    <span class="lg"><i style="background:#FA5151"></i>警示红 <code>#FA5151</code></span>
+    <span class="lg"><i style="background:#1A1A1A"></i>主文本 <code>#1A1A1A</code></span>
+    <span class="lg"><i style="background:#787878"></i>辅助 <code>#787878</code></span>
+    <span class="lg"><i style="background:#F7F7F7"></i>页面底 <code>#F7F7F7</code></span>
+  </div>
+  <p class="meta">毛玻璃四处：导航栏 blur(20px) · tabBar blur(24px) · 吸底操作条 blur(16px) · 弹层 blur(30px)，均 saturate(180%) 并带 -webkit- 前缀，@supports 降级为 rgba(255,255,255,.96)。浅底上的小号蓝 / 橙文字使用加深变体（#0A6EBD / #9A5B00）以满足对比度 ≥ 4.5:1。原型中的「原图」为 AI 生成的试卷照片示意。10 / 11 两屏的卡片可直接点击体验 3D 翻面动画。</p>
+</header>
+
+<main class="proto-grid">
+
+  <!-- 10 刷题 · 卡片正面 -->
+  <section class="screen-cell">
+    <div class="screen-head"><span class="screen-no">10</span><span class="screen-name">刷题 · 卡片正面</span><span class="screen-route">pages/quiz/index</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="chrome-top glass-nav">
+        <div class="nav-row">
+          <span class="nav-btn nav-back"><svg class="icon" width="22" height="22"><use href="#i-arrowl"/></svg></span>
+          <span class="nav-title">刷题</span>
+          <span class="nav-btn nav-right" title="重新洗牌"><svg class="icon" width="21" height="21"><use href="#i-shuffle"/></svg></span>
+        </div>
+      </div>
+      <div class="body body--nav body--bar">
+        <div class="page-pad">
+          <div class="quiz-head">
+            <div class="qh-left"><span class="qh-cur">3</span><span class="qh-total">/ 12 题</span></div>
+            <span class="chip chip-blue"><svg class="icon" width="13" height="13"><use href="#i-shuffle"/></svg>随机 · 本轮不重复</span>
+          </div>
+          <div class="quiz-bar"><i style="width:25%"></i></div>
+          <div class="flip" id="flip-front">
+            <div class="flip-inner">
+              <div class="flip-face">
+                <div class="q-head"><span class="chip chip-green">物理 · 匀变速直线运动</span><span class="q-time">第 3 题</span></div>
+                <div class="quiz-q">质量 m = 2 kg 的物块以 v₀ = 4 m/s 的初速度沿粗糙水平面滑行，与地面间的动摩擦因数 μ = 0.5。求物块能滑行的最大距离和所用时间。（g 取 10 m/s²）</div>
+                <div class="quiz-cover">
+                  <svg class="icon" width="22" height="22"><use href="#i-lock"/></svg>
+                  <div class="c1">答案已遮挡</div>
+                  <div class="c2">点击卡片或「显示答案」翻面查看</div>
+                </div>
+              </div>
+              <div class="flip-face flip-back">
+                <div class="q-head"><span class="chip chip-green">物理 · 匀变速直线运动</span><span class="q-time">第 3 题</span></div>
+                <div class="quiz-q-sm">质量 m = 2 kg 的物块以 v₀ = 4 m/s 的初速度沿粗糙水平面滑行，动摩擦因数 μ = 0.5，求最大滑行距离与所用时间。（g 取 10 m/s²）</div>
+                <div class="ans-block">
+                  <div class="ans-label"><svg class="icon" width="15" height="15"><use href="#i-check"/></svg>答案</div>
+                  <div class="ans-text2">滑动摩擦力 f = μmg = 0.5 × 2 × 10 = 10 N，方向与运动相反；加速度大小 a = f / m = 5 m/s²。由 v₀² = 2as 得 s = 16 / 10 = 1.6 m；由 v₀ = at 得 t = 4 / 5 = 0.8 s。即物块最多滑行 1.6 m，历时 0.8 s。</div>
+                </div>
+                <div class="src-row sm">
+                  <div class="src-thumb"><img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Close-up%20photograph%20of%20a%20physics%20test%20paper%20on%20a%20light%20wooden%20desk%2C%20printed%20mechanics%20problem%20with%20a%20small%20force%20diagram%2C%20neat%20handwritten%20working%20in%20blue%20ballpoint%20pen%2C%20realistic%20smartphone%20photography%2C%20soft%20daylight&image_size=portrait_4_3" alt="试卷原图（AI 生成示意）" loading="lazy"></div>
+                  <div>
+                    <div class="src-t">试卷原图</div>
+                    <a class="src-link" href="javascript:void(0)"><svg class="icon" width="15" height="15"><use href="#i-search"/></svg>查看原图</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="action-bar glass-bar">
+        <div class="bar-row">
+          <button class="btn btn-primary main" type="button"><svg class="icon" width="19" height="19"><use href="#i-check"/></svg>显示答案</button>
+          <button class="btn btn-secondary" type="button">下一题</button>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="sicons">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.7" y="4.5" width="3" height="6.5" rx="1"/><rect x="9.4" y="2.5" width="3" height="8.5" rx="1"/><rect x="14.1" y=".5" width="3" height="10.5" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.3 3.9a9.6 9.6 0 0 1 13.4 0"/><path d="M3.9 6.6a5.9 5.9 0 0 1 8.2 0"/><circle cx="8" cy="9.4" r="1.35" fill="currentColor" stroke="none"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".8" y=".8" width="19.4" height="10.4" rx="3.2" stroke="currentColor" stroke-opacity=".38"/><rect x="2.6" y="2.6" width="13.2" height="6.8" rx="1.6" fill="currentColor"/><path d="M22.2 4v4a2.3 2.3 0 0 0 0-4Z" fill="currentColor" fill-opacity=".38"/></svg>
+        </span>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+    <div class="phone-notes">
+      <div class="note"><span class="note-tag t-design">设计</span><p>大号题号「3 / 12」作进度心理锚点（深绿 #067A3E）+ 胶囊进度条（25%）；答案以虚线遮挡占位块呈现；刷题中隐藏 tabBar，吸底操作条为毛玻璃 ③。</p></div>
+      <div class="note"><span class="note-tag t-inter">交互</span><p>点击卡片或「显示答案」→ 0.4s 3D 翻面（perspective 1000px + rotateY 180°）→ 11。原型内点击卡片可直接体验翻面动画；右上角「洗牌」重新随机。</p></div>
+    </div>
+  </section>
+
+  <!-- 11 刷题 · 卡片背面 -->
+  <section class="screen-cell">
+    <div class="screen-head"><span class="screen-no">11</span><span class="screen-name">刷题 · 卡片背面</span><span class="screen-route">pages/quiz/index</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="chrome-top glass-nav">
+        <div class="nav-row">
+          <span class="nav-btn nav-back"><svg class="icon" width="22" height="22"><use href="#i-arrowl"/></svg></span>
+          <span class="nav-title">刷题</span>
+          <span class="nav-btn nav-right" title="重新洗牌"><svg class="icon" width="21" height="21"><use href="#i-shuffle"/></svg></span>
+        </div>
+      </div>
+      <div class="body body--nav body--bar">
+        <div class="page-pad">
+          <div class="quiz-head">
+            <div class="qh-left"><span class="qh-cur">3</span><span class="qh-total">/ 12 题</span></div>
+            <span class="chip chip-blue"><svg class="icon" width="13" height="13"><use href="#i-shuffle"/></svg>随机 · 本轮不重复</span>
+          </div>
+          <div class="quiz-bar"><i style="width:25%"></i></div>
+          <div class="flip flipped" id="flip-back">
+            <div class="flip-inner">
+              <div class="flip-face">
+                <div class="q-head"><span class="chip chip-green">物理 · 匀变速直线运动</span><span class="q-time">第 3 题</span></div>
+                <div class="quiz-q">质量 m = 2 kg 的物块以 v₀ = 4 m/s 的初速度沿粗糙水平面滑行，与地面间的动摩擦因数 μ = 0.5。求物块能滑行的最大距离和所用时间。（g 取 10 m/s²）</div>
+                <div class="quiz-cover">
+                  <svg class="icon" width="22" height="22"><use href="#i-lock"/></svg>
+                  <div class="c1">答案已遮挡</div>
+                  <div class="c2">点击卡片或「显示答案」翻面查看</div>
+                </div>
+              </div>
+              <div class="flip-face flip-back">
+                <div class="q-head"><span class="chip chip-green">物理 · 匀变速直线运动</span><span class="q-time">第 3 题</span></div>
+                <div class="quiz-q-sm">质量 m = 2 kg 的物块以 v₀ = 4 m/s 的初速度沿粗糙水平面滑行，动摩擦因数 μ = 0.5，求最大滑行距离与所用时间。（g 取 10 m/s²）</div>
+                <div class="ans-block">
+                  <div class="ans-label"><svg class="icon" width="15" height="15"><use href="#i-check"/></svg>答案</div>
+                  <div class="ans-text2">滑动摩擦力 f = μmg = 0.5 × 2 × 10 = 10 N，方向与运动相反；加速度大小 a = f / m = 5 m/s²。由 v₀² = 2as 得 s = 16 / 10 = 1.6 m；由 v₀ = at 得 t = 4 / 5 = 0.8 s。即物块最多滑行 1.6 m，历时 0.8 s。</div>
+                </div>
+                <div class="src-row sm">
+                  <div class="src-thumb"><img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Close-up%20photograph%20of%20a%20physics%20test%20paper%20on%20a%20light%20wooden%20desk%2C%20printed%20mechanics%20problem%20with%20a%20small%20force%20diagram%2C%20neat%20handwritten%20working%20in%20blue%20ballpoint%20pen%2C%20realistic%20smartphone%20photography%2C%20soft%20daylight&image_size=portrait_4_3" alt="试卷原图（AI 生成示意）" loading="lazy"></div>
+                  <div>
+                    <div class="src-t">试卷原图</div>
+                    <a class="src-link" href="javascript:void(0)"><svg class="icon" width="15" height="15"><use href="#i-search"/></svg>查看原图</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="action-bar glass-bar">
+        <div class="bar-row">
+          <button class="btn btn-secondary" type="button">收起答案</button>
+          <button class="btn btn-primary main" type="button">下一题</button>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="sicons">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.7" y="4.5" width="3" height="6.5" rx="1"/><rect x="9.4" y="2.5" width="3" height="8.5" rx="1"/><rect x="14.1" y=".5" width="3" height="10.5" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.3 3.9a9.6 9.6 0 0 1 13.4 0"/><path d="M3.9 6.6a5.9 5.9 0 0 1 8.2 0"/><circle cx="8" cy="9.4" r="1.35" fill="currentColor" stroke="none"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".8" y=".8" width="19.4" height="10.4" rx="3.2" stroke="currentColor" stroke-opacity=".38"/><rect x="2.6" y="2.6" width="13.2" height="6.8" rx="1.6" fill="currentColor"/><path d="M22.2 4v4a2.3 2.3 0 0 0 0-4Z" fill="currentColor" fill-opacity=".38"/></svg>
+        </span>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+    <div class="phone-notes">
+      <div class="note"><span class="note-tag t-design">设计</span><p>背面 = 压缩题干（2 行截断、灰色弱化）+ 浅绿答案区（#E8F8EF 底 + 深绿标签）+ 原图缩略；主行动切换为「下一题」。</p></div>
+      <div class="note"><span class="note-tag t-inter">交互</span><p>「收起答案」或点击卡片 → 翻回 10；「下一题」→ 随机抽取下一题（本轮不重复）回到 10；最后一题答完 → 12。</p></div>
+    </div>
+  </section>
+
+  <!-- 12 本轮完成 -->
+  <section class="screen-cell">
+    <div class="screen-head"><span class="screen-no">12</span><span class="screen-name">本轮完成</span><span class="screen-route">pages/quiz/done</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="body body--home">
+        <div class="done-wrap">
+          <div class="done-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 5 5L19.5 7"/></svg></div>
+          <div class="done-title">本轮完成！</div>
+          <div class="done-sub">坚持复盘，错题会越来越少</div>
+          <div class="card done-stats">
+            <div class="lstat"><div class="n green">12<span class="u">道</span></div><div class="l">本轮答题</div></div>
+            <div class="lstat"><div class="n">8<span class="u">分</span> 24<span class="u">秒</span></div><div class="l">总用时</div></div>
+          </div>
+          <div class="done-btns">
+            <button class="btn btn-primary" type="button"><svg class="icon" width="19" height="19"><use href="#i-shuffle"/></svg>再来一轮</button>
+            <button class="btn btn-secondary" type="button">返回题库</button>
+          </div>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="sicons">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.7" y="4.5" width="3" height="6.5" rx="1"/><rect x="9.4" y="2.5" width="3" height="8.5" rx="1"/><rect x="14.1" y=".5" width="3" height="10.5" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.3 3.9a9.6 9.6 0 0 1 13.4 0"/><path d="M3.9 6.6a5.9 5.9 0 0 1 8.2 0"/><circle cx="8" cy="9.4" r="1.35" fill="currentColor" stroke="none"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".8" y=".8" width="19.4" height="10.4" rx="3.2" stroke="currentColor" stroke-opacity=".38"/><rect x="2.6" y="2.6" width="13.2" height="6.8" rx="1.6" fill="currentColor"/><path d="M22.2 4v4a2.3 2.3 0 0 0 0-4Z" fill="currentColor" fill-opacity=".38"/></svg>
+        </span>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+    <div class="phone-notes">
+      <div class="note"><span class="note-tag t-design">设计</span><p>完成图标 = 微信绿圆形对勾 + 浅绿光环（弹入动画）；本轮统计卡展示题数 / 用时；双按钮垂直排布，主行动为「再来一轮」。</p></div>
+      <div class="note"><span class="note-tag t-inter">交互</span><p>「再来一轮」重新洗牌、回到 10 开始新一轮；「返回题库」→ 文件 2 · 06 题库列表。</p></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="shell-footer">
+  设计基准 375 × 812 · 微信小程序 · 仅覆盖 MVP 核心闭环<br>
+  对应文档：需求分析文档.md / 方案设计文档.md / UI原型设计方案.md
+</footer>
+
+<script>
+  // 刷题卡片 3D 翻面演示：点击卡片切换正 / 反面（0.4s，见 .flip-inner transition）
+  document.querySelectorAll('.flip').forEach(function (el) {
+    el.addEventListener('click', function () {
+      el.classList.toggle('flipped');
+    });
+  });
+</script>
+
+</body>
+</html>

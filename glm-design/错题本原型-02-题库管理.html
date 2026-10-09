@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>错题本原型 · 文件 2 · 题库管理</title>
+<style>
+/* ================= 原型外层（规格页） ================= */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --green: #07C160; --green-deep: #06AD56; --green-text: #067A3E;
+  --green-bg: #E8F8EF; --green-bg-strong: #C6F0D8;
+  --link: #576B95; --blue: #10AEFF; --blue-text: #0A6EBD; --blue-bg: #E6F6FF;
+  --orange: #FA9D3B; --orange-text: #9A5B00; --orange-bg: #FEF3E6;
+  --red: #FA5151; --red-bg: #FEEDED;
+  --ink: #1A1A1A; --ink-2: #787878; --ink-3: #B3B3B3;
+  --line: rgba(0, 0, 0, .08); --page: #F7F7F7; --card: #FFFFFF;
+  --r-s: 8px; --r-m: 12px; --r-l: 16px;
+  --font: "PingFang SC", "SF Pro Text", system-ui, -apple-system, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+  --shadow-float: 0 6px 20px rgba(0, 0, 0, .06);
+}
+body {
+  font-family: var(--font); color: var(--ink);
+  background-color: #ECEEF1;
+  background-image: radial-gradient(rgba(28, 39, 60, .06) 1.1px, transparent 1.1px);
+  background-size: 24px 24px;
+  -webkit-font-smoothing: antialiased;
+}
+.shell-header { max-width: 1480px; margin: 0 auto; padding: 56px 40px 8px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: #6B7480; display: flex; align-items: center; gap: 10px; }
+.eyebrow::before { content: ""; width: 28px; height: 2px; background: var(--green); }
+.shell-title { font-size: 30px; font-weight: 700; letter-spacing: .01em; margin-top: 14px; color: #171A1F; }
+.shell-title .count { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--green-text); background: var(--green-bg); border: 1px solid rgba(7, 193, 96, .28); padding: 4px 10px; border-radius: 999px; vertical-align: 7px; margin-left: 10px; }
+.flow { margin-top: 12px; font-size: 13.5px; color: #565E6A; line-height: 1.8; }
+.flow b { color: #171A1F; font-weight: 600; }
+.file-nav { margin-top: 12px; font-size: 13px; color: #6B7480; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.file-nav .cur { color: #171A1F; font-weight: 600; }
+.file-nav a { color: var(--link); text-decoration: none; border-bottom: 1px dashed rgba(87, 107, 149, .45); padding-bottom: 1px; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 20px; margin-top: 22px; padding: 14px 18px; background: rgba(255, 255, 255, .72); border: 1px solid rgba(0, 0, 0, .06); border-radius: 14px; width: fit-content; max-width: 100%; }
+.lg { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #424A56; white-space: nowrap; }
+.lg i { width: 15px; height: 15px; border-radius: 5px; border: 1px solid rgba(0, 0, 0, .14); }
+.lg code { font-family: var(--mono); font-size: 10.5px; color: #8A9099; }
+.meta { margin-top: 12px; font-size: 12px; color: #8A9099; line-height: 1.9; max-width: 960px; }
+.proto-grid { max-width: 1480px; margin: 0 auto; padding: 40px 40px 100px; display: grid; grid-template-columns: repeat(auto-fit, minmax(375px, 1fr)); gap: 88px 56px; justify-items: center; }
+.screen-cell { display: flex; flex-direction: column; align-items: center; }
+.screen-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.screen-no { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--green-text); background: var(--green-bg); border: 1px solid rgba(7, 193, 96, .3); border-radius: 999px; padding: 3px 10px; }
+.screen-name { font-size: 15.5px; font-weight: 700; color: #171A1F; }
+.screen-route { font-family: var(--mono); font-size: 11px; color: #9AA1AB; }
+.phone-notes { margin-top: 24px; width: 375px; max-width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.note { display: flex; gap: 8px; font-size: 12px; line-height: 1.75; color: #565E6A; }
+.note-tag { flex: none; margin-top: 3px; font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 5px; font-weight: 600; }
+.t-design { color: var(--blue-text); background: var(--blue-bg); }
+.t-inter { color: var(--green-text); background: var(--green-bg); }
+.shell-footer { max-width: 1480px; margin: 0 auto; padding: 0 40px 56px; font-size: 12px; color: #9AA1AB; line-height: 1.9; }
+@media (max-width: 460px) {
+  .shell-header { padding: 40px 20px 8px; }
+  .proto-grid { padding: 32px 16px 80px; gap: 64px 24px; }
+  .phone-notes { width: 100%; }
+  .shell-footer { padding: 0 20px 40px; }
+}
+
+/* ================= 手机框与系统层 ================= */
+.phone { position: relative; width: 375px; height: 812px; border-radius: 47px; background: var(--page); overflow: hidden; flex: none;
+  box-shadow: 0 0 0 11px #111318, 0 0 0 12.5px #34383F, 0 34px 70px -18px rgba(16, 20, 28, .4), 0 14px 30px rgba(16, 20, 28, .18); }
+.island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 98px; height: 27px; border-radius: 999px; background: #0A0C10; z-index: 96; }
+.statusbar { position: absolute; top: 0; left: 0; right: 0; height: 44px; z-index: 92; display: flex; align-items: center; justify-content: space-between; padding: 2px 27px 0 34px; color: #0E1116; font-family: var(--mono); font-size: 14.5px; font-weight: 600; letter-spacing: .3px; pointer-events: none; }
+.statusbar--light { color: #FFFFFF; }
+.sicons { display: flex; align-items: center; gap: 6px; }
+.home-indicator { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 135px; height: 5px; border-radius: 999px; background: rgba(12, 14, 18, .9); z-index: 97; pointer-events: none; }
+
+/* 毛玻璃 ①②③④（含 @supports 降级） */
+.glass-nav { background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); }
+.glass-tab { background: rgba(255, 255, 255, .80); -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); }
+.glass-bar { background: rgba(255, 255, 255, .66); -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%); }
+.glass-panel { background: rgba(255, 255, 255, .90); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-nav, .glass-tab, .glass-bar, .glass-panel { background: rgba(255, 255, 255, .96); }
+}
+
+/* 导航栏 / tabBar / 吸底操作条 */
+.chrome-top { position: absolute; top: 0; left: 0; right: 0; z-index: 80; padding-top: 44px; border-bottom: 1px solid var(--line); }
+.nav-row { height: 44px; position: relative; display: flex; align-items: center; justify-content: center; }
+.nav-title { font-size: 17px; font-weight: 600; color: var(--ink); letter-spacing: .2px; }
+.nav-btn { position: absolute; top: 0; height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; color: var(--ink); }
+.nav-back { left: 6px; }
+.nav-right { right: 6px; color: var(--ink-2); }
+.tabbar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 82; border-top: 1px solid var(--line); padding-bottom: 21px; }
+.tab-row { height: 56px; display: flex; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: var(--ink-2); }
+.tab.active { color: var(--green); font-weight: 600; }
+.action-bar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 82; border-top: 1px solid var(--line); padding: 12px 16px 30px; }
+.bar-row { display: flex; gap: 12px; }
+.bar-row .btn { flex: 1; }
+.bar-row .btn.main { flex: 1.5; }
+
+/* 页面主体 */
+.body { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.body::-webkit-scrollbar { display: none; }
+.body--home { padding-top: 44px; }
+.body--nav { padding-top: 89px; }
+.body--tab { padding-bottom: 79px; }
+.body--bar { padding-bottom: 118px; }
+.page-pad { padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+
+/* ================= 通用组件 ================= */
+.icon { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-m); padding: 16px; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 7px; height: 48px; border-radius: 999px; border: none; font-family: inherit; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; }
+.btn-primary { background: var(--green); color: #FFFFFF; }
+.btn-primary:active { background: var(--green-deep); }
+.btn-secondary { background: #FFFFFF; color: var(--ink); border: 1px solid rgba(0, 0, 0, .1); }
+.btn-danger { background: #FFFFFF; color: var(--red); border: 1px solid rgba(250, 81, 81, .4); }
+.btn:active { transform: scale(.985); }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.chip .icon { width: 13px; height: 13px; }
+.chip-green { background: var(--green-bg); color: var(--green-text); }
+.chip-blue { background: var(--blue-bg); color: var(--blue-text); }
+.chip-orange { background: var(--orange-bg); color: var(--orange-text); }
+.chip-gray { background: #F2F2F2; color: #8C8C8C; }
+.mini-link { font-size: 12px; color: var(--link); display: inline-flex; align-items: center; gap: 2px; }
+
+/* ================= 首页（仅文件 1 使用，保留以统一规范） ================= */
+.home-wrap { height: 100%; display: flex; flex-direction: column; padding: 26px 16px 14px; }
+
+/* ================= 题库列表 ================= */
+.lib-stats { display: flex; padding: 14px 8px; }
+.lstat { flex: 1; text-align: center; }
+.lstat + .lstat { border-left: 1px solid var(--line); }
+.lstat .n { font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lstat .n .u { font-size: 12px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.lstat .n.orange { color: var(--orange-text); }
+.lstat .l { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; }
+.qcard-wrap { position: relative; border-radius: var(--r-m); overflow: hidden; }
+.swipe-del { position: absolute; top: 0; bottom: 0; right: 0; width: 76px; background: var(--red); color: #FFF; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; }
+.qcard { position: relative; background: #FFF; border: 1px solid var(--line); border-radius: var(--r-m); padding: 14px 16px; transition: transform .28s ease; }
+.qcard.swiped { transform: translateX(-76px); }
+.q-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.q-time { font-size: 12px; color: var(--ink-3); flex: none; }
+.q-text { margin-top: 9px; font-size: 15px; line-height: 24px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.q-meta { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
+.fab { position: absolute; right: 16px; bottom: 94px; width: 56px; height: 56px; border-radius: 999px; background: var(--green); color: #FFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(0, 0, 0, .08), 0 4px 14px rgba(7, 193, 96, .3); z-index: 78; }
+
+/* ================= 题目详情 ================= */
+.full-text { font-size: 15px; line-height: 24px; margin-top: 10px; }
+.photo-lg { position: relative; border-radius: var(--r-s); overflow: hidden; margin-top: 10px; }
+.photo-lg img { width: 100%; height: 175px; object-fit: cover; display: block; }
+.photo-zoom { position: absolute; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 11px; border-radius: 999px; background: rgba(0, 0, 0, .55); color: #FFF; font-size: 12px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.ans-text { font-size: 15px; line-height: 24px; margin-top: 8px; }
+.card-label { font-size: 13px; font-weight: 600; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+
+/* ================= 空态 ================= */
+.empty-wrap { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 40px 120px; }
+.empty-t { font-size: 17px; font-weight: 600; margin-top: 22px; }
+.empty-d { font-size: 14px; color: var(--ink-2); margin-top: 8px; line-height: 22px; }
+.empty-btn { width: auto; padding: 0 30px; margin-top: 26px; }
+
+/* ================= 弹窗 / Toast ================= */
+.mask { position: absolute; inset: 0; background: rgba(0, 0, 0, .45); z-index: 84; }
+.mask--blur { background: rgba(0, 0, 0, .35); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 280px; z-index: 88; border-radius: var(--r-l); overflow: hidden; text-align: center; padding-top: 22px; box-shadow: var(--shadow-float); }
+.dialog-icon { width: 46px; height: 46px; border-radius: 999px; background: var(--red-bg); color: var(--red); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+.dialog-title { font-size: 17px; font-weight: 600; }
+.dialog-desc { font-size: 14px; line-height: 21px; color: var(--ink-2); margin-top: 7px; padding: 0 6px; }
+.dialog-btns { display: flex; margin-top: 18px; border-top: 1px solid var(--line); }
+.dialog-btn { flex: 1; height: 52px; border: none; background: none; font-size: 16px; color: var(--ink-2); font-family: inherit; cursor: pointer; }
+.dialog-btn + .dialog-btn { border-left: 1px solid var(--line); }
+.dialog-btn.danger { color: var(--red); font-weight: 600; }
+.toast { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); z-index: 90; background: rgba(0, 0, 0, .88); color: #FFF; border-radius: 999px; padding: 13px 24px; display: flex; align-items: center; gap: 9px; font-size: 15px; letter-spacing: .5px; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+.toast-ck { width: 21px; height: 21px; border-radius: 999px; background: var(--green); display: flex; align-items: center; justify-content: center; flex: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- 图标库（线性 · 描边 1.8 · currentColor） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.6 12 4l8 6.6v8.2a1.6 1.6 0 0 1-1.6 1.6H15v-5.6H9v5.6H5.6A1.6 1.6 0 0 1 4 18.8Z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><rect x="6.5" y="3.5" width="14" height="17" rx="2.6"/><path d="M2.5 8h4M2.5 12h4M2.5 16h4"/></symbol>
+  <symbol id="i-cards" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2.6"/><path d="M5.2 15.5h-.7A2.5 2.5 0 0 1 2 13V5a2.5 2.5 0 0 1 2.5-2.5h8A2.5 2.5 0 0 1 15 5v.7"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M8.2 3.3 6.7 5.5H5.5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1.2l-1.5-2.2Z"/><circle cx="12" cy="13" r="3.6"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.6"/><circle cx="8.7" cy="9.6" r="1.6"/><path d="m5 17.6 4.6-4.6 3.1 3.1 2.6-2.6 3.7 3.7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 6.5h15M9.5 6.5v-2a1.5 1.5 0 0 1 1.5-1.5h2a1.5 1.5 0 0 1 1.5 1.5v2M6.5 6.5l.9 12.1a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9l.9-12.1M10 10.5v6.5M14 10.5v6.5"/></symbol>
+  <symbol id="i-arrowr" viewBox="0 0 24 24"><path d="M4.5 12h15M13.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-arrowl" viewBox="0 0 24 24"><path d="M19.5 12h-15M10.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4.5v15M4.5 12h15"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3.2 2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.6 21.4 19.7a1.3 1.3 0 0 1-1.1 1.9H3.7a1.3 1.3 0 0 1-1.1-1.9ZM12 9.8v4.4M12 17.4v.01"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3.5 6.5h3c5.4 0 7.6 11 13 11h1M3.5 17.5h3c2.1 0 3.6-1.7 4.8-3.6M13.7 10c1.2-1.9 2.7-3.5 4.8-3.5h1M17.5 3.5l3 3-3 3M17.5 14.5l3 3-3 3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.3 15.3 5 5"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M16.8 3.2a2.4 2.4 0 0 1 3.4 3.4L7.6 19.2 3.5 20.5l1.3-4.1Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2.6"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5h6.5L10.5 21.5 19.5 10.5H13Z"/></symbol>
+</defs></svg>
+
+<header class="shell-header">
+  <div class="eyebrow">错题管理小程序 · UI 原型 v1.1 · MVP 核心闭环</div>
+  <h1 class="shell-title">文件 2 · 题库管理<span class="count">4 屏</span></h1>
+  <p class="flow">流程：<b>06 题库列表</b> → <b>07 题库空态</b>（互斥状态）｜ 列表项：<b>08 题目详情</b> → <b>09 删除二次确认</b></p>
+  <nav class="file-nav">
+    <a href="错题本原型-01-录入与入库.html">文件 1 · 录入与入库</a>
+    <span class="cur">◉ 文件 2 · 题库管理</span>
+    <a href="错题本原型-03-刷题复习.html">文件 3 · 刷题复习</a>
+  </nav>
+  <div class="legend">
+    <span class="lg"><i style="background:#07C160"></i>微信绿 <code>#07C160</code></span>
+    <span class="lg"><i style="background:#067A3E"></i>深绿文字 <code>#067A3E</code></span>
+    <span class="lg"><i style="background:#E8F8EF"></i>浅绿底 <code>#E8F8EF</code></span>
+    <span class="lg"><i style="background:#10AEFF"></i>信息蓝 <code>#10AEFF</code></span>
+    <span class="lg"><i style="background:#576B95"></i>链接蓝 <code>#576B95</code></span>
+    <span class="lg"><i style="background:#FA9D3B"></i>警示橙 <code>#FA9D3B</code></span>
+    <span class="lg"><i style="background:#FA5151"></i>警示红 <code>#FA5151</code></span>
+    <span class="lg"><i style="background:#1A1A1A"></i>主文本 <code>#1A1A1A</code></span>
+    <span class="lg"><i style="background:#787878"></i>辅助 <code>#787878</code></span>
+    <span class="lg"><i style="background:#F7F7F7"></i>页面底 <code>#F7F7F7</code></span>
+  </div>
+  <p class="meta">毛玻璃四处：导航栏 blur(20px) · tabBar blur(24px) · 吸底操作条 blur(16px) · 弹层 blur(30px)，均 saturate(180%) 并带 -webkit- 前缀，@supports 降级为 rgba(255,255,255,.96)。浅底上的小号蓝 / 橙文字使用加深变体（#0A6EBD / #9A5B00）以满足对比度 ≥ 4.5:1。原型中的「原图」为 AI 生成的试卷照片示意。</p>
+</header>
+
+<main class="proto-grid">
+
+  <!-- 06 题库列表 -->
+  <section class="screen-cell">
+    <div class="screen-head"><span class="screen-no">06</span><span class="screen-name">题库列表</span><span class="screen-route">pages/library/index</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="chrome-top glass-nav">
+        <div class="nav-row"><span class="nav-title">题库</span></div>
+      </div>
+      <div class="body body--nav body--tab">
+        <div class="page-pad">
+          <div class="card lib-stats">
+            <div class="lstat"><div class="n">36</div><div class="l">错题总数</div></div>
+            <div class="lstat"><div class="n orange">12</div><div class="l">待复习</div></div>
+            <div class="lstat"><div class="n">2.1<span class="u">MB</span></div><div class="l">本地占用</div></div>
+          </div>
+
+          <div class="qcard-wrap">
+            <div class="swipe-del"><svg class="icon" width="20" height="20"><use href="#i-trash"/></svg><span>删除</span></div>
+            <div class="qcard">
+              <div class="q-head"><span class="chip chip-green">数学 · 二次函数</span><span class="q-time">3 天前</span></div>
+              <div class="q-text">已知二次函数 f(x) = x² − 2ax + 3 在区间 [1, 3] 上的最小值为 −2，求实数 a 的值。</div>
+              <div class="q-meta"><span class="chip chip-gray"><svg class="icon" width="13" height="13"><use href="#i-image"/></svg>含原图</span></div>
+            </div>
+          </div>
+
+          <div class="qcard-wrap">
+            <div class="swipe-del"><svg class="icon" width="20" height="20"><use href="#i-trash"/></svg><span>删除</span></div>
+            <div class="qcard swiped">
+              <div class="q-head"><span class="chip chip-green">物理 · 匀变速直线运动</span><span class="q-time">5 天前</span></div>
+              <div class="q-text">质量 m = 2 kg 的物块以 v₀ = 4 m/s 的初速度沿粗糙水平面滑行，动摩擦因数 μ = 0.5，求最大滑行距离与所用时间。（g 取 10 m/s²）</div>
+              <div class="q-meta"><span class="chip chip-gray"><svg class="icon" width="13" height="13"><use href="#i-image"/></svg>含原图</span></div>
+            </div>
+          </div>
+
+          <div class="qcard-wrap">
+            <div class="swipe-del"><svg class="icon" width="20" height="20"><use href="#i-trash"/></svg><span>删除</span></div>
+            <div class="qcard">
+              <div class="q-head"><span class="chip chip-green">数学 · 数列</span><span class="q-time">1 周前</span></div>
+              <div class="q-text">等差数列 {an} 中，a₃ = 7，a₇ = 19，求通项公式与前 20 项的和 S₂₀。</div>
+              <div class="q-meta"><span class="chip chip-gray"><svg class="icon" width="13" height="13"><use href="#i-image"/></svg>含原图</span></div>
+            </div>
+          </div>
+
+          <div class="qcard-wrap">
+            <div class="swipe-del"><svg class="icon" width="20" height="20"><use href="#i-trash"/></svg><span>删除</span></div>
+            <div class="qcard">
+              <div class="q-head"><span class="chip chip-green">英语 · 时态语态</span><span class="q-time">1 周前</span></div>
+              <div class="q-text">The new bridge ____ (complete) by the end of last month, two months ahead of schedule.（考点：过去完成时的被动语态）</div>
+              <div class="q-meta"><span class="chip chip-gray"><svg class="icon" width="13" height="13"><use href="#i-pen"/></svg>纯文本题</span></div>
+            </div>
+          </div>
+
+          <div class="qcard-wrap">
+            <div class="swipe-del"><svg class="icon" width="20" height="20"><use href="#i-trash"/></svg><span>删除</span></div>
+            <div class="qcard">
+              <div class="q-head"><span class="chip chip-green">化学 · 氧化还原</span><span class="q-time">2 周前</span></div>
+              <div class="q-text">铁与氯气反应、铁与稀盐酸反应产物不同，请从氧化性强弱的角度解释原因，并写出两个反应的化学方程式。</div>
+              <div class="q-meta"><span class="chip chip-gray"><svg class="icon" width="13" height="13"><use href="#i-image"/></svg>含原图</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="sicons">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.7" y="4.5" width="3" height="6.5" rx="1"/><rect x="9.4" y="2.5" width="3" height="8.5" rx="1"/><rect x="14.1" y=".5" width="3" height="10.5" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.3 3.9a9.6 9.6 0 0 1 13.4 0"/><path d="M3.9 6.6a5.9 5.9 0 0 1 8.2 0"/><circle cx="8" cy="9.4" r="1.35" fill="currentColor" stroke="none"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".8" y=".8" width="19.4" height="10.4" rx="3.2" stroke="currentColor" stroke-opacity=".38"/><rect x="2.6" y="2.6" width="13.2" height="6.8" rx="1.6" fill="currentColor"/><path d="M22.2 4v4a2.3 2.3 0 0 0 0-4Z" fill="currentColor" fill-opacity=".38"/></svg>
+        </span>
+      </div>
+      <div class="fab"><svg class="icon" width="24" height="24"><use href="#i-plus"/></svg></div>
+      <div class="tabbar glass-tab">
+        <div class="tab-row">
+          <div class="tab"><svg class="icon" width="22" height="22"><use href="#i-home"/></svg><span>首页</span></div>
+          <div class="tab active"><svg class="icon" width="22" height="22"><use href="#i-book"/></svg><span>题库</span></div>
+          <div class="tab"><svg class="icon" width="22" height="22"><use href="#i-cards"/></svg><span>刷题</span></div>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+    <div class="phone-notes">
+      <div class="note"><span class="note-tag t-design">设计</span><p>顶部题量统计（「待复习」用警示橙语义色）；错题卡片题干 2 行截断，「含原图」灰色角标；FAB 距 tabBar 上方 16px；列表可上下滚动，内容从导航栏 / tabBar 毛玻璃下透出。</p></div>
+      <div class="note"><span class="note-tag t-inter">交互</span><p>点击卡片 → 08；左滑露出 76px 红色「删除」→ 09（原型第 2 张卡片为左滑态，松手回弹）；点击 FAB → 文件 1 · 02 选择录入方式。</p></div>
+    </div>
+  </section>
+
+  <!-- 07 题库空态 -->
+  <section class="screen-cell">
+    <div class="screen-head"><span class="screen-no">07</span><span class="screen-name">题库空态</span><span class="screen-route">pages/library/index</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="chrome-top glass-nav">
+        <div class="nav-row"><span class="nav-title">题库</span></div>
+      </div>
+      <div class="body body--nav body--tab">
+        <div class="empty-wrap">
+          <svg width="88" height="88" viewBox="0 0 88 88" fill="none" aria-hidden="true">
+            <rect x="10" y="14" width="56" height="60" rx="10" stroke="#C4C9CF" stroke-width="2.5" stroke-dasharray="6 6"/>
+            <line x1="24" y1="36" x2="52" y2="36" stroke="#D9DDE2" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="24" y1="48" x2="46" y2="48" stroke="#D9DDE2" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="24" y1="60" x2="40" y2="60" stroke="#D9DDE2" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="64" cy="64" r="16" fill="#07C160"/>
+            <path d="M64 56v16M56 64h16" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <div class="empty-t">还没有错题</div>
+          <div class="empty-d">拍照录入第一道错题<br>攒下每一次进步</div>
+          <button class="btn btn-primary empty-btn" type="button">去录入第一道错题</button>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="sicons">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.7" y="4.5" width="3" height="6.5" rx="1"/><rect x="9.4" y="2.5" width="3" height="8.5" rx="1"/><rect x="14.1" y=".5" width="3" height="10.5" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.3 3.9a9.6 9.6 0 0 1 13.4 0"/><path d="M3.9 6.6a5.9 5.9 0 0 1 8.2 0"/><circle cx="8" cy="9.4" r="1.35" fill="currentColor" stroke="none"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".8" y=".8" width="19.4" height="10.4" rx="3.2" stroke="currentColor" stroke-opacity=".38"/><rect x="2.6" y="2.6" width="13.2" height="6.8" rx="1.6" fill="currentColor"/><path d="M22.2 4v4a2.3 2.3 0 0 0 0-4Z" fill="currentColor" fill-opacity=".38"/></svg>
+        </span>
+      </div>
+      <div class="tabbar glass-tab">
+        <div class="tab-row">
+          <div class="tab"><svg class="icon" width="22" height="22"><use href="#i-home"/></svg><span>首页</span></div>
+          <div class="tab active"><svg class="icon" width="22" height="22"><use href="#i-book"/></svg><span>题库</span></div>
+          <div class="tab"><svg class="icon" width="22" height="22"><use href="#i-cards"/></svg><span>刷题</span></div>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+    <div class="phone-notes">
+      <div class="note"><span class="note-tag t-design">设计</span><p>空态 = 80px 线性图标（虚线卡片隐喻「待加入的错题」+ 绿色加号角标）+ 17px 主文案 + 14px 副文案 + 唯一行动按钮，整体垂直居中。</p></div>
+      <div class="note"><span class="note-tag t-inter">交互</span><p>点击「去录入第一道错题」→ 文件 1 · 02 选择录入方式；题库为空时刷题页同样引导至此。</p></div>
+    </div>
+  </section>
+
+  <!-- 08 题目详情预览 -->
+  <section class="screen-cell">
+    <div class="screen-head"><span class="screen-no">08</span><span class="screen-name">题目详情预览</span><span class="screen-route">pages/library/detail</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="chrome-top glass-nav">
+        <div class="nav-row">
+          <span class="nav-btn nav-back"><svg class="icon" width="22" height="22"><use href="#i-arrowl"/></svg></span>
+          <span class="nav-title">题目详情</span>
+        </div>
+      </div>
+      <div class="body body--nav">
+        <div class="page-pad">
+          <div class="card">
+            <div class="q-head"><span class="chip chip-green">数学 · 二次函数</span><span class="q-time">3 天前 · 录入</span></div>
+            <div class="full-text">已知二次函数 f(x) = x² − 2ax + 3 在区间 [1, 3] 上的最小值为 −2，求实数 a 的值。</div>
+          </div>
+          <div class="card">
+            <div class="card-label">原图</div>
+            <div class="photo-lg">
+              <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Top-down%20photograph%20of%20a%20Chinese%20high%20school%20math%20exam%20paper%20on%20a%20desk%2C%20one%20printed%20quadratic%20function%20problem%2C%20handwritten%20solution%20in%20black%20gel%20pen%20beside%20it%2C%20soft%20natural%20window%20light%2C%20realistic%20smartphone%20photo%2C%20high%20detail&image_size=portrait_4_3" alt="试卷原图（AI 生成示意）" loading="lazy">
+              <span class="photo-zoom"><svg class="icon" width="14" height="14"><use href="#i-search"/></svg>看大图</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-label">答案</div>
+            <div class="ans-text">① 当 a &lt; 1 时，f(x) 在 [1, 3] 上单调递增，最小值 f(1) = 4 − 2a = −2，解得 a = 3，矛盾，舍去；<br>② 当 1 ≤ a ≤ 3 时，最小值 f(a) = 3 − a² = −2，解得 a = √5；<br>③ 当 a &gt; 3 时，最小值 f(3) = 12 − 6a = −2，解得 a = 7/3，舍去。<br>综上：a = √5。</div>
+          </div>
+          <button class="btn btn-danger" type="button" style="margin-top:4px"><svg class="icon" width="18" height="18"><use href="#i-trash"/></svg>删除本题</button>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="sicons">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.7" y="4.5" width="3" height="6.5" rx="1"/><rect x="9.4" y="2.5" width="3" height="8.5" rx="1"/><rect x="14.1" y=".5" width="3" height="10.5" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.3 3.9a9.6 9.6 0 0 1 13.4 0"/><path d="M3.9 6.6a5.9 5.9 0 0 1 8.2 0"/><circle cx="8" cy="9.4" r="1.35" fill="currentColor" stroke="none"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".8" y=".8" width="19.4" height="10.4" rx="3.2" stroke="currentColor" stroke-opacity=".38"/><rect x="2.6" y="2.6" width="13.2" height="6.8" rx="1.6" fill="currentColor"/><path d="M22.2 4v4a2.3 2.3 0 0 0 0-4Z" fill="currentColor" fill-opacity=".38"/></svg>
+        </span>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+    <div class="phone-notes">
+      <div class="note"><span class="note-tag t-design">设计</span><p>题干 / 答案完整展示（不截断）；原图右下角半透明「看大图」胶囊；删除为白底红字红描边的危险按钮，置于内容流末尾。</p></div>
+      <div class="note"><span class="note-tag t-inter">交互</span><p>点击原图 → 全屏大图预览（缩放细节待交互评审）；「删除本题」→ 09 二次确认；左上角返回列表。</p></div>
+    </div>
+  </section>
+
+  <!-- 09 删除二次确认 -->
+  <section class="screen-cell">
+    <div class="screen-head"><span class="screen-no">09</span><span class="screen-name">删除二次确认</span><span class="screen-route">Dialog</span></div>
+    <div class="phone">
+      <div class="island"></div>
+      <div class="chrome-top glass-nav">
+        <div class="nav-row">
+          <span class="nav-btn nav-back"><svg class="icon" width="22" height="22"><use href="#i-arrowl"/></svg></span>
+          <span class="nav-title">题目详情</span>
+        </div>
+      </div>
+      <div class="body body--nav">
+        <div class="page-pad">
+          <div class="card">
+            <div class="q-head"><span class="chip chip-green">数学 · 二次函数</span><span class="q-time">3 天前 · 录入</span></div>
+            <div class="full-text">已知二次函数 f(x) = x² − 2ax + 3 在区间 [1, 3] 上的最小值为 −2，求实数 a 的值。</div>
+          </div>
+          <div class="card">
+            <div class="card-label">原图</div>
+            <div class="photo-lg">
+              <img src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Top-down%20photograph%20of%20a%20Chinese%20high%20school%20math%20exam%20paper%20on%20a%20desk%2C%20one%20printed%20quadratic%20function%20problem%2C%20handwritten%20solution%20in%20black%20gel%20pen%20beside%20it%2C%20soft%20natural%20window%20light%2C%20realistic%20smartphone%20photo%2C%20high%20detail&image_size=portrait_4_3" alt="试卷原图（AI 生成示意）" loading="lazy">
+              <span class="photo-zoom"><svg class="icon" width="14" height="14"><use href="#i-search"/></svg>看大图</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-label">答案</div>
+            <div class="ans-text">① 当 a &lt; 1 时，f(x) 在 [1, 3] 上单调递增，最小值 f(1) = 4 − 2a = −2，解得 a = 3，矛盾，舍去；<br>② 当 1 ≤ a ≤ 3 时，最小值 f(a) = 3 − a² = −2，解得 a = √5；<br>③ 当 a &gt; 3 时，最小值 f(3) = 12 − 6a = −2，解得 a = 7/3，舍去。<br>综上：a = √5。</div>
+          </div>
+          <button class="btn btn-danger" type="button" style="margin-top:4px"><svg class="icon" width="18" height="18"><use href="#i-trash"/></svg>删除本题</button>
+        </div>
+      </div>
+      <div class="statusbar statusbar--light">
+        <span>9:41</span>
+        <span class="sicons">
+          <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect y="7" width="3" height="4" rx="1"/><rect x="4.7" y="4.5" width="3" height="6.5" rx="1"/><rect x="9.4" y="2.5" width="3" height="8.5" rx="1"/><rect x="14.1" y=".5" width="3" height="10.5" rx="1"/></svg>
+          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M1.3 3.9a9.6 9.6 0 0 1 13.4 0"/><path d="M3.9 6.6a5.9 5.9 0 0 1 8.2 0"/><circle cx="8" cy="9.4" r="1.35" fill="currentColor" stroke="none"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".8" y=".8" width="19.4" height="10.4" rx="3.2" stroke="currentColor" stroke-opacity=".38"/><rect x="2.6" y="2.6" width="13.2" height="6.8" rx="1.6" fill="currentColor"/><path d="M22.2 4v4a2.3 2.3 0 0 0 0-4Z" fill="currentColor" fill-opacity=".38"/></svg>
+        </span>
+      </div>
+      <div class="mask mask--blur"></div>
+      <div class="dialog glass-panel">
+        <div class="dialog-icon"><svg class="icon" width="25" height="25"><use href="#i-trash"/></svg></div>
+        <div class="dialog-title">删除这道错题？</div>
+        <div class="dialog-desc">删除后将同步清理本题原图，释放本地容量，且无法恢复。</div>
+        <div class="dialog-btns">
+          <button class="dialog-btn" type="button">取消</button>
+          <button class="dialog-btn danger" type="button">删除</button>
+        </div>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+    <div class="phone-notes">
+      <div class="note"><span class="note-tag t-design">设计</span><p>弹窗 280px 宽 · 圆角 16px · 毛玻璃面板 ④（白 0.90 + blur 30px）；警示红仅用于删除语义；遮罩 rgba(0,0,0,.35) + blur(2px)。</p></div>
+      <div class="note"><span class="note-tag t-inter">交互</span><p>「删除」→ 二次确认后同步清理本地图片并返回列表（Toast「已删除」）；「取消」/ 点击遮罩 → 回到 08。</p></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="shell-footer">
+  设计基准 375 × 812 · 微信小程序 · 仅覆盖 MVP 核心闭环<br>
+  对应文档：需求分析文档.md / 方案设计文档.md / UI原型设计方案.md
+</footer>
+
+</body>
+</html>
