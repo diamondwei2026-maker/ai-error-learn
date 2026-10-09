@@ -1,0 +1,151 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+/* ===== 列表 ===== */
+.listBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 8rpx 32rpx 48rpx;
+}
+
+.listHead {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx; // 8px
+  padding: 4rpx 4rpx 24rpx;
+}
+
+.listTitle {
+  font-size: 34rpx; // 17px
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.listCount {
+  font-size: 26rpx;
+  color: $color-text-secondary;
+}
+
+.row {
+  margin-bottom: 24rpx; // 12px
+}
+
+/* ===== FAB（bottom 由 getFabBottom() 内联注入以适配 H5 预览） ===== */
+.fab {
+  position: fixed;
+  right: 32rpx; // 16px
+  width: 112rpx; // 56px
+  height: 112rpx;
+  border-radius: 50%;
+  z-index: 90;
+  background: $color-primary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: $shadow-fab;
+
+  &:active {
+    opacity: 0.92;
+  }
+}
+
+/* ===== 详情预览 ===== */
+.detailBody {
+  flex: 1;
+  padding: 24rpx 32rpx 224rpx; // 底部避让吸底操作条
+}
+
+.chipRow {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.detailCard {
+  @include card-surface;
+
+  margin-top: 24rpx;
+  padding: 32rpx;
+}
+
+.detailImageCard {
+  @include card-surface;
+
+  margin-top: 24rpx;
+  padding: 24rpx; // 12px
+}
+
+.imageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx; // 10px
+}
+
+.imageBox {
+  height: 360rpx; // 180px
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.answerCard {
+  margin-top: 24rpx;
+  padding: 32rpx;
+  border-radius: 24rpx;
+  background: $color-primary-soft;
+  border: 1rpx solid rgba(7, 193, 96, 0.2);
+  box-shadow: $shadow-elev;
+}
+
+.sectionLabel {
+  display: block;
+  font-size: 24rpx; // 12px
+  font-weight: $font-weight-semibold;
+  color: $color-text-tertiary;
+}
+
+.sectionLabelAccent {
+  display: block;
+  font-size: 24rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-primary-ink;
+}
+
+.detailText {
+  display: block;
+  margin-top: 16rpx; // 8px
+  font-size: 32rpx; // 16px
+  line-height: 54rpx; // 27px
+  color: $color-text-primary;
+  white-space: pre-wrap;
+}
+
+.link {
+  font-size: 26rpx;
+  color: $color-link;
+}
+
+.actionBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 88;
+  padding: 20rpx 32rpx calc(52rpx + constant(safe-area-inset-bottom));
+  padding: 20rpx 32rpx calc(52rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid $color-border;
+  @include frosted-glass(16px, $glass-bar-bg);
+}

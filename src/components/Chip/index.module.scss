@@ -1,0 +1,34 @@
+@use '@/styles/variables.scss' as *;
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx; // 4px
+  height: 44rpx; // 22px
+  padding: 0 18rpx; // 9px
+  border-radius: $radius-round;
+  font-size: 24rpx; // 12px
+  line-height: 32rpx; // 16px
+  font-weight: $font-weight-semibold;
+  white-space: nowrap;
+}
+
+.green {
+  color: $color-primary-ink;
+  background: $color-primary-soft;
+}
+
+.blue {
+  color: $color-info-ink;
+  background: $color-info-soft;
+}
+
+.orange {
+  color: $color-warning-ink;
+  background: $color-warning-soft;
+}
+
+.neutral {
+  color: #5a5750;
+  background: $color-bg-hover;
+}

@@ -1,0 +1,31 @@
+@use '@/styles/variables.scss' as *;
+
+.swipe {
+  position: relative;
+  width: 100%;
+  border-radius: 24rpx; // 12px
+  overflow: hidden;
+}
+
+.deleteAction {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 152rpx; // 76px
+  background: $color-error;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteText {
+  font-size: 30rpx; // 15px
+  font-weight: $font-weight-semibold;
+  color: $color-text-white;
+}
+
+.content {
+  position: relative;
+  width: 100%;
+}

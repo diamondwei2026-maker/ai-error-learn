@@ -1,0 +1,64 @@
+@use '@/styles/variables.scss' as *;
+
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  background: $color-mask;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  border-radius: 32rpx 32rpx 0 0; // 16px
+  overflow: hidden;
+  border-top: 1rpx solid $color-border;
+  padding-bottom: calc(44rpx + constant(safe-area-inset-bottom)); // 22px 安全区
+  padding-bottom: calc(44rpx + env(safe-area-inset-bottom));
+  @include frosted-glass(30px, $glass-panel-bg);
+}
+
+.title {
+  display: block;
+  text-align: center;
+  font-size: 26rpx; // 13px
+  color: $color-text-tertiary;
+  padding: 32rpx 0 20rpx; // 16px 0 10px
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx; // 12px
+  height: 116rpx; // 58px
+  padding: 0 48rpx; // 24px
+  font-size: 34rpx; // 17px
+  color: $color-text-primary;
+  border-top: 1rpx solid $color-divider;
+}
+
+.itemLabel {
+  font-size: 34rpx;
+  color: $color-text-primary;
+}
+
+.cancel {
+  margin: 20rpx 24rpx 0; // 10px 12px 0
+  height: 116rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cancelText {
+  font-size: 32rpx; // 16px
+  color: $color-text-secondary;
+}

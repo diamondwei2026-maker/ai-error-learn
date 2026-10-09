@@ -1,0 +1,58 @@
+@use '@/styles/variables.scss' as *;
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  @include frosted-glass(20px, $glass-nav-bg);
+
+  border-bottom: 1rpx solid $color-border;
+}
+
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  font-size: 34rpx; // 17px
+  line-height: 52rpx; // 26px
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.back {
+  position: absolute;
+  left: 12rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 76rpx;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+}
+
+.actionText {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 28rpx; // 14px
+  color: $color-text-secondary;
+}
+
+.spacer {
+  width: 100%;
+}

@@ -1,0 +1,51 @@
+@use '@/styles/variables.scss' as *;
+
+.btn {
+  @include button-reset;
+
+  gap: 16rpx; // 8px
+  height: 100rpx; // 50px
+  width: 100%;
+  border-radius: $radius-round;
+  font-size: 34rpx; // 17px
+  font-weight: $font-weight-semibold;
+  font-family: $font-family-base;
+  border: none;
+  transition: opacity $transition-fast;
+
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+.primary {
+  background: $color-primary;
+  color: $color-text-white;
+}
+
+.ghost {
+  background: $color-bg-card;
+  border: 1rpx solid $color-border;
+  color: $color-text-primary;
+}
+
+.text {
+  height: 88rpx; // 44px
+  background: none;
+  color: $color-text-secondary;
+  font-size: 30rpx; // 15px
+  font-weight: $font-weight-normal;
+}
+
+.danger {
+  background: $color-bg-card;
+  border: 1rpx solid rgba(245, 81, 78, 0.42);
+  color: $color-error;
+}
+
+.disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  border-color: transparent;
+  pointer-events: none;
+}

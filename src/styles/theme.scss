@@ -1,0 +1,63 @@
+// ============================================
+// 主题配色变量（对齐 .docs/UI原型设计方案.md §3.2 与 deepseek-design 原型令牌）
+// 注意：原有的变量名全部保留，仅调整取值，并追加新的语义变量。
+// ============================================
+
+// 品牌主题色：微信绿
+$color-primary: #07c160; // 主按钮填充、进度条、选中图标
+$color-primary-light: #06ad56; // 按压态、进度条填充
+$color-primary-dark: #056b36; // 浅绿底/白底上的绿色文字
+
+// 追加：品牌色的着色与弱底
+$color-primary-ink: #056b36;
+$color-primary-soft: #f0fbf5;
+$color-primary-soft-strong: #e4f8ee;
+
+// 功能色
+$color-success: #07c160; // 已掌握 / 成功
+$color-warning: #f5943c; // 待复习 / 进行中
+$color-error: #f5514e; // 删除 / 错误
+$color-info: #12a8f0; // 复习 / 刷题
+
+// 追加：功能色的取字与弱底
+$color-warning-ink: #96530e;
+$color-warning-soft: #fff7ee;
+$color-error-ink: #be322f;
+$color-error-soft: #fff1f0;
+$color-info-ink: #0a6ba8;
+$color-info-soft: #eff8fe;
+$color-link: #2563a8; // 正文中的文字链
+
+// 背景色
+$color-bg-page: #fafbfd; // 手机屏底色，近白冷调
+$color-bg-card: #ffffff;
+$color-bg-hover: rgba(17, 24, 39, 0.045); // 中性胶囊底
+
+// 文本色
+$color-text-primary: #1f2937;
+$color-text-secondary: #4b5563;
+$color-text-tertiary: #6b7280;
+$color-text-disabled: #6b7280;
+$color-text-white: #ffffff;
+
+// 边框色
+$color-border: rgba(17, 24, 39, 0.07);
+$color-divider: rgba(17, 24, 39, 0.04);
+$color-mask: rgba(15, 23, 42, 0.3);
+
+// 字体栈：中文系统字体栈，全端不使用等宽字体
+$font-family-base: 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Source Han Sans SC', 'Noto Sans SC',
+  'Microsoft YaHei UI', 'Microsoft YaHei', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+// 阴影层级（对齐原型 §3.4）
+$shadow-elev: 0 2rpx 4rpx rgba(17, 24, 39, 0.03), 0 20rpx 48rpx -32rpx rgba(17, 24, 39, 0.12);
+$shadow-float: 0 20rpx 60rpx -24rpx rgba(17, 24, 39, 0.16);
+$shadow-fab: 0 20rpx 48rpx rgba(7, 193, 96, 0.26);
+$shadow-dialog: 0 48rpx 120rpx -40rpx rgba(15, 23, 42, 0.2);
+
+// 毛玻璃四处（对齐 §3.6）
+$glass-nav-bg: rgba(255, 255, 255, 0.78);
+$glass-tab-bg: rgba(255, 255, 255, 0.84);
+$glass-bar-bg: rgba(255, 255, 255, 0.72);
+$glass-panel-bg: rgba(255, 255, 255, 0.92);
+$glass-fallback-bg: rgba(255, 255, 255, 0.97);

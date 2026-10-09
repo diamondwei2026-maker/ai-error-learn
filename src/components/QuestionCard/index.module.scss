@@ -1,0 +1,65 @@
+@use '@/styles/variables.scss' as *;
+
+.card {
+  @include card-surface;
+
+  width: 100%;
+  padding: 32rpx; // 16px
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  &:active {
+    transform: scale(0.995);
+  }
+}
+
+.stem {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 32rpx; // 16px
+  line-height: 54rpx; // 27px
+  color: $color-text-primary;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx; // 12px
+  padding-top: 24rpx;
+  border-top: 1rpx solid $color-divider;
+}
+
+.imageMeta {
+  display: flex;
+  align-items: center;
+  gap: 12rpx; // 6px
+}
+
+.thumb {
+  width: 44rpx; // 22px
+  height: 44rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  flex: none;
+  border: 1rpx solid $color-border;
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.metaText {
+  font-size: 26rpx; // 13px
+  line-height: 40rpx;
+  color: $color-text-secondary;
+}
+
+.time {
+  font-size: 26rpx;
+  line-height: 40rpx;
+  color: $color-text-tertiary;
+}

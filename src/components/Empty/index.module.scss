@@ -1,0 +1,31 @@
+@use '@/styles/variables.scss' as *;
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-bottom: 80rpx; // 40px
+}
+
+.title {
+  margin-top: 40rpx; // 20px
+  font-size: 38rpx; // 19px
+  line-height: 56rpx; // 28px
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.desc {
+  margin-top: 16rpx; // 8px
+  max-width: 460rpx; // 230px
+  font-size: 30rpx; // 15px
+  line-height: 46rpx; // 23px
+  color: $color-text-secondary;
+}
+
+.action {
+  margin-top: 48rpx; // 24px
+}

@@ -1,0 +1,5 @@
+# AI 能力预留依赖（本期不安装、不启用）。
+# 启用「AI 变式题生成」时再安装：pip install -r requirements-ai.txt
+# 并实现 app/services/ai_service.py 中的 VariantGenerator（LangChain 接入点）。
+langchain>=0.3
+langchain-openai>=0.2

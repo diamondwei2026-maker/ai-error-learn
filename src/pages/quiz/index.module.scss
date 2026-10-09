@@ -1,0 +1,346 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 32rpx 32rpx 48rpx;
+}
+
+.num {
+  @include tabular-nums;
+}
+
+.timer {
+  font-size: 28rpx;
+  color: $color-text-secondary;
+}
+
+/* ===== 进度 ===== */
+.progressRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.progressText {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
+.progressLabel,
+.progressTotal {
+  font-size: 26rpx; // 13px
+  color: $color-text-secondary;
+}
+
+.progressTotal {
+  @include tabular-nums;
+}
+
+.progressIndex {
+  @include tabular-nums;
+  font-size: 44rpx; // 22px
+  line-height: 1;
+  font-weight: $font-weight-semibold;
+  color: $color-primary-ink;
+}
+
+.chipIcon {
+  margin-right: 4rpx;
+}
+
+.bar {
+  height: 14rpx; // 7px
+  margin-top: 24rpx; // 12px
+  border-radius: $radius-round;
+  background: rgba(17, 24, 39, 0.07);
+  overflow: hidden;
+}
+
+.barInner {
+  height: 100%;
+  border-radius: $radius-round;
+  background: $color-primary;
+  transition: width 0.2s ease;
+}
+
+/* ===== 翻面卡内容 ===== */
+.faceCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 40rpx; // 20px
+  border-radius: 32rpx; // 16px
+  background: $color-bg-card;
+  border: 1rpx solid $color-border;
+  box-shadow: $shadow-elev;
+  overflow: hidden;
+}
+
+.faceCardBack {
+  background: $color-bg-card;
+}
+
+.chipRow {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.watermark {
+  @include tabular-nums;
+  position: absolute;
+  right: 28rpx; // 14px
+  top: 12rpx; // 6px
+  font-size: 112rpx; // 56px
+  line-height: 1;
+  font-weight: $font-weight-bold;
+  color: rgba(7, 193, 96, 0.08);
+  letter-spacing: -0.04em;
+}
+
+.frontStem {
+  flex: 1;
+  min-height: 0;
+  margin-top: 28rpx; // 14px
+  font-size: 32rpx; // 16px
+  line-height: 54rpx; // 27px
+  color: $color-text-primary;
+  overflow: hidden;
+}
+
+.masked {
+  flex: none;
+  height: 300rpx; // 150px
+  margin-top: 40rpx; // 20px
+  border: 1rpx dashed rgba(17, 24, 39, 0.14);
+  border-radius: 16rpx;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(17, 24, 39, 0.02) 0 16rpx,
+    transparent 16rpx 32rpx
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx; // 8px
+}
+
+.maskedPrimary {
+  font-size: 26rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.maskedHint {
+  font-size: 26rpx;
+  color: $color-text-tertiary;
+}
+
+/* ===== 背面 ===== */
+.backStem {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-top: 20rpx; // 10px
+  font-size: 26rpx;
+  line-height: 40rpx;
+  color: $color-text-secondary;
+}
+
+.backDivider {
+  height: 1rpx;
+  background: $color-border;
+  margin: 28rpx 0; // 14px
+  flex: none;
+}
+
+.answerLabel {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex: none;
+}
+
+.answerLabelText {
+  font-size: 26rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-primary-ink;
+}
+
+.answerBox {
+  flex: 1;
+  min-height: 0;
+  margin-top: 16rpx; // 8px
+  padding: 24rpx; // 12px
+  border-radius: 16rpx;
+  background: $color-primary-soft;
+  overflow: hidden;
+}
+
+.answerText {
+  font-size: 32rpx;
+  line-height: 54rpx;
+  color: $color-text-primary;
+  white-space: pre-wrap;
+}
+
+.imageHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 28rpx; // 14px
+  flex: none;
+}
+
+.imageLabel {
+  font-size: 26rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-tertiary;
+}
+
+.link {
+  font-size: 26rpx;
+  color: $color-info-ink;
+}
+
+.imageBox {
+  flex: none;
+  height: 208rpx; // 104px
+  margin-top: 16rpx; // 8px
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ===== 底部操作 ===== */
+.flipHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 32rpx; // 16px
+  flex: none;
+}
+
+.flipHintText {
+  font-size: 26rpx;
+  color: $color-text-tertiary;
+}
+
+.actions {
+  margin-top: auto;
+  padding-top: 32rpx;
+  flex: none;
+}
+
+.actionsSecond {
+  margin-top: 8rpx; // 4px
+}
+
+/* ===== 本轮完成 ===== */
+.doneBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 32rpx 32rpx 16rpx;
+}
+
+.doneMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-bottom: 16rpx;
+}
+
+.doneTitle {
+  margin-top: 48rpx; // 24px
+  font-size: 48rpx; // 24px
+  line-height: 68rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.doneSub {
+  margin-top: 16rpx; // 8px
+  font-size: 32rpx; // 16px
+  color: $color-text-secondary;
+}
+
+.statCard {
+  @include card-surface;
+
+  display: flex;
+  width: 100%;
+  margin-top: 48rpx; // 24px
+  padding: 0;
+}
+
+.statCell {
+  flex: 1;
+  padding: 36rpx 0; // 18px
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statDivider {
+  width: 1rpx;
+  background: $color-border;
+}
+
+.statNumber {
+  @include tabular-nums;
+  font-size: 52rpx; // 26px
+  line-height: 1;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.statLabel {
+  margin-top: 16rpx; // 8px
+  font-size: 26rpx;
+  color: $color-text-secondary;
+}
+
+.doneHint {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 32rpx; // 16px
+}
+
+.doneHintText {
+  font-size: 26rpx;
+  color: $color-text-tertiary;
+}
+
+.doneActions {
+  flex: none;
+  padding-bottom: 8rpx;
+}
+
+.doneActionsSecond {
+  margin-top: 20rpx; // 10px
+}

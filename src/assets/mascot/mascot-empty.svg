@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 170" width="220" height="170">
+  <rect x="10" y="30" width="92" height="110" rx="14" fill="#FFFFFF" stroke="#C3CCD6" stroke-width="2.5" stroke-dasharray="8 7" />
+  <text x="56" y="102" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="46" font-weight="700" fill="#BCC5D0">?</text>
+  <g transform="translate(108 30) scale(0.85)">
+    <ellipse cx="60" cy="111" rx="30" ry="5" fill="#0f172a" fill-opacity="0.07" />
+    <rect x="44" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+    <rect x="65" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+    <path d="M31 60c-9 2-14 7-15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+    <path d="M89 60c9 2 14 7 15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+    <rect x="26" y="18" width="68" height="80" rx="18" fill="#FFFFFF" stroke="#0E8F52" stroke-width="4" />
+    <rect x="34" y="34" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+    <rect x="34" y="50" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+    <rect x="34" y="66" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+    <rect x="34" y="82" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+    <path d="M74 18h15v21l-7.5-6.5L74 39z" fill="#FFC078" />
+    <circle cx="57" cy="50" r="4" fill="#22403A" />
+    <circle cx="78" cy="50" r="4" fill="#22403A" />
+    <circle cx="47" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+    <circle cx="89" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+    <path d="M61 63q7 6 14 0" fill="none" stroke="#22403A" stroke-width="3.2" stroke-linecap="round" />
+  </g>
+</svg>

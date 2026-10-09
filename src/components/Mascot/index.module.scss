@@ -1,0 +1,26 @@
+@use '@/styles/variables.scss' as *;
+
+.mascot {
+  display: block;
+  flex: none;
+}
+
+.floaty {
+  animation: floaty 4.5s ease-in-out infinite;
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12rpx);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floaty {
+    animation: none !important;
+  }
+}

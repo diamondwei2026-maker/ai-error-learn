@@ -1,0 +1,21 @@
+@use '@/styles/compat.scss';
+@use '@/styles/variables.scss' as *;
+
+// 全局基础样式
+page {
+  font-family: $font-family-base;
+  font-size: 32rpx; // 16px
+  line-height: 54rpx; // 27px
+  color: $color-text-primary;
+  background-color: $color-bg-page;
+  -webkit-font-smoothing: antialiased;
+}
+
+view,
+text,
+button,
+textarea,
+input {
+  box-sizing: border-box;
+  font-family: $font-family-base;
+}

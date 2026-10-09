@@ -1,0 +1,90 @@
+@use '@/styles/variables.scss' as *;
+
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  background: $color-mask;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  width: 560rpx; // 280px
+  border-radius: 32rpx; // 16px
+  overflow: hidden;
+  text-align: center;
+  background: $color-bg-card;
+  border: 1rpx solid $color-border;
+  box-shadow: $shadow-dialog;
+}
+
+.body {
+  padding: 48rpx 44rpx 40rpx; // 24px 22px 20px
+}
+
+.warnIco {
+  width: 104rpx; // 52px
+  height: 104rpx;
+  border-radius: 50%;
+  margin: 0 auto 28rpx; // 14px
+  background: $color-error-soft;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  font-size: 34rpx; // 17px
+  line-height: 52rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.desc {
+  display: block;
+  margin-top: 16rpx; // 8px
+  font-size: 30rpx; // 15px
+  line-height: 46rpx;
+  color: $color-text-secondary;
+}
+
+.foot {
+  display: flex;
+  border-top: 1rpx solid $color-divider;
+}
+
+.cancel,
+.confirm {
+  flex: 1;
+  height: 100rpx; // 50px
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx; // 16px
+}
+
+.cancel {
+  color: $color-text-secondary;
+}
+
+.confirm {
+  color: $color-error;
+  font-weight: $font-weight-semibold;
+  border-left: 1rpx solid $color-divider;
+}

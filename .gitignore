@@ -1,0 +1,24 @@
+# ===== Node / Taro =====
+node_modules/
+dist/
+.temp/
+.rn_temp/
+*.log
+
+# 预览/技能缓存
+.pai/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# ===== 环境变量（含阿里云 AccessKey，严禁提交）=====
+.env
+.env.local
+
+# ===== 系统 =====
+.DS_Store
+Thumbs.db
