@@ -27,7 +27,9 @@
     "dev:rn": "npm run build:rn -- --watch",
     "dev:qq": "npm run build:qq -- --watch",
     "dev:jd": "npm run build:jd -- --watch",
-    "dev:quickapp": "npm run build:quickapp -- --watch"
+    "dev:quickapp": "npm run build:quickapp -- --watch",
+    "server:check": "..\\server\\.venv\\Scripts\\python.exe -c \"import importlib.util as u,sys; miss=[m for m in ('fastapi','uvicorn','alibabacloud_ocr_api20210707') if u.find_spec(m) is None]; (print('缺少后端依赖: '+', '.join(miss)), print('请先执行: ../server/.venv/Scripts/python.exe -m pip install -r ../server/requirements.txt'), sys.exit(1)) if miss else print('后端依赖检查通过')\"",
+    "server": "npm run server:check && cd ../server && (if exist .env (.venv\\Scripts\\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --env-file .env) else (.venv\\Scripts\\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload))"
   },
   "browserslist": [
     "last 3 versions",
