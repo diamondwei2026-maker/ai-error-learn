@@ -7,6 +7,7 @@ import pytest
 from app.services.aliyun_ocr import (
     CODE_OCR_FAILED,
     CODE_QUOTA_EXCEEDED,
+    CODE_SERVICE_UNAVAILABLE,
     OcrError,
     OcrService,
     extract_text,
@@ -72,6 +73,15 @@ def test_generic_error_maps_to_1002():
         OcrService(client).recognize(b"img")
     assert excinfo.value.code == CODE_OCR_FAILED
     assert client.calls == ["advanced", "general"]
+
+
+def test_service_not_open_maps_to_1005_without_fallback():
+    err = FakeSdkError("ocrServiceNotOpen", "You have not activated the OCR service.")
+    client = FakeClient(errors={"advanced": err, "general": err})
+    with pytest.raises(OcrError) as excinfo:
+        OcrService(client).recognize(b"img")
+    assert excinfo.value.code == CODE_SERVICE_UNAVAILABLE
+    assert client.calls == ["advanced"]
 
 
 def test_unconfigured_client_reports_1002():

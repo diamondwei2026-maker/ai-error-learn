@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -19,9 +20,22 @@ CODE_DOWNLOAD_FAILED = 1001
 CODE_OCR_FAILED = 1002
 CODE_QUOTA_EXCEEDED = 1003
 CODE_IMAGE_TOO_LARGE = 1004
+CODE_SERVICE_UNAVAILABLE = 1005  # 服务未开通 / 无权限 / 鉴权失败
 
-# 触发「配额/限流」判定的关键字（命中即视为 1003）
-_QUOTA_HINTS = ("throttl", "quota", "flow control", "exceed", "limit")
+# 触发「配额/限流」判定的关键字（去空格小写后命中即视为 1003）
+_QUOTA_HINTS = ("throttl", "quota", "flowcontrol", "exceed", "limit")
+
+# 触发「服务未开通/无权限/鉴权失败」判定的关键字（去空格小写后命中即视为 1005）
+_AUTH_HINTS = (
+    "ocrservicenotopen",
+    "servicenotopen",
+    "notactivated",
+    "nopermission",
+    "forbidden",
+    "unauthorized",
+    "invalidaccesskeyid",
+    "signaturedoesnotmatch",
+)
 
 
 class OcrError(Exception):
@@ -69,9 +83,13 @@ def _map_to_ocr_error(exc: Exception) -> OcrError:
     """把 SDK 异常映射为业务错误码。"""
     code = str(getattr(exc, "code", "") or "")
     message = str(getattr(exc, "message", "") or str(exc))
-    haystack = f"{code} {message}".lower()
+    haystack = re.sub(r"\s+", "", f"{code} {message}".lower())
     if any(hint in haystack for hint in _QUOTA_HINTS):
         return OcrError(CODE_QUOTA_EXCEEDED, "OCR 调用额度受限，请稍后再试")
+    if any(hint in haystack for hint in _AUTH_HINTS):
+        return OcrError(
+            CODE_SERVICE_UNAVAILABLE, "OCR 服务未开通或无权限，请检查阿里云账号配置"
+        )
     return OcrError(CODE_OCR_FAILED, "OCR 识别失败，请重试或手动输入")
 
 
@@ -151,7 +169,7 @@ class OcrService:
                 raise
             except Exception as exc:  # noqa: BLE001 - 统一映射为业务错误码
                 mapped = _map_to_ocr_error(exc)
-                if mapped.code == CODE_QUOTA_EXCEEDED:
+                if mapped.code in (CODE_QUOTA_EXCEEDED, CODE_SERVICE_UNAVAILABLE):
                     raise mapped
                 last_error = mapped
                 continue
