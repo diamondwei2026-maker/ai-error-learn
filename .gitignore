@@ -4,6 +4,7 @@ dist/
 .temp/
 .rn_temp/
 *.log
+.swc/
 
 # 预览/技能缓存
 .pai/
