@@ -13,7 +13,8 @@ export const PAGE_SIZE = 10
 
 /**
  * OCR 代理后端地址（Python FastAPI）。
- * 真机调试时改为局域网 IP 或已备案的 HTTPS 域名。
+ * - 开发者工具模拟器 / 本机调试：使用 http://127.0.0.1:8000（请求由电脑发出）。
+ * - 真机调试：需改为开发机局域网 IP（手机与电脑同一 WiFi），或使用内网穿透 URL。
  */
 export const OCR_API_BASE = 'http://127.0.0.1:8000'
 
