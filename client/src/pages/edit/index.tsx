@@ -11,7 +11,8 @@ import Mascot from '@/components/Mascot';
 import NavBar from '@/components/NavBar';
 import { ANSWER_MAX_LENGTH, CONTENT_MAX_LENGTH } from '@/constants';
 import { captureService } from '@/services/captureService';
-import { ocrService } from '@/services/ocrService';
+import { recognitionService } from '@/services/recognitionService';
+import type { SplitMethod } from '@/services/recognitionService';
 import { questionService } from '@/services/questionService';
 import { fileRepo } from '@/services/repo/fileRepo';
 import { useQuestionStore } from '@/store/questionStore';
@@ -19,7 +20,7 @@ import { getPageMinHeight } from '@/utils/layout';
 
 import styles from './index.module.scss';
 
-type Phase = 'ocr' | 'form';
+type Phase = 'recognizing' | 'form';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -29,10 +30,11 @@ const EditPage = () => {
   const initialTempPath = rawTempPath.includes('%') ? decodeURIComponent(rawTempPath) : rawTempPath;
 
   const [tempPath, setTempPath] = useState(initialTempPath);
-  const [phase, setPhase] = useState<Phase>(initialTempPath ? 'ocr' : 'form');
+  const [phase, setPhase] = useState<Phase>(initialTempPath ? 'recognizing' : 'form');
   const [content, setContent] = useState('');
   const [answer, setAnswer] = useState('');
-  const [ocrFailed, setOcrFailed] = useState(false);
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>('none');
+  const [recognizeFailed, setRecognizeFailed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [imageSize, setImageSize] = useState(0);
   const [saved, setSaved] = useState(false);
@@ -42,25 +44,29 @@ const EditPage = () => {
   const startedRef = useRef('');
   const refreshStore = useQuestionStore((state) => state.refresh);
 
-  const runOcr = async (path: string) => {
-    setPhase('ocr');
-    setOcrFailed(false);
+  const runRecognize = async (path: string) => {
+    setPhase('recognizing');
+    setRecognizeFailed(false);
     setProgress(0);
 
     const timer = setInterval(() => {
       setProgress((value) => (value >= 90 ? 90 : value + 9));
     }, 140);
 
-    const [result] = await Promise.all([ocrService.recognize(path), delay(700)]);
+    const [result] = await Promise.all([recognitionService.recognize(path), delay(700)]);
     clearInterval(timer);
     setProgress(100);
 
     if (result.ok) {
       setContent(result.text);
-      setOcrFailed(false);
+      setAnswer(result.answer);
+      setSplitMethod(result.splitMethod);
+      setRecognizeFailed(false);
     } else {
       setContent('');
-      setOcrFailed(true);
+      setAnswer('');
+      setSplitMethod('none');
+      setRecognizeFailed(true);
       Taro.showToast({ title: result.message || '识别失败，请手动输入', icon: 'none' });
     }
     setPhase('form');
@@ -69,7 +75,7 @@ const EditPage = () => {
   useEffect(() => {
     if (!initialTempPath || startedRef.current === initialTempPath) return;
     startedRef.current = initialTempPath;
-    void runOcr(initialTempPath);
+    void runRecognize(initialTempPath);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTempPath]);
 
@@ -79,7 +85,7 @@ const EditPage = () => {
     if (!path) return;
     setTempPath(path);
     startedRef.current = '';
-    await runOcr(path);
+    await runRecognize(path);
   };
 
   const handleSave = async () => {
@@ -111,13 +117,13 @@ const EditPage = () => {
     Taro.previewImage({ urls: [tempPath], current: tempPath });
   };
 
-  if (phase === 'ocr') {
+  if (phase === 'recognizing') {
     return (
       <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
         <NavBar title="识别中" />
         <View className={styles.body}>
           <View className={styles.thumbCard}>
-            <View className={styles.ocrThumb}>
+            <View className={styles.recognizeThumb}>
               <Image className={styles.thumbImg} src={tempPath} mode="aspectFill" />
             </View>
             <View className={styles.thumbInfo}>
@@ -129,18 +135,18 @@ const EditPage = () => {
             <Chip type="blue">识别中</Chip>
           </View>
 
-          <View className={styles.ocrCenter}>
+          <View className={styles.recognizeCenter}>
             <Mascot width={86} height={86} />
-            <View className={styles.ocrStatus}>
+            <View className={styles.recognizeStatus}>
               <View className={styles.spinner} />
-              <Text className={styles.ocrStatusText}>正在识别题目文字…</Text>
+              <Text className={styles.recognizeStatusText}>正在识别题目…</Text>
             </View>
           </View>
 
           <View className={styles.bar}>
             <View className={styles.barInner} style={{ width: `${progress}%` }} />
           </View>
-          <Text className={styles.ocrPercent}>已完成 {progress}%</Text>
+          <Text className={styles.recognizePercent}>已完成 {progress}%</Text>
 
           <Text className={styles.previewLabel}>题干预览</Text>
           <View className={styles.skeletonCard}>
@@ -161,6 +167,12 @@ const EditPage = () => {
   }
 
   const canSave = content.trim().length > 0 && !saved;
+
+  const answerTip = recognizeFailed
+    ? '请手动填写'
+    : splitMethod === 'vlm'
+      ? 'AI 已识别答案 · 请校对'
+      : '未识别到答案 · 可手动填写';
 
   return (
     <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
@@ -188,9 +200,11 @@ const EditPage = () => {
           <Text className={styles.fieldLabel}>
             题干 <Text className={styles.required}>*</Text>
           </Text>
-          <Text className={styles.fieldTip}>
-            {ocrFailed ? '识别失败 · 请手动输入' : 'OCR 已识别 · 请校对'}
-          </Text>
+          <View className={styles.fieldActions}>
+            <Text className={styles.fieldTip}>
+              {recognizeFailed ? '识别失败 · 请手动输入' : 'AI 已识别 · 请校对'}
+            </Text>
+          </View>
         </View>
         <View className={classnames(styles.inputBox, contentFocused && styles.inputBoxFocused)}>
           <Textarea
@@ -207,7 +221,10 @@ const EditPage = () => {
           </Text>
         </View>
 
-        <Text className={styles.fieldLabel}>答案</Text>
+        <View className={styles.fieldHead}>
+          <Text className={styles.fieldLabel}>答案</Text>
+          <Text className={styles.fieldTip}>{answerTip}</Text>
+        </View>
         <View className={styles.inputBox}>
           <Textarea
             className={styles.textareaAnswer}

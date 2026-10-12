@@ -7,9 +7,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping, Optional
 
-# 阿里云文字识别（ocr-api 2021-07-07）默认服务地址：华东1（杭州）
-DEFAULT_ENDPOINT = "ocr-api.cn-hangzhou.aliyuncs.com"
-# 阿里云 OCR 单张图片二进制上限：10MB
+# 多模态识别模型（OpenAI 兼容 /chat/completions）默认值：测试阶段 GLM-4V-Flash
+DEFAULT_VISION_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+DEFAULT_VISION_MODEL = "glm-4v-flash"
+DEFAULT_VISION_TIMEOUT = 20
+# 单张图片二进制上限：10MB
 DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 
@@ -17,19 +19,22 @@ DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024
 class Settings:
     """运行期配置。
 
-    access_key_secret 使用 repr=False，确保日志/异常中打印 Settings 时不会泄露密钥。
+    vision_api_key 使用 repr=False，确保日志/异常中打印 Settings 时不会泄露密钥。
     """
 
-    access_key_id: str = ""
-    access_key_secret: str = field(default="", repr=False)
-    ocr_endpoint: str = DEFAULT_ENDPOINT
+    # 多模态识别模型（OpenAI 兼容）
+    vision_enabled: bool = False
+    vision_api_key: str = field(default="", repr=False)
+    vision_base_url: str = DEFAULT_VISION_BASE_URL
+    vision_model: str = DEFAULT_VISION_MODEL
+    vision_timeout: int = DEFAULT_VISION_TIMEOUT
     max_image_bytes: int = DEFAULT_MAX_IMAGE_BYTES
     ai_enabled: bool = False
 
     @property
-    def ocr_configured(self) -> bool:
-        """是否已配置 OCR 访问密钥。"""
-        return bool(self.access_key_id and self.access_key_secret)
+    def vision_configured(self) -> bool:
+        """是否已配置视觉模型访问密钥。"""
+        return bool(self.vision_api_key and self.vision_base_url)
 
 
 def _parse_int(raw: Optional[str], default: int) -> int:
@@ -64,16 +69,21 @@ def _load_dotenv_override() -> None:
 
 
 def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
-    """从环境变量装载配置。缺失密钥时不抛错，仅在真正调用 OCR 时报错。"""
+    """从环境变量装载配置。缺失密钥时不抛错，仅在真正调用识别服务时报错。"""
     if env is None:
         _load_dotenv_override()
         source: Mapping[str, str] = os.environ
     else:
         source = env
     return Settings(
-        access_key_id=source.get("ALIBABA_CLOUD_ACCESS_KEY_ID", "") or "",
-        access_key_secret=source.get("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "") or "",
-        ocr_endpoint=source.get("OCR_ENDPOINT", DEFAULT_ENDPOINT) or DEFAULT_ENDPOINT,
-        max_image_bytes=_parse_int(source.get("OCR_MAX_IMAGE_BYTES"), DEFAULT_MAX_IMAGE_BYTES),
+        vision_enabled=_parse_bool(source.get("VISION_ENABLED"), False),
+        vision_api_key=source.get("VISION_API_KEY", "") or "",
+        vision_base_url=source.get("VISION_BASE_URL", DEFAULT_VISION_BASE_URL)
+        or DEFAULT_VISION_BASE_URL,
+        vision_model=source.get("VISION_MODEL", DEFAULT_VISION_MODEL) or DEFAULT_VISION_MODEL,
+        vision_timeout=_parse_int(source.get("VISION_TIMEOUT"), DEFAULT_VISION_TIMEOUT),
+        max_image_bytes=_parse_int(
+            source.get("VISION_MAX_IMAGE_BYTES"), DEFAULT_MAX_IMAGE_BYTES
+        ),
         ai_enabled=_parse_bool(source.get("AI_ENABLED"), False),
     )

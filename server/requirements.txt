@@ -3,10 +3,6 @@ uvicorn[standard]>=0.29,<1.0
 python-multipart>=0.0.9
 # 加载 server/.env（以 override=True 作为配置的权威来源）
 python-dotenv>=1.0
-# 阿里云文字识别（ocr-api 2021-07-07）
-alibabacloud_ocr_api20210707>=3.0.0
-alibabacloud_tea_openapi>=0.3.9
-alibabacloud_tea_util>=0.3.12
 # 测试（TDD）
 pytest>=8.0
 httpx>=0.27

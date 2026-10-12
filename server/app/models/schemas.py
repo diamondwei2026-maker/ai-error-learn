@@ -7,11 +7,17 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class OcrResponse(BaseModel):
-    """OCR 接口响应（对齐方案设计文档 §7.1）。"""
+class RecognizeResponse(BaseModel):
+    """识别接口响应（对齐方案设计文档 §7.1）。
+
+    text 为识别出的题干；answer 为识别出的答案（可为空）；
+    splitMethod ∈ {vlm, none}，vlm 表示由多模态大模型识别得到答案。
+    """
 
     code: int
     text: str = ""
+    answer: str = ""
+    splitMethod: str = ""
     wordsCount: int = 0
     message: Optional[str] = None
 

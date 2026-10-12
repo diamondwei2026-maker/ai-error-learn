@@ -1,4 +1,4 @@
-"""OCR 结果文本清洗（纯函数，便于单测）。"""
+"""识别结果文本清洗（纯函数，便于单测）。"""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ _INLINE_SPACE_RE = re.compile(r"[ \t\u3000]+")
 _WHITESPACE_RE = re.compile(r"\s")
 
 
-def clean_ocr_text(raw: str) -> str:
-    """清洗 OCR 原始文本。
+def clean_text(raw: str) -> str:
+    """清洗识别原始文本。
 
     - 统一换行为 \\n（兼容 \\r\\n / \\r）
     - 去除每行首尾空白，压缩行内连续空白

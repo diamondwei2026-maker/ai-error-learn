@@ -12,19 +12,23 @@ export const SCHEMA_VERSION = 1
 export const PAGE_SIZE = 10
 
 /**
- * OCR 代理后端地址（Python FastAPI）。
- * - 开发者工具模拟器 / 本机调试：使用 http://127.0.0.1:8000（请求由电脑发出）。
- * - 真机调试：需改为开发机局域网 IP（手机与电脑同一 WiFi），或使用内网穿透 URL。
+ * 识别代理后端地址（Python FastAPI）。
+ * - 必须使用「局域网 IP」：微信小程序网络层禁止访问「本机 IP / localhost」（127.0.0.1），
+ *   该限制在开发者工具模拟器内同样生效，且勾选「不校验合法域名」也无法绕过，
+ *   否则 uploadFile 会报 `createUploadTask:fail invalid url`。
+ * - 模拟器与真机（手机与电脑同一 WiFi）均使用该局域网 IP。
+ * - 开发机 IP 若因 DHCP 变化需同步修改此处；查询命令：
+ *   Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' }
+ *   （取「以太网」那一项，忽略 LetsTAP 等虚拟网卡）
  */
-export const OCR_API_BASE = 'http://127.0.0.1:8000'
+export const RECOGNIZE_API_BASE = 'http://192.168.60.37:8000'
 
-/** OCR 后端错误码文案 */
-export const OCR_ERROR_MESSAGES: Record<number, string> = {
-  1001: '图片加载失败，请重试',
+/** 识别后端错误码文案 */
+export const RECOGNIZE_ERROR_MESSAGES: Record<number, string> = {
   1002: '识别失败，请手动输入',
   1003: '识别额度受限，请稍后再试',
   1004: '图片无效或过大，请重新拍摄',
-  1005: 'OCR 服务未开通或无权限，请联系管理员',
+  1005: '识别服务未开通或无权限，请联系管理员',
 }
 
 /** 题干最大字数 */

@@ -37,7 +37,7 @@
   background: #edf1f5;
 }
 
-.ocrThumb {
+.recognizeThumb {
   flex: none;
   width: 128rpx; // 64px
   height: 128rpx;
@@ -77,22 +77,22 @@
   color: $color-link;
 }
 
-/* ===== OCR 进行中 ===== */
-.ocrCenter {
+/* ===== 识别进行中 ===== */
+.recognizeCenter {
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-top: 40rpx; // 20px
 }
 
-.ocrStatus {
+.recognizeStatus {
   display: flex;
   align-items: center;
   gap: 18rpx; // 9px
   margin-top: 28rpx; // 14px
 }
 
-.ocrStatusText {
+.recognizeStatusText {
   font-size: 30rpx;
   color: $color-text-primary;
 }
@@ -127,7 +127,7 @@
   transition: width 0.2s ease;
 }
 
-.ocrPercent {
+.recognizePercent {
   display: block;
   margin-top: 16rpx; // 8px
   font-size: 26rpx;
@@ -217,6 +217,12 @@
 .fieldTip {
   font-size: 26rpx;
   color: $color-text-tertiary;
+}
+
+.fieldActions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx; // 10px
 }
 
 .inputBox {

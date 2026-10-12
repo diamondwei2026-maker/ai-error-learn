@@ -22,7 +22,7 @@ const IndexPage = () => {
     refresh();
   });
 
-  /** 拍照/选图 → 压缩 → 进入编辑页（编辑页负责 OCR） */
+  /** 拍照/选图 → 压缩 → 进入编辑页（编辑页负责识别） */
   const startCapture = async (source: 'camera' | 'album') => {
     setSheetVisible(false);
     const tempFilePath = await captureService.pick(source);
