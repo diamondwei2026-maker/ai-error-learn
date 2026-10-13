@@ -4,6 +4,7 @@
 """
 
 import base64
+import json
 
 import pytest
 
@@ -82,6 +83,29 @@ def test_list_content_is_joined(monkeypatch):
     assert _client().recognize(b"img", "image/jpeg") == ("题干", "答案")
 
 
+def test_multiline_answer_is_preserved(monkeypatch):
+    answer = "第一步：由题意得方程\n第二步：解得 x = 2\n所以答案是 2"
+    content = json.dumps({"stem": "题干", "answer": answer}, ensure_ascii=False)
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    stem, parsed_answer = _client().recognize(b"img", "image/jpeg")
+    assert stem == "题干"
+    assert parsed_answer == answer
+
+
+def test_parses_fenced_json_with_raw_newlines(monkeypatch):
+    # 复刻多模态模型真实输出：```json 围栏内 answer 值含未转义的真实换行
+    content = (
+        "```json\n{\n"
+        '    "stem": "一件商品按照30%的利润出售",\n'
+        '    "answer": "解: 设成本价为x元。\n(1+30%)x×0.8-x=520\nx=13000"\n'
+        "}\n```"
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    stem, answer = _client().recognize(b"img", "image/jpeg")
+    assert stem == "一件商品按照30%的利润出售"
+    assert answer == "解: 设成本价为x元。\n(1+30%)x×0.8-x=520\nx=13000"
+
+
 # ---------- 请求体 ----------
 
 def test_request_carries_model_and_base64_image(monkeypatch):
@@ -103,6 +127,21 @@ def test_request_carries_model_and_base64_image(monkeypatch):
     image_part = next(p for p in content if p["type"] == "image_url")
     expected = "data:image/png;base64," + base64.b64encode(b"abc").decode("ascii")
     assert image_part["image_url"]["url"] == expected
+
+
+def test_prompt_requests_solution_process(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        captured["json"] = json
+        return _FakeResponse(200, _payload('{"stem": "题干", "answer": "解答"}'))
+
+    monkeypatch.setattr("httpx.post", fake_post)
+    _client().recognize(b"abc", "image/jpeg")
+
+    content = captured["json"]["messages"][0]["content"]
+    prompt = next(p["text"] for p in content if p["type"] == "text")
+    assert "解题过程" in prompt
 
 
 def test_non_image_mime_falls_back_to_jpeg(monkeypatch):

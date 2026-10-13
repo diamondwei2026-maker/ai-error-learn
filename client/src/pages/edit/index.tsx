@@ -171,7 +171,7 @@ const EditPage = () => {
   const answerTip = recognizeFailed
     ? '请手动填写'
     : splitMethod === 'vlm'
-      ? 'AI 已识别答案 · 请校对'
+      ? 'AI 已识别解答 · 请校对'
       : '未识别到答案 · 可手动填写';
 
   return (
@@ -229,7 +229,7 @@ const EditPage = () => {
           <Textarea
             className={styles.textareaAnswer}
             value={answer}
-            placeholder="请输入答案（可留空）"
+            placeholder="请输入答案与解题过程（可留空）"
             maxlength={ANSWER_MAX_LENGTH}
             onInput={(event) => setAnswer(event.detail.value)}
           />

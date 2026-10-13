@@ -33,5 +33,5 @@ export const RECOGNIZE_ERROR_MESSAGES: Record<number, string> = {
 
 /** 题干最大字数 */
 export const CONTENT_MAX_LENGTH = 200
-/** 答案最大字数 */
-export const ANSWER_MAX_LENGTH = 300
+/** 答案与解题过程最大字数 */
+export const ANSWER_MAX_LENGTH = 600
