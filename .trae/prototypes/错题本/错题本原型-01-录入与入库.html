@@ -1,0 +1,2031 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>错题本原型 · 文件 1 · 录入与入库</title>
+    <style>
+      /* ============================================================
+   错题管理小程序 · HTML 原型
+   文件 1 / 3 —— 录入与入库（首页 → 录入方式 → OCR → 编辑校对 → 保存成功）
+
+   v3 视觉规范（轻盈化）：
+   · 配色：保留微信绿 #07C160 为主色；中性色阶走冷调（正文 #1F2937 / 次要 #4B5563 / 弱化 #6B7280），
+     规格页底色 #F5F7FA、手机屏底色 #FAFBFD，描边统一 rgba(17,24,39,.07)，正文对比度 ≥ 4.5:1。
+   · 字体：不使用等宽字体，统一中文系统字体栈（PingFang SC / 鸿蒙 / MiSans / 微软雅黑 UI）；
+     正文 16/27，辅助说明 13/20。
+   · 质感：手机框改为浅色细边框 + 柔和投影；卡片以极柔浮起阴影替代硬框感。
+   · 插画：SVG 卡通形象「小错题本」，用于首页品牌区、OCR、保存成功、空态与完成页。
+   ============================================================ */
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        /* —— 主色：微信绿（保留品牌色） —— */
+        --green: #07c160; /* 填充按钮、进度、选中 */
+        --green-deep: #06ad56; /* 按压态 */
+        --green-ink: #056b36; /* 浅绿底上的文字（对比度 ≈ 6:1） */
+        --green-soft: #f0fbf5;
+        --green-strong: #e4f8ee;
+        /* —— 复习类信息蓝 —— */
+        --blue: #12a8f0;
+        --blue-ink: #0a6ba8;
+        --blue-soft: #eff8fe;
+        /* —— 提醒橙 —— */
+        --orange: #f5943c;
+        --orange-ink: #96530e;
+        --orange-soft: #fff7ee;
+        /* —— 删除红 —— */
+        --red: #f5514e;
+        --red-ink: #be322f;
+        --red-soft: #fff1f0;
+        /* —— 文本：中性冷灰阶，观感更轻 —— */
+        --ink: #1f2937;
+        --ink-2: #4b5563;
+        --ink-3: #6b7280;
+        /* —— 线条：中性冷灰、更轻 —— */
+        --line: rgba(17, 24, 39, 0.07);
+        --line-2: rgba(17, 24, 39, 0.04);
+        /* —— 底色 —— */
+        --page: #fafbfd;
+        --card: #ffffff;
+        --r-s: 8px;
+        --r-m: 12px;
+        --r-l: 16px;
+        --r-pill: 999px;
+        --font:
+          "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Source Han Sans SC",
+          "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui,
+          -apple-system, "Segoe UI", Roboto, sans-serif;
+        --shadow-float: 0 10px 30px -12px rgba(17, 24, 39, 0.16);
+        --elev:
+          0 1px 2px rgba(17, 24, 39, 0.03),
+          0 10px 24px -16px rgba(17, 24, 39, 0.12);
+      }
+
+      body {
+        font-family: var(--font);
+        color: var(--ink);
+        background: #f5f7fa;
+        -webkit-font-smoothing: antialiased;
+        background-image: radial-gradient(
+          rgba(15, 23, 42, 0.045) 1.2px,
+          transparent 1.2px
+        );
+        background-size: 28px 28px;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+      /* <code> 不继承浏览器默认等宽字体 */
+      code {
+        font-family: var(--font);
+      }
+
+      /* ================= 字号体系（基准上调一档） ================= */
+      .t-h1 {
+        font-size: 24px;
+        line-height: 34px;
+        font-weight: 600;
+      }
+      .t-h2 {
+        font-size: 19px;
+        line-height: 28px;
+        font-weight: 600;
+      }
+      .t-title {
+        font-size: 17px;
+        line-height: 26px;
+        font-weight: 600;
+      }
+      .t-body {
+        font-size: 16px;
+        line-height: 27px;
+      }
+      .t-text {
+        font-size: 15px;
+        line-height: 23px;
+      }
+      .t-cap {
+        font-size: 13px;
+        line-height: 20px;
+      }
+      .t-tag {
+        font-size: 12px;
+        line-height: 16px;
+        font-weight: 600;
+      }
+      .accent {
+        color: var(--green-ink);
+      }
+      .muted {
+        color: var(--ink-2);
+      }
+      .faint {
+        color: var(--ink-3);
+      }
+      .strong-ink {
+        color: var(--ink);
+      }
+      /* 规格页外壳：提高次级文字对比度，保证可读性 */
+      .cell-route,
+      .lg code,
+      .shell-footer {
+        color: #64707f;
+      }
+
+      /* ================= 布局工具 ================= */
+      .row {
+        display: flex;
+        align-items: center;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+      }
+      .between {
+        justify-content: space-between;
+      }
+      .grow {
+        flex: 1;
+        min-width: 0;
+      }
+      .mt6 {
+        margin-top: 6px;
+      }
+      .mt8 {
+        margin-top: 8px;
+      }
+      .mt10 {
+        margin-top: 10px;
+      }
+      .mt12 {
+        margin-top: 12px;
+      }
+      .mt14 {
+        margin-top: 14px;
+      }
+      .mt16 {
+        margin-top: 16px;
+      }
+      .mt20 {
+        margin-top: 20px;
+      }
+      .mt24 {
+        margin-top: 24px;
+      }
+
+      /* ================= 规格页外壳 ================= */
+      .shell-header {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 64px 44px 10px;
+      }
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12.5px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #64707f;
+      }
+      .eyebrow::before {
+        content: "";
+        width: 30px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--green);
+      }
+      .shell-title {
+        margin-top: 16px;
+        font-size: 34px;
+        line-height: 1.2;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: #111827;
+      }
+      .shell-title em {
+        font-style: normal;
+        color: var(--green-ink);
+      }
+      .shell-sub {
+        margin-top: 14px;
+        max-width: 840px;
+        font-size: 14.5px;
+        line-height: 1.95;
+        color: #4b5563;
+      }
+      .shell-sub b {
+        color: #111827;
+        font-weight: 600;
+      }
+      .spec-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      .spec {
+        font-size: 12.5px;
+        color: #4b5563;
+        background: #ffffff;
+        border: 1px solid rgba(17, 24, 39, 0.06);
+        border-radius: var(--r-pill);
+        padding: 6px 12px;
+      }
+      .file-nav {
+        margin-top: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 16px;
+        font-size: 13.5px;
+        color: #64707f;
+      }
+      .file-nav a {
+        color: #2563a8;
+        text-decoration: none;
+        border-bottom: 1px dashed rgba(63, 92, 138, 0.5);
+        padding-bottom: 1px;
+      }
+      .file-nav .cur {
+        color: #111827;
+        font-weight: 700;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 18px;
+        margin-top: 22px;
+        padding: 15px 18px;
+        width: fit-content;
+        max-width: 100%;
+        background: #ffffff;
+        border: 1px solid rgba(17, 24, 39, 0.05);
+        border-radius: var(--r-l);
+      }
+      .lg {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #4b5563;
+        white-space: nowrap;
+      }
+      .lg i {
+        width: 16px;
+        height: 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(17, 24, 39, 0.08);
+      }
+      .lg code {
+        font-size: 11.5px;
+        color: #64707f;
+      }
+
+      .proto-grid {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 56px 44px 110px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(375px, 1fr));
+        gap: 96px 60px;
+        justify-items: center;
+      }
+      .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+      }
+      .cell-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .cell-no {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--green-ink);
+        background: #ffffff;
+        border: 1px solid rgba(7, 193, 96, 0.25);
+        border-radius: var(--r-pill);
+        padding: 4px 11px;
+      }
+      .cell-name {
+        font-size: 17px;
+        font-weight: 600;
+        color: #111827;
+      }
+      .cell-route {
+        font-size: 12px;
+        color: #64707f;
+      }
+      .notes {
+        margin-top: 26px;
+        width: 375px;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .note {
+        display: flex;
+        gap: 9px;
+        font-size: 13px;
+        line-height: 1.8;
+        color: #4b5563;
+      }
+      .tag {
+        flex: none;
+        margin-top: 3px;
+        height: 19px;
+        display: inline-flex;
+        align-items: center;
+        font-size: 11.5px;
+        font-weight: 600;
+        padding: 0 8px;
+        border-radius: 6px;
+      }
+      .tag.d {
+        color: var(--blue-ink);
+        background: var(--blue-soft);
+      }
+      .tag.i {
+        color: var(--green-ink);
+        background: var(--green-soft);
+      }
+      .shell-footer {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 0 44px 64px;
+        font-size: 13px;
+        line-height: 1.95;
+        color: #64707f;
+      }
+      .shell-footer b {
+        color: #4b5563;
+        font-weight: 600;
+      }
+      @media (max-width: 520px) {
+        .shell-header,
+        .proto-grid,
+        .shell-footer {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .proto-grid {
+          gap: 72px 22px;
+        }
+        .shell-title {
+          font-size: 25px;
+        }
+        .notes {
+          width: 100%;
+        }
+      }
+
+      /* ================= 手机框与系统层 ================= */
+      .phone {
+        position: relative;
+        width: 375px;
+        height: 812px;
+        border-radius: 46px;
+        background: var(--page);
+        overflow: hidden;
+        flex: none;
+        box-shadow:
+          0 0 0 10px #ffffff,
+          0 0 0 11.5px #e6eaef,
+          0 30px 60px -24px rgba(15, 23, 42, 0.18),
+          0 8px 20px -12px rgba(15, 23, 42, 0.1);
+      }
+      @media (max-width: 420px) {
+        .phone {
+          transform: scale(0.86);
+          transform-origin: top center;
+          margin-bottom: -116px;
+        }
+      }
+      .island {
+        position: absolute;
+        top: 11px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100px;
+        height: 28px;
+        border-radius: var(--r-pill);
+        background: #111827;
+        z-index: 96;
+      }
+      .statusbar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 44px;
+        z-index: 92;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 3px 26px 0 32px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #0e1116;
+        pointer-events: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .sb-r {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .home-indicator {
+        position: absolute;
+        bottom: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 134px;
+        height: 5px;
+        border-radius: var(--r-pill);
+        background: rgba(17, 24, 39, 0.85);
+        z-index: 97;
+        pointer-events: none;
+      }
+
+      /* ---- 毛玻璃 ①②③④（模糊度与不透明度提高，保证浅色底上的可读性） ---- */
+      .g-nav {
+        background: rgba(255, 255, 255, 0.78);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        backdrop-filter: blur(20px) saturate(180%);
+      }
+      .g-tab {
+        background: rgba(255, 255, 255, 0.84);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        backdrop-filter: blur(24px) saturate(180%);
+      }
+      .g-bar {
+        background: rgba(255, 255, 255, 0.72);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
+        backdrop-filter: blur(16px) saturate(180%);
+      }
+      .g-panel {
+        background: rgba(255, 255, 255, 0.92);
+        -webkit-backdrop-filter: blur(30px) saturate(180%);
+        backdrop-filter: blur(30px) saturate(180%);
+      }
+      @supports not (
+        (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+      ) {
+        .g-nav,
+        .g-tab,
+        .g-bar,
+        .g-panel {
+          background: rgba(255, 255, 255, 0.97);
+        }
+      }
+
+      /* ================= 通用组件 ================= */
+      .nav {
+        position: absolute;
+        top: 44px;
+        left: 0;
+        right: 0;
+        height: 44px;
+        z-index: 90;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-title {
+        font-size: 17px;
+        line-height: 26px;
+        font-weight: 600;
+      }
+      .nav-back {
+        position: absolute;
+        left: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink);
+      }
+      .nav-act {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+
+      .body {
+        position: absolute;
+        top: 88px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+      }
+      .body--tab {
+        bottom: 78px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--r-m);
+        padding: 16px;
+        box-shadow: var(--elev);
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 22px;
+        padding: 0 9px;
+        border-radius: var(--r-pill);
+        font-size: 12px;
+        line-height: 16px;
+        font-weight: 600;
+      }
+      .chip.g {
+        color: var(--green-ink);
+        background: var(--green-soft);
+      }
+      .chip.b {
+        color: var(--blue-ink);
+        background: var(--blue-soft);
+      }
+      .chip.o {
+        color: var(--orange-ink);
+        background: var(--orange-soft);
+      }
+      .chip.n {
+        color: #5a5750;
+        background: rgba(17, 24, 39, 0.045);
+      }
+
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        height: 50px;
+        border-radius: var(--r-pill);
+        font-size: 17px;
+        font-weight: 600;
+        font-family: inherit;
+        border: none;
+        width: 100%;
+      }
+      .btn-primary {
+        background: var(--green);
+        color: #fff;
+      }
+      .btn-ghost {
+        background: #fff;
+        border: 1px solid var(--line);
+        color: var(--ink);
+      }
+      .btn-text {
+        height: 44px;
+        background: none;
+        color: var(--ink-2);
+        font-size: 15px;
+        font-weight: 400;
+      }
+      .btn-danger {
+        background: #fff;
+        border: 1px solid rgba(245, 81, 78, 0.42);
+        color: var(--red);
+      }
+
+      .bar {
+        height: 7px;
+        border-radius: var(--r-pill);
+        background: rgba(17, 24, 39, 0.07);
+        overflow: hidden;
+      }
+      .bar > i {
+        display: block;
+        height: 100%;
+        border-radius: var(--r-pill);
+        background: var(--green);
+      }
+
+      @keyframes shimmer {
+        0% {
+          background-position: -180% 0;
+        }
+        100% {
+          background-position: 180% 0;
+        }
+      }
+      .sk {
+        border-radius: 6px;
+        background: linear-gradient(
+          90deg,
+          rgba(17, 24, 39, 0.04) 25%,
+          rgba(17, 24, 39, 0.08) 37%,
+          rgba(17, 24, 39, 0.04) 63%
+        );
+        background-size: 220% 100%;
+        animation: shimmer 1.4s ease infinite;
+      }
+
+      .tabbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 78px;
+        padding-bottom: 22px;
+        z-index: 90;
+        display: flex;
+        border-top: 1px solid var(--line);
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        color: var(--ink-2);
+        font-size: 12px;
+        line-height: 16px;
+      }
+      .tab.on {
+        color: var(--green-ink);
+      }
+      .tab svg {
+        width: 23px;
+        height: 23px;
+      }
+
+      .action-bar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 88;
+        padding: 10px 16px 26px;
+        border-top: 1px solid var(--line);
+      }
+
+      .mask {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.3);
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+        z-index: 93;
+      }
+      .sheet {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 94;
+        border-radius: var(--r-l) var(--r-l) 0 0;
+        overflow: hidden;
+        border-top: 1px solid var(--line);
+        padding-bottom: 22px;
+      }
+      .sheet-title {
+        text-align: center;
+        font-size: 13px;
+        color: var(--ink-3);
+        padding: 16px 0 10px;
+      }
+      .sheet-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 58px;
+        padding: 0 24px;
+        font-size: 17px;
+        color: var(--ink);
+        border-top: 1px solid var(--line-2);
+      }
+      .sheet-item .ico {
+        color: var(--green-ink);
+      }
+      .sheet-cancel {
+        margin: 10px 12px 0;
+      }
+
+      @keyframes toastIn {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -46%) scale(0.94);
+        }
+        100% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+      .toast {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 95;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 14px 22px;
+        border-radius: var(--r-pill);
+        background: rgba(255, 255, 255, 0.97);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-float);
+        font-size: 16px;
+        font-weight: 600;
+        animation: toastIn 0.3s ease both;
+      }
+
+      .shot {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        background: #edf1f5;
+      }
+      .imgthumb {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--r-s);
+        overflow: hidden;
+        flex: none;
+        border: 1px solid var(--line);
+      }
+
+      /* ================= 卡通形象 ================= */
+      .mascot {
+        display: block;
+      }
+      @keyframes floaty {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .mascot--float {
+        animation: floaty 4.5s ease-in-out infinite;
+      }
+      .spinner {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2.5px solid rgba(7, 193, 96, 0.22);
+        border-top-color: var(--green);
+        animation: spin 0.8s linear infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ================= 卡通形象：小错题本（内联 SVG symbol，供 <use> 复用） ================= -->
+    <svg
+      width="0"
+      height="0"
+      style="position: absolute; overflow: hidden"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <defs>
+        <symbol id="mascot" viewBox="0 0 120 120">
+          <ellipse cx="60" cy="111" rx="30" ry="5" fill="rgba(15,23,42,.07)" />
+          <rect x="44" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+          <rect x="65" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+          <path
+            d="M31 60c-9 2-14 7-15 13"
+            fill="none"
+            stroke="#0E8F52"
+            stroke-width="7"
+            stroke-linecap="round"
+          />
+          <path
+            d="M89 60c9 2 14 7 15 13"
+            fill="none"
+            stroke="#0E8F52"
+            stroke-width="7"
+            stroke-linecap="round"
+          />
+          <rect
+            x="26"
+            y="18"
+            width="68"
+            height="80"
+            rx="18"
+            fill="#FFFFFF"
+            stroke="#0E8F52"
+            stroke-width="4"
+          />
+          <rect x="34" y="34" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+          <rect x="34" y="50" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+          <rect x="34" y="66" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+          <rect x="34" y="82" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+          <path d="M74 18h15v21l-7.5-6.5L74 39z" fill="#FFC078" />
+          <circle cx="57" cy="50" r="4" fill="#22403A" />
+          <circle cx="78" cy="50" r="4" fill="#22403A" />
+          <circle cx="47" cy="62" r="5.5" fill="#FFC7A6" opacity=".9" />
+          <circle cx="89" cy="62" r="5.5" fill="#FFC7A6" opacity=".9" />
+          <path
+            d="M61 63q7 6 14 0"
+            fill="none"
+            stroke="#22403A"
+            stroke-width="3.2"
+            stroke-linecap="round"
+          />
+        </symbol>
+      </defs>
+    </svg>
+
+    <header class="shell-header">
+      <div class="eyebrow">Prototype · File 01 / 03 · DeepSeek Design</div>
+      <h1 class="shell-title">错题本 · <em>录入与入库</em></h1>
+      <p class="shell-sub">
+        微信小程序 MVP 核心闭环的第一段：从<b>首页</b>出发，经<b
+          >选择录入方式 → OCR 识别 → 编辑校对</b
+        >，最终<b>保存入库</b>。 底部三 tab（首页 / 题库 /
+        刷题）为本段唯一导航骨架，编辑页为无 tabBar 的子页面。
+      </p>
+      <div class="spec-row">
+        <span class="spec">基准 375 × 812</span>
+        <span class="spec">主色 #07C160</span>
+        <span class="spec">冷白底 #FAFBFD</span>
+        <span class="spec">正文 16 / 27</span>
+        <span class="spec">毛玻璃 ×4 处</span>
+        <span class="spec">SVG 卡通形象</span>
+      </div>
+      <nav class="file-nav">
+        <span class="cur">文件 1 · 录入与入库（5 屏）</span>
+        <a href="错题本原型-02-题库管理.html">文件 2 · 题库管理</a>
+        <a href="错题本原型-03-刷题复习.html">文件 3 · 刷题复习</a>
+      </nav>
+      <div class="legend">
+        <span class="lg"
+          ><i style="background: #07c160"></i>微信绿（主色）<code
+            >#07C160</code
+          ></span
+        >
+        <span class="lg"
+          ><i style="background: #056b36"></i>深绿（文字）<code
+            >#056B36</code
+          ></span
+        >
+        <span class="lg"
+          ><i style="background: #f0fbf5"></i>浅绿底<code>#F0FBF5</code></span
+        >
+        <span class="lg"
+          ><i style="background: #12a8f0"></i>信息蓝<code>#12A8F0</code></span
+        >
+        <span class="lg"
+          ><i style="background: #f5943c"></i>提醒橙<code>#F5943C</code></span
+        >
+        <span class="lg"
+          ><i style="background: #f5514e"></i>删除红<code>#F5514E</code></span
+        >
+        <span class="lg"
+          ><i style="background: #1f2937"></i>主文本<code>#1F2937</code></span
+        >
+        <span class="lg"
+          ><i style="background: #4b5563"></i>次要文本<code>#4B5563</code></span
+        >
+        <span class="lg"
+          ><i style="background: #fafbfd"></i>页面底色<code>#FAFBFD</code></span
+        >
+      </div>
+    </header>
+
+    <main class="proto-grid">
+      <!-- ================= 01 首页 ================= -->
+      <section class="cell">
+        <div class="cell-head">
+          <span class="cell-no">01</span><span class="cell-name">首页</span
+          ><span class="cell-route">pages/index/index</span>
+        </div>
+        <div class="phone">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span
+            ><span class="sb-r">
+              <svg
+                width="17"
+                height="11"
+                viewBox="0 0 17 11"
+                fill="currentColor"
+              >
+                <rect y="7" width="3" height="4" rx="1" />
+                <rect x="4.5" y="5" width="3" height="6" rx="1" />
+                <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
+                <rect x="13.5" width="3" height="11" rx="1" />
+              </svg>
+              <svg
+                width="16"
+                height="11"
+                viewBox="0 0 16 11"
+                fill="currentColor"
+              >
+                <path d="M8 10.3 5.6 7.9a3.4 3.4 0 0 1 4.8 0L8 10.3Z" />
+                <path
+                  d="M2.5 4.8a7.8 7.8 0 0 1 11 0l-1.5 1.5a5.7 5.7 0 0 0-8 0L2.5 4.8Z"
+                  opacity=".85"
+                />
+                <path
+                  d="M0 2.3a11.3 11.3 0 0 1 16 0l-1.5 1.5a9.2 9.2 0 0 0-13 0L0 2.3Z"
+                  opacity=".6"
+                />
+              </svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                <rect
+                  x=".5"
+                  y=".5"
+                  width="21"
+                  height="11"
+                  rx="3.2"
+                  stroke="currentColor"
+                  opacity=".4"
+                />
+                <rect
+                  x="2"
+                  y="2"
+                  width="15"
+                  height="8"
+                  rx="2"
+                  fill="currentColor"
+                />
+                <path
+                  d="M23 4v4a2.2 2.2 0 0 0 0-4Z"
+                  fill="currentColor"
+                  opacity=".5"
+                />
+              </svg>
+            </span>
+          </div>
+
+          <div class="nav g-nav"><span class="nav-title">错题本</span></div>
+
+          <div class="body body--tab" style="padding-top: 12px">
+            <!-- 品牌区 + 卡通形象 -->
+            <div class="row between" style="padding: 12px 2px 22px">
+              <div class="grow">
+                <span class="chip g">MVP 核心闭环</span>
+                <h2 class="t-h1 mt12">
+                  把每一道错题，<br />变成一次<span class="accent">进步</span>
+                </h2>
+                <p class="t-cap muted mt10">拍下题目即入库 · 随时翻面复习</p>
+              </div>
+              <svg
+                class="mascot mascot--float"
+                style="
+                  width: 104px;
+                  height: 104px;
+                  flex: none;
+                  margin-left: 4px;
+                "
+              >
+                <use href="#mascot" />
+              </svg>
+            </div>
+
+            <!-- 数据概览：仅展示错题总数（v1.2 移除本地容量） -->
+            <div class="card" style="border-radius: var(--r-l)">
+              <div class="t-cap muted">错题总数</div>
+              <div class="row mt6" style="align-items: baseline; gap: 6px">
+                <span
+                  class="num"
+                  style="
+                    font-size: 38px;
+                    line-height: 1;
+                    font-weight: 600;
+                    letter-spacing: -0.02em;
+                  "
+                  >128</span
+                >
+                <span class="t-text muted">道</span>
+              </div>
+            </div>
+
+            <!-- 主入口：拍照录入 -->
+            <button
+              class="card"
+              style="
+                margin-top: auto;
+                border-radius: var(--r-l);
+                background: var(--green-strong);
+                border-color: rgba(7, 193, 96, 0.3);
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                text-align: left;
+                width: 100%;
+                font-family: inherit;
+                cursor: pointer;
+              "
+            >
+              <span
+                style="
+                  flex: none;
+                  width: 48px;
+                  height: 48px;
+                  border-radius: 15px;
+                  background: var(--green);
+                  color: #fff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  box-shadow: 0 6px 14px rgba(7, 193, 96, 0.3);
+                "
+              >
+                <svg
+                  width="25"
+                  height="25"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.2-1.8h7.2L16.8 6h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-9Z"
+                  />
+                  <circle cx="12" cy="13" r="3.6" />
+                </svg>
+              </span>
+              <span class="grow">
+                <span class="t-title accent" style="display: block"
+                  >拍照录入</span
+                >
+                <span
+                  class="t-cap"
+                  style="
+                    display: block;
+                    margin-top: 2px;
+                    color: var(--green-ink);
+                  "
+                  >拍下题目，自动识别文字</span
+                >
+              </span>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--green-ink)"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                style="opacity: 0.6"
+              >
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+
+            <!-- 次入口：开始刷题 -->
+            <button
+              class="card mt12"
+              style="
+                border-radius: var(--r-l);
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                text-align: left;
+                width: 100%;
+                font-family: inherit;
+                cursor: pointer;
+              "
+            >
+              <span
+                style="
+                  flex: none;
+                  width: 48px;
+                  height: 48px;
+                  border-radius: 15px;
+                  background: var(--blue-soft);
+                  color: var(--blue-ink);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                "
+              >
+                <svg
+                  width="25"
+                  height="25"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M20 11a8 8 0 1 0-2.6 6.1" />
+                  <path d="M21 5v6h-6" />
+                </svg>
+              </span>
+              <span class="grow">
+                <span class="t-title" style="display: block">开始刷题</span>
+                <span
+                  class="t-cap muted"
+                  style="display: block; margin-top: 2px"
+                  >随机抽题 · 翻面看答案</span
+                >
+              </span>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--ink-3)"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m9 6 6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+
+          <nav class="tabbar g-tab">
+            <div class="tab on">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 10.6 12 3.5l9 7.1" />
+                <path d="M5.4 9.6V20h13.2V9.6" />
+                <path d="M9.8 20v-5.2h4.4V20" />
+              </svg>
+              首页
+            </div>
+            <div class="tab">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3.5" y="7" width="17" height="13" rx="2.5" />
+                <path d="M6.5 3.6h11" />
+                <path d="M7.5 11.5h6" />
+              </svg>
+              题库
+            </div>
+            <div class="tab">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M20 11a8 8 0 1 0-2.6 6.1" />
+                <path d="M21 5v6h-6" />
+              </svg>
+              刷题
+            </div>
+          </nav>
+          <div class="home-indicator"></div>
+        </div>
+        <div class="notes">
+          <div class="note">
+            <span class="tag d">设计</span
+            ><span
+              >品牌区 /
+              数据概览在上，两个主入口卡片吸底至拇指可达区（§1.1），中间以大留白建立层级（§1.2）；一屏一重点，主行动点为绿色高亮的「拍照录入」。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag d">设计</span
+            ><span
+              >数据概览按 v1.2 §8.5
+              只展示「错题总数」，不呈现本地容量占用与清理引导。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span
+              >点「拍照录入」→ 02 选择录入方式；点「开始刷题」→ 文件 3
+              刷题页。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span
+              >顶栏 / tabBar 走毛玻璃①②；品牌区的「小错题本」形象做 4.5s
+              缓入缓出浮动，遵循 prefers-reduced-motion。</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 02 选择录入方式 ================= -->
+      <section class="cell">
+        <div class="cell-head">
+          <span class="cell-no">02</span
+          ><span class="cell-name">选择录入方式</span
+          ><span class="cell-route">ActionSheet</span>
+        </div>
+        <div class="phone">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span
+            ><span class="sb-r">
+              <svg
+                width="17"
+                height="11"
+                viewBox="0 0 17 11"
+                fill="currentColor"
+              >
+                <rect y="7" width="3" height="4" rx="1" />
+                <rect x="4.5" y="5" width="3" height="6" rx="1" />
+                <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
+                <rect x="13.5" width="3" height="11" rx="1" />
+              </svg>
+              <svg
+                width="16"
+                height="11"
+                viewBox="0 0 16 11"
+                fill="currentColor"
+              >
+                <path d="M8 10.3 5.6 7.9a3.4 3.4 0 0 1 4.8 0L8 10.3Z" />
+                <path
+                  d="M2.5 4.8a7.8 7.8 0 0 1 11 0l-1.5 1.5a5.7 5.7 0 0 0-8 0L2.5 4.8Z"
+                  opacity=".85"
+                />
+                <path
+                  d="M0 2.3a11.3 11.3 0 0 1 16 0l-1.5 1.5a9.2 9.2 0 0 0-13 0L0 2.3Z"
+                  opacity=".6"
+                />
+              </svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                <rect
+                  x=".5"
+                  y=".5"
+                  width="21"
+                  height="11"
+                  rx="3.2"
+                  stroke="currentColor"
+                  opacity=".4"
+                />
+                <rect
+                  x="2"
+                  y="2"
+                  width="15"
+                  height="8"
+                  rx="2"
+                  fill="currentColor"
+                />
+                <path
+                  d="M23 4v4a2.2 2.2 0 0 0 0-4Z"
+                  fill="currentColor"
+                  opacity=".5"
+                />
+              </svg>
+            </span>
+          </div>
+
+          <div class="nav g-nav"><span class="nav-title">错题本</span></div>
+
+          <!-- 底层首页残影 -->
+          <div class="body body--tab" style="padding-top: 12px">
+            <div class="row between" style="padding: 12px 2px 22px">
+              <div class="grow">
+                <span class="chip g">MVP 核心闭环</span>
+                <h2 class="t-h1 mt12">
+                  把每一道错题，<br />变成一次<span class="accent">进步</span>
+                </h2>
+              </div>
+              <svg
+                class="mascot"
+                style="width: 96px; height: 96px; flex: none; margin-left: 4px"
+              >
+                <use href="#mascot" />
+              </svg>
+            </div>
+            <div class="card" style="border-radius: var(--r-l)">
+              <div class="t-cap muted">错题总数</div>
+              <div class="row mt6" style="align-items: baseline; gap: 6px">
+                <span
+                  class="num"
+                  style="font-size: 38px; line-height: 1; font-weight: 600"
+                  >128</span
+                >
+                <span class="t-text muted">道</span>
+              </div>
+            </div>
+          </div>
+          <nav class="tabbar g-tab">
+            <div class="tab on">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 10.6 12 3.5l9 7.1" />
+                <path d="M5.4 9.6V20h13.2V9.6" />
+                <path d="M9.8 20v-5.2h4.4V20" /></svg
+              >首页
+            </div>
+            <div class="tab">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3.5" y="7" width="17" height="13" rx="2.5" />
+                <path d="M6.5 3.6h11" /></svg
+              >题库
+            </div>
+            <div class="tab">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M20 11a8 8 0 1 0-2.6 6.1" />
+                <path d="M21 5v6h-6" /></svg
+              >刷题
+            </div>
+          </nav>
+
+          <!-- 遮罩 + ActionSheet（毛玻璃④） -->
+          <div class="mask"></div>
+          <div class="sheet g-panel">
+            <div class="sheet-title">选择录入方式</div>
+            <div class="sheet-item">
+              <svg
+                class="ico"
+                width="23"
+                height="23"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.2-1.8h7.2L16.8 6h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5v-9Z"
+                />
+                <circle cx="12" cy="13" r="3.6" />
+              </svg>
+              拍照
+            </div>
+            <div class="sheet-item">
+              <svg
+                class="ico"
+                width="23"
+                height="23"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+                <circle cx="9" cy="10" r="1.6" />
+                <path d="m4.5 17 4.8-4.4 3.6 3.2 3-2.6 3.6 3.2" />
+              </svg>
+              从相册选择
+            </div>
+            <div
+              class="sheet-item sheet-cancel g-panel"
+              style="
+                justify-content: center;
+                color: var(--ink-2);
+                font-size: 16px;
+                border-top: none;
+              "
+            >
+              取消
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <div class="notes">
+          <div class="note">
+            <span class="tag d">设计</span
+            ><span
+              >遮罩 <code style="font-size: 12.5px">rgba(20,16,8,.38)</code> +
+              <code style="font-size: 12.5px">blur(2px)</code
+              >；面板走毛玻璃④，圆角 16px，选项行高 58px 便于单指点击。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span
+              >拍照 / 从相册选择 → 03 OCR 识别中；取消 → 返回 01 首页。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span
+              >面板顶部有 0.5px
+              分隔线与四周描边，避免在浅色内容上「糊掉边界」（§3.6 约束
+              5）。</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 03 OCR 识别中 ================= -->
+      <section class="cell">
+        <div class="cell-head">
+          <span class="cell-no">03</span
+          ><span class="cell-name">OCR 识别中</span
+          ><span class="cell-route">loading state</span>
+        </div>
+        <div class="phone">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span
+            ><span class="sb-r">
+              <svg
+                width="17"
+                height="11"
+                viewBox="0 0 17 11"
+                fill="currentColor"
+              >
+                <rect y="7" width="3" height="4" rx="1" />
+                <rect x="4.5" y="5" width="3" height="6" rx="1" />
+                <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
+                <rect x="13.5" width="3" height="11" rx="1" />
+              </svg>
+              <svg
+                width="16"
+                height="11"
+                viewBox="0 0 16 11"
+                fill="currentColor"
+              >
+                <path d="M8 10.3 5.6 7.9a3.4 3.4 0 0 1 4.8 0L8 10.3Z" />
+                <path
+                  d="M2.5 4.8a7.8 7.8 0 0 1 11 0l-1.5 1.5a5.7 5.7 0 0 0-8 0L2.5 4.8Z"
+                  opacity=".85"
+                />
+                <path
+                  d="M0 2.3a11.3 11.3 0 0 1 16 0l-1.5 1.5a9.2 9.2 0 0 0-13 0L0 2.3Z"
+                  opacity=".6"
+                />
+              </svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                <rect
+                  x=".5"
+                  y=".5"
+                  width="21"
+                  height="11"
+                  rx="3.2"
+                  stroke="currentColor"
+                  opacity=".4"
+                />
+                <rect
+                  x="2"
+                  y="2"
+                  width="15"
+                  height="8"
+                  rx="2"
+                  fill="currentColor"
+                />
+                <path
+                  d="M23 4v4a2.2 2.2 0 0 0 0-4Z"
+                  fill="currentColor"
+                  opacity=".5"
+                />
+              </svg>
+            </span>
+          </div>
+
+          <div class="nav g-nav"><span class="nav-title">识别中</span></div>
+
+          <div class="body" style="bottom: 80px">
+            <div class="card row" style="padding: 12px; gap: 12px">
+              <div class="imgthumb" style="width: 64px; height: 64px">
+                <img
+                  class="shot"
+                  style="height: 64px"
+                  alt="识别原图"
+                  src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=top%20down%20photo%20of%20a%20school%20math%20worksheet%20on%20white%20paper%20with%20a%20handwritten%20algebra%20problem%20and%20pencil%20annotations%2C%20soft%20natural%20window%20light%2C%20realistic&image_size=square"
+                />
+              </div>
+              <div class="grow">
+                <div class="t-text strong-ink">IMG_2043.jpg</div>
+                <div class="t-cap faint mt6" style="margin-top: 4px">
+                  1.8 MB · 已压缩上传
+                </div>
+              </div>
+              <span class="chip b">识别中</span>
+            </div>
+
+            <!-- 卡通形象 + 识别进度 -->
+            <div class="col mt20" style="align-items: center">
+              <svg
+                class="mascot mascot--float"
+                style="width: 86px; height: 86px"
+              >
+                <use href="#mascot" />
+              </svg>
+              <div class="row mt14" style="gap: 9px">
+                <span class="spinner"></span>
+                <span class="t-text strong-ink">正在识别题目文字…</span>
+              </div>
+            </div>
+            <div class="bar mt12"><i style="width: 62%"></i></div>
+            <div class="t-cap faint mt8">已完成 62% · 预计还需 2 秒</div>
+
+            <div class="t-cap muted mt20" style="font-weight: 600">
+              题干预览
+            </div>
+            <div class="card col mt10" style="gap: 12px">
+              <div class="sk" style="height: 14px; width: 92%"></div>
+              <div class="sk" style="height: 14px; width: 100%"></div>
+              <div class="sk" style="height: 14px; width: 74%"></div>
+              <div class="sk" style="height: 14px; width: 46%"></div>
+            </div>
+          </div>
+
+          <div class="action-bar g-bar" style="text-align: center">
+            <button class="btn btn-text" style="width: auto; margin: 0 auto">
+              取消识别
+            </button>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <div class="notes">
+          <div class="note">
+            <span class="tag d">设计</span
+            ><span
+              >骨架屏用 220% 宽渐变横向流动（1.4s），高度对齐题干 16/27
+              正文行高；卡通形象让等待过程更轻松。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span
+              >识别完成 → 04 编辑校对；失败 / 超时同样进入
+              04，题干预填空并提示「识别失败，请手动输入」，流程不中断。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span
+              >吸底条走毛玻璃③，仅承载一个文字按钮，避免与后续主行动点争抢注意力。</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 04 编辑校对 ================= -->
+      <section class="cell">
+        <div class="cell-head">
+          <span class="cell-no">04</span><span class="cell-name">编辑校对</span
+          ><span class="cell-route">pages/edit/index</span>
+        </div>
+        <div class="phone">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span
+            ><span class="sb-r">
+              <svg
+                width="17"
+                height="11"
+                viewBox="0 0 17 11"
+                fill="currentColor"
+              >
+                <rect y="7" width="3" height="4" rx="1" />
+                <rect x="4.5" y="5" width="3" height="6" rx="1" />
+                <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
+                <rect x="13.5" width="3" height="11" rx="1" />
+              </svg>
+              <svg
+                width="16"
+                height="11"
+                viewBox="0 0 16 11"
+                fill="currentColor"
+              >
+                <path d="M8 10.3 5.6 7.9a3.4 3.4 0 0 1 4.8 0L8 10.3Z" />
+                <path
+                  d="M2.5 4.8a7.8 7.8 0 0 1 11 0l-1.5 1.5a5.7 5.7 0 0 0-8 0L2.5 4.8Z"
+                  opacity=".85"
+                />
+                <path
+                  d="M0 2.3a11.3 11.3 0 0 1 16 0l-1.5 1.5a9.2 9.2 0 0 0-13 0L0 2.3Z"
+                  opacity=".6"
+                />
+              </svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                <rect
+                  x=".5"
+                  y=".5"
+                  width="21"
+                  height="11"
+                  rx="3.2"
+                  stroke="currentColor"
+                  opacity=".4"
+                />
+                <rect
+                  x="2"
+                  y="2"
+                  width="15"
+                  height="8"
+                  rx="2"
+                  fill="currentColor"
+                />
+                <path
+                  d="M23 4v4a2.2 2.2 0 0 0 0-4Z"
+                  fill="currentColor"
+                  opacity=".5"
+                />
+              </svg>
+            </span>
+          </div>
+
+          <div class="nav g-nav">
+            <span class="nav-back"
+              ><svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m15 6-6 6 6 6" /></svg
+            ></span>
+            <span class="nav-title">编辑校对</span>
+            <span class="nav-act">重拍</span>
+          </div>
+
+          <div class="body" style="bottom: 112px">
+            <div class="card row" style="padding: 12px; gap: 12px">
+              <div class="imgthumb">
+                <img
+                  class="shot"
+                  style="height: 56px"
+                  alt="原图缩略"
+                  src="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=top%20down%20photo%20of%20a%20school%20math%20worksheet%20on%20white%20paper%20with%20a%20handwritten%20algebra%20problem%20and%20pencil%20annotations%2C%20soft%20natural%20window%20light%2C%20realistic&image_size=square"
+                />
+              </div>
+              <div class="grow">
+                <div class="t-text strong-ink">原图已保存</div>
+                <div class="t-cap faint" style="margin-top: 4px">
+                  IMG_2043.jpg · 压缩后 320 KB
+                </div>
+              </div>
+              <span class="t-cap row" style="color: #2563a8; gap: 2px"
+                >查看大图
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
+              </span>
+            </div>
+
+            <div class="row between mt16">
+              <label class="t-text" style="font-weight: 600"
+                >题干 <span style="color: var(--red-ink)">*</span></label
+              >
+              <span class="t-cap faint">OCR 已识别 · 已校对</span>
+            </div>
+            <div
+              class="mt8"
+              style="
+                border: 2px solid var(--green);
+                border-radius: var(--r-s);
+                background: #fff;
+                padding: 12px;
+              "
+            >
+              <p class="t-body">
+                已知函数 f(x) = x² - 2x + 3，求 f(x) 在区间 [0, 3]
+                上的最小值和最大值。
+              </p>
+              <div class="t-cap faint mt10" style="text-align: right">
+                32 / 200
+              </div>
+            </div>
+
+            <div class="t-text mt16" style="font-weight: 600">答案</div>
+            <div
+              class="mt8"
+              style="
+                border: 1px solid var(--line);
+                border-radius: var(--r-s);
+                background: #fff;
+                padding: 12px;
+              "
+            >
+              <p class="t-body">
+                对称轴 x = 1，开口向上。<br />最小值 f(1) = 2；最大值 f(3) = 6。
+              </p>
+              <div class="t-cap faint mt10" style="text-align: right">
+                24 / 300
+              </div>
+            </div>
+
+            <div
+              class="row mt14"
+              style="
+                gap: 8px;
+                padding: 10px 12px;
+                background: var(--blue-soft);
+                border-radius: var(--r-s);
+              "
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--blue-ink)"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8h.01M11 12h1v4h1" />
+              </svg>
+              <span class="t-cap" style="color: var(--blue-ink)"
+                >仅支持纯文本，不解析公式与图文混排</span
+              >
+            </div>
+          </div>
+
+          <div class="action-bar g-bar">
+            <button class="btn btn-primary">保存入库</button>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <div class="notes">
+          <div class="note">
+            <span class="tag d">设计</span
+            ><span
+              >输入框圆角 8px、内边距 12px；聚焦态描边加粗至 2px
+              并切为主绿（题干框处于聚焦态，答案框为默认描边）。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag d">设计</span
+            ><span
+              >吸底「保存入库」条走毛玻璃③；白底之上的正文卡片不使用毛玻璃，保证阅读清晰（§3.6
+              约束 6）。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span
+              >题干为空时按钮置灰不可点；点「保存入库」→ 05 保存成功。</span
+            >
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 05 保存成功 ================= -->
+      <section class="cell">
+        <div class="cell-head">
+          <span class="cell-no">05</span><span class="cell-name">保存成功</span
+          ><span class="cell-route">toast over 04</span>
+        </div>
+        <div class="phone">
+          <div class="island"></div>
+          <div class="statusbar">
+            <span>9:41</span
+            ><span class="sb-r">
+              <svg
+                width="17"
+                height="11"
+                viewBox="0 0 17 11"
+                fill="currentColor"
+              >
+                <rect y="7" width="3" height="4" rx="1" />
+                <rect x="4.5" y="5" width="3" height="6" rx="1" />
+                <rect x="9" y="2.5" width="3" height="8.5" rx="1" />
+                <rect x="13.5" width="3" height="11" rx="1" />
+              </svg>
+              <svg
+                width="16"
+                height="11"
+                viewBox="0 0 16 11"
+                fill="currentColor"
+              >
+                <path d="M8 10.3 5.6 7.9a3.4 3.4 0 0 1 4.8 0L8 10.3Z" />
+                <path
+                  d="M2.5 4.8a7.8 7.8 0 0 1 11 0l-1.5 1.5a5.7 5.7 0 0 0-8 0L2.5 4.8Z"
+                  opacity=".85"
+                />
+                <path
+                  d="M0 2.3a11.3 11.3 0 0 1 16 0l-1.5 1.5a9.2 9.2 0 0 0-13 0L0 2.3Z"
+                  opacity=".6"
+                />
+              </svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                <rect
+                  x=".5"
+                  y=".5"
+                  width="21"
+                  height="11"
+                  rx="3.2"
+                  stroke="currentColor"
+                  opacity=".4"
+                />
+                <rect
+                  x="2"
+                  y="2"
+                  width="15"
+                  height="8"
+                  rx="2"
+                  fill="currentColor"
+                />
+                <path
+                  d="M23 4v4a2.2 2.2 0 0 0 0-4Z"
+                  fill="currentColor"
+                  opacity=".5"
+                />
+              </svg>
+            </span>
+          </div>
+
+          <div class="nav g-nav">
+            <span class="nav-back"
+              ><svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="m15 6-6 6 6 6" /></svg
+            ></span>
+            <span class="nav-title">编辑校对</span>
+          </div>
+
+          <div class="body" style="bottom: 112px">
+            <div class="col" style="align-items: center; margin-top: 2px">
+              <svg
+                class="mascot mascot--float"
+                style="width: 78px; height: 78px"
+              >
+                <use href="#mascot" />
+              </svg>
+            </div>
+            <div
+              class="row mt14"
+              style="
+                justify-content: center;
+                gap: 8px;
+                padding: 12px;
+                background: var(--green-soft);
+                border-radius: var(--r-m);
+              "
+            >
+              <svg
+                width="19"
+                height="19"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--green-ink)"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="m8.5 12.4 2.4 2.4 4.6-5" />
+              </svg>
+              <span
+                class="t-text"
+                style="color: var(--green-ink); font-weight: 600"
+                >已入库，可在「题库」中查看</span
+              >
+            </div>
+
+            <div class="card mt16">
+              <div class="t-tag faint">题干</div>
+              <p class="t-body mt8" style="color: var(--ink-2)">
+                已知函数 f(x) = x² - 2x + 3，求 f(x) 在区间 [0, 3]
+                上的最小值和最大值。
+              </p>
+            </div>
+            <div class="card mt12">
+              <div class="t-tag faint">答案</div>
+              <p class="t-body mt8" style="color: var(--ink-2)">
+                对称轴 x = 1，开口向上。最小值 f(1) = 2；最大值 f(3) = 6。
+              </p>
+            </div>
+          </div>
+
+          <div class="action-bar g-bar">
+            <button
+              class="btn btn-primary"
+              style="background: var(--green-deep)"
+            >
+              已保存
+            </button>
+          </div>
+
+          <div class="toast">
+            <svg
+              width="19"
+              height="19"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--green)"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="m8.5 12.4 2.4 2.4 4.6-5" />
+            </svg>
+            已保存
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+        <div class="notes">
+          <div class="note">
+            <span class="tag d">设计</span
+            ><span
+              >Toast 居中胶囊：浅色底 + 主绿对勾 + 深色字，非阻塞反馈；浅底上以
+              1px 描边与柔和投影界定边界，避免出现深色块压沉画面。</span
+            >
+          </div>
+          <div class="note">
+            <span class="tag i">交互</span
+            ><span>显示 1.5s 后自动返回题库列表（文件 2 · 06 题库列表）。</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell-footer">
+      <b>文件 1 / 3 · 录入与入库</b> —— 01 首页 → 02 选择录入方式 → 03 OCR
+      识别中 → 04 编辑校对 → 05 保存成功。<br />
+      配色保留微信绿主色，中性色阶走冷调、手机屏底色改为近白 #FAFBFD、规格页底色
+      #F5F7FA；字体统一为中文系统字体栈并去掉等宽字体、上调一档字号；
+      手机框为浅色细边框 +
+      柔和投影，卡片以极柔浮起阴影替代硬框感；顶部导航栏、底部
+      tabBar、吸底操作条、弹层四处毛玻璃均附
+      <code>@supports</code> 纯色降级；原型内的「原图」为 AI
+      生成示意，非真实数据。
+    </footer>
+  </body>
+</html>
