@@ -9,6 +9,8 @@ export const STORAGE_KEYS = {
   removed: 'q:removed',
   /** 增量同步游标（上次同步的服务端时间，ms） */
   syncCursor: 'q:syncCursor',
+  /** 是否已引导过「首次登录完善资料」 */
+  nickPrompted: 'u:nickPrompted',
 } as const
 
 /** 当前数据结构版本 */

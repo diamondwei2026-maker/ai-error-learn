@@ -33,3 +33,24 @@
   2. 小程序后台配置《用户隐私保护指引》，声明「头像昵称」「登录」
   3. 真机联调需后端具备 HTTPS 合法域名（备案）
 - **回滚方式**：识别接口鉴权可置 `AUTH_REQUIRED=false` 恢复旧行为；前端 tabBar/页面为纯追加，回退 `app.config.ts` 即恢复
+
+---
+
+## incr-20261014-首次登录资料引导
+
+- **编号**：incr-20261014-首次登录资料引导
+- **日期**：2026-10-14
+- **变更摘要**：
+  首次登录后引导完善资料。用户主动完成「微信一键登录」后，若昵称为空且从未引导过，**自动进入现有「完善资料」页**，由其主动选择头像（`chooseAvatar`）并填写昵称（`input type="nickname"`）；点顶部返回即跳过。仅首次引导一次（本地标志 `u:nickPrompted`，注销时清除）。
+  **无界面视觉改动**（不新增按钮/文案，页面沿用现状）；**无后端改动**。
+- **影响模块**：
+  - 前端（`client/`）
+    - 修改：`src/constants/index.ts`（新增 `STORAGE_KEYS.nickPrompted`）、`src/services/repo/authRepo.ts`（`isNicknamePrompted` / `markNicknamePrompted`，`clearAll` 清理该键）、`src/store/userStore.ts`（`login()` 返回 `UserProfile`；新增 `shouldGuideProfileSetup` / `markProfileSetupGuided`）、`src/pages/index/index.tsx`、`src/pages/profile/index.tsx`（登录成功后按需跳转「完善资料」）
+- **关联文档路径**：`.trae/docs/increments/incr-20261014-首次登录资料引导/`
+  - `方案.md`、`tasks.md`、`checklist.md`、`prototype/skeleton/首次登录引导原型-骨架.html`
+- **是否待合并主 spec**：**否**（普通轻量增量，**未修改** `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 前端：`tsc --noEmit` 无新增类型错误（仅全仓既有的 `React` 未使用告警）；`npm run build:weapp` → **构建成功**（30.34s）
+  - 后端：`.venv\Scripts\python.exe -m pytest` → **80 passed**（未改后端，无回归）
+- **回滚方式**：移除两处登录成功后的跳转调用即可恢复；本地标志 `u:nickPrompted` 为独立键，不影响既有数据
+

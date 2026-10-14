@@ -24,6 +24,8 @@ const IndexPage = () => {
   const isLoggedIn = useUserStore((state) => state.isLoggedIn);
   const restoreUser = useUserStore((state) => state.restore);
   const login = useUserStore((state) => state.login);
+  const shouldGuideProfileSetup = useUserStore((state) => state.shouldGuideProfileSetup);
+  const markProfileSetupGuided = useUserStore((state) => state.markProfileSetupGuided);
 
   useDidShow(() => {
     restoreUser();
@@ -47,6 +49,13 @@ const IndexPage = () => {
     setSheetVisible(true);
   };
 
+  /** 首次登录后引导进入「完善资料」页（仅一次，可点返回跳过） */
+  const guideProfileSetup = () => {
+    if (!shouldGuideProfileSetup()) return;
+    markProfileSetupGuided();
+    Taro.navigateTo({ url: '/pages/profile/edit/index' });
+  };
+
   const handleLogin = async () => {
     if (loginBusy) return;
     setLoginBusy(true);
@@ -54,6 +63,7 @@ const IndexPage = () => {
       await login();
       setLoginSheetVisible(false);
       Taro.showToast({ title: '登录成功', icon: 'success' });
+      guideProfileSetup();
     } catch (error) {
       console.error('[index] login failed', error);
       Taro.showToast({ title: (error as Error).message || '登录失败，请重试', icon: 'none' });

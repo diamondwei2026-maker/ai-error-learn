@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>首次登录引导 · 完善资料（原型骨架 · 阶段1）</title>
+    <style>
+      /* ============================================================
+     阶段1 骨架：仅表达信息架构、布局、模块位置、交互流转
+     不追求视觉美化；配色仅借用现有设计令牌以体现「与现有系统的一致性」
+     ============================================================ */
+      :root {
+        --page-bg: #f5f6f8;
+        --frame-bg: #ffffff;
+        --ink: #1f2937;
+        --ink-2: #4b5563;
+        --ink-3: #9ca3af;
+        --line: #e5e7eb;
+        --block: #f3f4f6;
+        --block-2: #eceff3;
+        --brand: #07c160;
+        --brand-ink: #056b36;
+        --wire: #cbd5e1;
+        --dash: repeating-linear-gradient(
+          45deg,
+          #eef1f5 0 6px,
+          #e6eaf0 6px 12px
+        );
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 40px 28px 80px;
+        background: var(--page-bg);
+        color: var(--ink);
+        font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .doc-head {
+        max-width: 1280px;
+        margin: 0 auto 32px;
+      }
+      .doc-head h1 {
+        font-size: 22px;
+        margin: 0 0 8px;
+        letter-spacing: 0.5px;
+      }
+      .doc-head .meta {
+        font-size: 13px;
+        color: var(--ink-2);
+        line-height: 1.9;
+      }
+      .doc-head .meta b {
+        color: var(--brand-ink);
+        font-weight: 600;
+      }
+
+      .group-title {
+        max-width: 1280px;
+        margin: 44px auto 16px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--ink-2);
+        border-left: 3px solid var(--brand);
+        padding-left: 10px;
+      }
+      .frames {
+        max-width: 1280px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 26px;
+        align-items: flex-start;
+      }
+      .frame {
+        width: 375px;
+      }
+      .frame-cap {
+        font-size: 12px;
+        color: var(--ink-3);
+        margin: 0 0 8px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+
+      .phone {
+        width: 375px;
+        height: 720px;
+        background: var(--frame-bg);
+        border: 1px solid var(--line);
+        border-radius: 26px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 12px 32px -20px rgba(15, 23, 42, 0.25);
+        display: flex;
+        flex-direction: column;
+      }
+      .statusbar {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 18px;
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+      .statusbar .caps {
+        width: 60px;
+        height: 16px;
+        border: 1px solid var(--wire);
+        border-radius: 9px;
+      }
+
+      .navbar {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        border-bottom: 1px solid var(--line);
+      }
+      .navbar .title {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .navbar .back {
+        position: absolute;
+        left: 14px;
+        font-size: 18px;
+        color: var(--ink-2);
+      }
+
+      .body {
+        flex: 1;
+        padding: 18px 16px 24px;
+        overflow: hidden;
+      }
+      .body.center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+      }
+      .card + .card {
+        margin-top: 14px;
+      }
+
+      .avatar {
+        border-radius: 50%;
+        background: var(--block);
+        border: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ink-3);
+        font-size: 11px;
+      }
+      .avatar.xl {
+        width: 88px;
+        height: 88px;
+      }
+      .avatar.sm {
+        width: 56px;
+        height: 56px;
+      }
+
+      .btn {
+        height: 44px;
+        border-radius: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .btn.primary {
+        background: var(--brand);
+        color: #fff;
+      }
+      .btn.block {
+        width: 100%;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 52px;
+        padding: 0 2px;
+      }
+      .row + .row {
+        border-top: 1px solid var(--line);
+      }
+      .row .label {
+        font-size: 15px;
+        color: var(--ink);
+      }
+      .row .chev {
+        color: var(--ink-3);
+        font-size: 16px;
+      }
+
+      .t-title {
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .t-sub {
+        font-size: 12.5px;
+        color: var(--ink-3);
+        line-height: 1.6;
+      }
+      .t-label {
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+
+      .field {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--block);
+        border-radius: 12px;
+        height: 48px;
+        padding: 0 14px;
+      }
+      .field .ph {
+        font-size: 14px;
+        color: var(--ink-3);
+        flex: 1;
+      }
+      .field .count {
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      .footer-bar {
+        padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+        border-top: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .tabbar {
+        height: 54px;
+        border-top: 1px solid var(--line);
+        display: flex;
+        background: #fff;
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        font-size: 10.5px;
+        color: var(--ink-3);
+      }
+      .tab .ico {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        background: var(--block-2);
+      }
+      .tab.active {
+        color: var(--brand-ink);
+        font-weight: 600;
+      }
+      .tab.active .ico {
+        background: #d9f5e6;
+      }
+
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .line {
+        height: 12px;
+        border-radius: 6px;
+        background: var(--block);
+        margin-bottom: 8px;
+      }
+      .line.w70 {
+        width: 70%;
+      }
+      .line.w45 {
+        width: 45%;
+      }
+      .line.w55 {
+        width: 55%;
+      }
+      .mascot-ph {
+        width: 76px;
+        height: 76px;
+        border-radius: 16px;
+        background: var(--dash);
+        border: 1px dashed var(--wire);
+      }
+      .entry {
+        border-radius: 14px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 14px;
+      }
+      .entry.primary {
+        background: var(--brand);
+      }
+      .entry.secondary {
+        background: var(--block);
+      }
+      .entry .sq {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.28);
+      }
+      .entry.secondary .sq {
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+      .entry .et {
+        flex: 1;
+      }
+      .entry .et .a {
+        font-size: 15px;
+        font-weight: 600;
+        color: #fff;
+      }
+      .entry .et .a.dark {
+        color: var(--ink);
+      }
+      .entry .et .b {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.85);
+        margin-top: 3px;
+      }
+      .entry .et .b.dark {
+        color: var(--ink-3);
+      }
+      .stat {
+        margin-top: 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+      }
+
+      /* 流转示意（置于界面之外） */
+      .flow {
+        max-width: 1280px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .flow .node {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 14px;
+      }
+      .flow .node.hl {
+        border-color: var(--brand);
+        color: var(--brand-ink);
+        font-weight: 600;
+      }
+      .flow .arrow {
+        color: var(--ink-3);
+      }
+      .flow-note {
+        max-width: 1280px;
+        margin: 12px auto 0;
+        font-size: 12.5px;
+        color: var(--ink-3);
+      }
+
+      /* ---------- 设计说明（严格置于界面之外） ---------- */
+      .notes {
+        max-width: 1280px;
+        margin: 56px auto 0;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 28px 30px;
+      }
+      .notes h2 {
+        font-size: 17px;
+        margin: 0 0 6px;
+      }
+      .notes h3 {
+        font-size: 14px;
+        margin: 24px 0 8px;
+        color: var(--brand-ink);
+      }
+      .notes p,
+      .notes li {
+        font-size: 13.5px;
+        line-height: 1.85;
+        color: var(--ink-2);
+      }
+      .notes ul,
+      .notes ol {
+        margin: 6px 0;
+        padding-left: 20px;
+      }
+      .notes .tag {
+        display: inline-block;
+        font-size: 12px;
+        background: #f0fbf5;
+        color: var(--brand-ink);
+        border: 1px solid #d6f2e3;
+        border-radius: 6px;
+        padding: 1px 8px;
+        margin-right: 6px;
+      }
+      .notes table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+      .notes th,
+      .notes td {
+        border: 1px solid var(--line);
+        padding: 8px 10px;
+        text-align: left;
+        color: var(--ink-2);
+      }
+      .notes th {
+        background: #fafbfd;
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .notes code {
+        background: var(--block);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 12.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="doc-head">
+      <h1>首次登录引导 · 完善资料（原型骨架 · 阶段1）</h1>
+      <div class="meta">
+        增量编号：<b>incr-20261014-首次登录资料引导</b>　|　阶段：<b>骨架（结构确认）</b>　|　范围：<b
+          >仅行为变更，无视觉变更</b
+        ><br />
+        目标：确认「首次登录 →
+        自动进入完善资料页」的流转；页面结构与视觉<b>完全沿用现有「完善资料」页</b>，不新增模块。
+      </div>
+      <div class="meta" style="margin-top: 6px">
+        <b>本轮确认结论</b>：不新增「暂不设置」按钮（跳过 =
+        直接点顶部返回）；不新增引导文案。故本增量<b>无界面视觉改动</b>。
+      </div>
+    </header>
+
+    <!-- ===================== 原型组 1：页面（保持现状） ===================== -->
+    <div class="group-title">
+      原型组 1 ｜ 「完善资料」页（保持现状 · 首次引导与常规修改复用同一页面）
+    </div>
+    <div class="frames">
+      <div class="frame">
+        <p class="frame-cap">
+          页面结构（首次登录自动进入 / 或从「我的」进入 —— 完全一致）
+        </p>
+        <div class="phone">
+          <div class="statusbar">
+            <span>9:41</span><span class="caps"></span>
+          </div>
+          <div class="navbar">
+            <span class="back">‹</span><span class="title">完善资料</span>
+          </div>
+          <div class="body center">
+            <div class="avatar xl" style="margin-top: 26px">头像</div>
+            <div class="t-sub" style="margin-top: 12px">点击头像可更换</div>
+
+            <div style="width: 100%; margin-top: 36px">
+              <div class="t-label" style="margin-bottom: 10px">昵称</div>
+              <div class="field">
+                <span class="ph">请输入昵称</span>
+                <span class="count">0/20</span>
+              </div>
+            </div>
+          </div>
+          <div class="footer-bar">
+            <div class="btn primary block">保存</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="frame">
+        <p class="frame-cap">
+          入口上下文　「我的」· 已登录（常规入口，行为不变）
+        </p>
+        <div class="phone">
+          <div class="statusbar">
+            <span>9:41</span><span class="caps"></span>
+          </div>
+          <div class="navbar"><span class="title">我的</span></div>
+          <div class="body">
+            <div class="card">
+              <div style="display: flex; align-items: center; gap: 14px">
+                <div class="avatar sm">头像</div>
+                <div style="flex: 1">
+                  <div class="t-title">同学</div>
+                  <div class="t-sub" style="margin-top: 4px">
+                    点击修改头像与昵称
+                  </div>
+                </div>
+                <span class="chev">›</span>
+              </div>
+            </div>
+            <div class="card">
+              <div class="row">
+                <span class="label">退出登录</span><span class="chev">›</span>
+              </div>
+              <div class="row">
+                <span class="label">注销账号</span><span class="chev">›</span>
+              </div>
+            </div>
+          </div>
+          <div class="tabbar">
+            <div class="tab"><span class="ico"></span><span>首页</span></div>
+            <div class="tab"><span class="ico"></span><span>题库</span></div>
+            <div class="tab"><span class="ico"></span><span>刷题</span></div>
+            <div class="tab active">
+              <span class="ico"></span><span>我的</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== 流转示意（界面之外） ===================== -->
+    <div class="group-title">首次引导流转（本增量唯一实质改动）</div>
+    <div class="flow">
+      <span class="node">游客点「拍照录入」</span><span class="arrow">→</span>
+      <span class="node">登录引导弹层</span><span class="arrow">→</span>
+      <span class="node">微信一键登录成功</span><span class="arrow">→</span>
+      <span class="node hl">自动进入「完善资料」页</span
+      ><span class="arrow">→</span>
+      <span class="node">保存 或 点顶部返回跳过</span
+      ><span class="arrow">→</span>
+      <span class="node">返回来路页（首页或「我的」）</span>
+    </div>
+    <p class="flow-note">
+      说明：仅在「首次登录」触发一次（昵称为空且未引导过）；再次登录不再自动进入。「我的」→
+      点击头像/昵称区仍可随时进入本页修改。
+    </p>
+
+    <!-- ===================== 设计说明（严格置于界面之外） ===================== -->
+    <section class="notes">
+      <h2>设计说明</h2>
+      <p>
+        本节为原型配套说明，<b>不进入任何界面</b>。本增量<b>无界面视觉改动</b>，页面沿用现有
+        <code>pages/profile/edit</code> 已确认视觉。
+      </p>
+
+      <h3>一、页面与状态清单</h3>
+      <table>
+        <tr>
+          <th>编号</th>
+          <th>界面 / 状态</th>
+          <th>关键模块（自上而下）</th>
+          <th>与现有系统的关系</th>
+        </tr>
+        <tr>
+          <td>①</td>
+          <td>完善资料（首次登录自动进入）</td>
+          <td>
+            NavBar「完善资料」（带返回）→ 大头像（点击更换）→ 昵称输入 →
+            底部「保存」
+          </td>
+          <td><b>完全复用现有页面，无新增/改动模块</b></td>
+        </tr>
+        <tr>
+          <td>②</td>
+          <td>完善资料（从「我的」进入）</td>
+          <td>同 ①，完全一致</td>
+          <td>现有行为，保持不变</td>
+        </tr>
+        <tr>
+          <td>③</td>
+          <td>「我的」· 已登录（入口上下文）</td>
+          <td>头像+昵称+chevron → 退出登录 / 注销账号 → tabBar</td>
+          <td>现有页面，行为不变</td>
+        </tr>
+      </table>
+
+      <h3>二、交互流转</h3>
+      <ul>
+        <li>
+          <b>首次登录</b>：用户在首页或「我的」完成「微信一键登录」→
+          若昵称为空且从未引导过 → <b>自动进入「完善资料」页</b>。
+        </li>
+        <li>
+          <b>保存</b>：填昵称（可选头像）→ 点「保存」→ 成功 Toast →
+          返回来路页；此后不再自动引导。
+        </li>
+        <li>
+          <b>跳过</b>：直接点顶部<b>返回</b>按钮 →
+          返回来路页；此后不再自动引导（用户仍可从「我的」进入修改）。
+        </li>
+        <li>
+          <b>常规修改</b>：「我的」→ 点击头像/昵称区 →
+          进入同一页面（无任何差异）。
+        </li>
+      </ul>
+
+      <h3>三、状态差异说明</h3>
+      <ul>
+        <li>
+          首次引导态与常规态为<b>完全相同的页面</b>，无任何视觉/结构差异；本增量的改动只在「登录成功后多一次自动跳转」。
+        </li>
+        <li>
+          「跳过」由页面已有的顶部返回按钮承担，<b>不新增按钮</b>，界面保持纯净。
+        </li>
+      </ul>
+
+      <h3>四、同类产品参考点（定向调研）</h3>
+      <ol>
+        <li>
+          <b>能力路径唯一</b>：微信已收回
+          <code>getUserProfile</code>，现仅支持「头像昵称填写能力」——<code
+            >open-type="chooseAvatar"</code
+          >
+          +
+          <code>input type="nickname"</code
+          >，须用户主动提供。（参考：微信官方《获取头像昵称》）
+        </li>
+        <li>
+          <b>登录与资料完善分离</b
+          >：主流小程序先完成登录，再单独引导「完善资料」，不把资料授权捆绑在登录按钮上。
+        </li>
+        <li>
+          <b>登录后跳转完善资料页</b
+          >：以独立二级页承接，返回即可跳过，是教育/工具类小程序通行做法；不额外造弹层与按钮。
+        </li>
+        <li>
+          <b>必须可跳过</b
+          >：微信审核要求资料完善不得强制；本方案以「顶部返回即跳过」满足。
+        </li>
+        <li>
+          <b>不得进入即授权</b
+          >：审核驳回「未体验功能即要求授权头像/昵称」，故引导只在用户主动登录后出现。
+        </li>
+      </ol>
+
+      <h3>五、本阶段未做</h3>
+      <ul>
+        <li>
+          无新增视觉元素 →
+          <b>不单独出阶段2 高保真视觉原型</b
+          >，直接沿用现有已确认的「完善资料」视觉（见
+          <code>incr-20261014-用户系统/prototype/visual</code>）。
+        </li>
+        <li>真实头像/昵称素材：骨架中以灰色占位表示。</li>
+      </ul>
+
+      <p style="margin-top: 18px">
+        <span class="tag">已确认</span
+        >结构已按反馈收敛：不新增「暂不设置」、不新增引导文案，页面无视觉改动，仅新增「首次登录自动进入完善资料」的流转。
+      </p>
+    </section>
+  </body>
+</html>

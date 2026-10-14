@@ -21,6 +21,8 @@ const ProfilePage = () => {
   const logout = useUserStore((state) => state.logout);
   const restore = useUserStore((state) => state.restore);
   const deleteAccount = useUserStore((state) => state.deleteAccount);
+  const shouldGuideProfileSetup = useUserStore((state) => state.shouldGuideProfileSetup);
+  const markProfileSetupGuided = useUserStore((state) => state.markProfileSetupGuided);
   const refreshQuestions = useQuestionStore((state) => state.refresh);
 
   const [busy, setBusy] = useState(false);
@@ -35,6 +37,13 @@ const ProfilePage = () => {
   const avatarSrc = user?.avatarUrl ? `${API_BASE}${user.avatarUrl}` : MASCOT_DATA_URI;
   const avatarMode = hasPhoto ? 'aspectFill' : 'aspectFit';
 
+  /** 首次登录后引导进入「完善资料」页（仅一次，可点返回跳过） */
+  const guideProfileSetup = () => {
+    if (!shouldGuideProfileSetup()) return;
+    markProfileSetupGuided();
+    Taro.navigateTo({ url: '/pages/profile/edit/index' });
+  };
+
   const handleLogin = async () => {
     if (busy) return;
     setBusy(true);
@@ -42,6 +51,7 @@ const ProfilePage = () => {
       await login();
       refreshQuestions();
       Taro.showToast({ title: '登录成功', icon: 'success' });
+      guideProfileSetup();
     } catch (error) {
       console.error('[profile] login failed', error);
       Taro.showToast({ title: (error as Error).message || '登录失败，请重试', icon: 'none' });

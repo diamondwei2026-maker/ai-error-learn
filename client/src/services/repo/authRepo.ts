@@ -85,12 +85,32 @@ export const authRepo = {
     }
   },
 
+  /** 是否已引导过「首次登录完善资料」 */
+  isNicknamePrompted(): boolean {
+    try {
+      return Taro.getStorageSync(STORAGE_KEYS.nickPrompted) === true
+    } catch (error) {
+      console.error('[authRepo] isNicknamePrompted failed', error)
+      return false
+    }
+  },
+
+  /** 标记已引导过「首次登录完善资料」（仅首次引导一次） */
+  markNicknamePrompted(): void {
+    try {
+      Taro.setStorageSync(STORAGE_KEYS.nickPrompted, true)
+    } catch (error) {
+      console.error('[authRepo] markNicknamePrompted failed', error)
+    }
+  },
+
   /** 注销账号时清空全部登录/同步元数据 */
   clearAll(): void {
     try {
       Taro.removeStorageSync(STORAGE_KEYS.auth)
       Taro.removeStorageSync(STORAGE_KEYS.removed)
       Taro.removeStorageSync(STORAGE_KEYS.syncCursor)
+      Taro.removeStorageSync(STORAGE_KEYS.nickPrompted)
     } catch (error) {
       console.error('[authRepo] clearAll failed', error)
     }

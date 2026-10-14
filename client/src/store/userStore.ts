@@ -13,8 +13,8 @@ interface UserState {
   /** 当前用户资料（未登录为 null） */
   user: UserProfile | null
   isLoggedIn: boolean
-  /** 微信一键登录；成功后自动触发一次云端同步 */
-  login: () => Promise<void>
+  /** 微信一键登录；成功后自动触发一次云端同步，并返回当前用户资料 */
+  login: () => Promise<UserProfile>
   /** 退出登录：清登录态，本地错题保留 */
   logout: () => void
   /** 从本地存储恢复登录态（启动时调用） */
@@ -23,6 +23,10 @@ interface UserState {
   updateProfile: (patch: { nickname?: string; avatarTempPath?: string }) => Promise<void>
   /** 注销账号：删除云端数据 + 清除本地全部数据 */
   deleteAccount: () => Promise<void>
+  /** 是否需要「首次登录完善资料」引导（昵称为空且未引导过） */
+  shouldGuideProfileSetup: () => boolean
+  /** 标记「首次登录完善资料」引导已触发（保证仅引导一次） */
+  markProfileSetupGuided: () => void
 }
 
 /** 注销时清空本地全部数据（错题、原图、元数据、登录态、同步元数据） */
@@ -42,6 +46,7 @@ export const useUserStore = create<UserState>((set, get) => ({
     const session = await authService.login()
     set({ user: session.user, isLoggedIn: true })
     await syncService.syncNow()
+    return session.user
   },
 
   logout: () => {
@@ -70,5 +75,14 @@ export const useUserStore = create<UserState>((set, get) => ({
     clearAllLocalData()
     set({ user: null, isLoggedIn: false })
     console.info('[userStore] account deleted, local data cleared')
+  },
+
+  shouldGuideProfileSetup: () => {
+    const { user } = get()
+    return Boolean(user && !user.nickname && !authRepo.isNicknamePrompted())
+  },
+
+  markProfileSetupGuided: () => {
+    authRepo.markNicknamePrompted()
   },
 }))
