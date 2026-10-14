@@ -3,7 +3,9 @@ export default defineAppConfig({
     'pages/index/index',
     'pages/library/index',
     'pages/quiz/index',
+    'pages/profile/index',
     'pages/edit/index',
+    'pages/profile/edit/index',
   ],
   window: {
     navigationStyle: 'custom',
@@ -37,6 +39,12 @@ export default defineAppConfig({
         text: '刷题',
         iconPath: 'assets/tabbar/quiz.png',
         selectedIconPath: 'assets/tabbar/quiz-selected.png',
+      },
+      {
+        pagePath: 'pages/profile/index',
+        text: '我的',
+        iconPath: 'assets/tabbar/profile.png',
+        selectedIconPath: 'assets/tabbar/profile-selected.png',
       },
     ],
   },

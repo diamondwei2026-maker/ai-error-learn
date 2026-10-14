@@ -51,3 +51,50 @@ def test_invalid_max_bytes_falls_back_to_default():
 def test_vision_key_is_not_exposed_in_repr():
     settings = load_settings(env={"VISION_API_KEY": "vision-topsecret"})
     assert "vision-topsecret" not in repr(settings)
+
+
+# ---------- 用户体系配置 ----------
+
+
+def test_user_system_defaults():
+    settings = load_settings(env={})
+    assert settings.wechat_appid == "wx683110d829c1f0f9"
+    assert settings.wechat_app_secret == ""
+    assert settings.jwt_secret == ""
+    assert settings.jwt_access_ttl == 7200
+    assert settings.jwt_refresh_ttl == 2592000
+    assert settings.database_url == "sqlite:///./app.db"
+    assert settings.auth_required is True
+    assert settings.avatar_max_bytes == 2 * 1024 * 1024
+    assert settings.wechat_configured is False
+    assert settings.cors_origin_list == ["*"]
+
+
+def test_user_system_env_overrides():
+    settings = load_settings(
+        env={
+            "WECHAT_APPID": "wx-1",
+            "WECHAT_APP_SECRET": "sec",
+            "JWT_SECRET": "jwt",
+            "JWT_ACCESS_TTL": "10",
+            "JWT_REFRESH_TTL": "20",
+            "DATABASE_URL": "sqlite:///./x.db",
+            "AUTH_REQUIRED": "false",
+            "AVATAR_MAX_BYTES": "123",
+            "CORS_ORIGINS": "https://a.com, https://b.com",
+        }
+    )
+    assert settings.wechat_configured is True
+    assert settings.jwt_access_ttl == 10
+    assert settings.jwt_refresh_ttl == 20
+    assert settings.database_url == "sqlite:///./x.db"
+    assert settings.auth_required is False
+    assert settings.avatar_max_bytes == 123
+    assert settings.cors_origin_list == ["https://a.com", "https://b.com"]
+
+
+def test_user_system_secrets_not_exposed_in_repr():
+    settings = load_settings(env={"WECHAT_APP_SECRET": "wechat-secret", "JWT_SECRET": "jwt-secret"})
+    dumped = repr(settings)
+    assert "wechat-secret" not in dumped
+    assert "jwt-secret" not in dumped

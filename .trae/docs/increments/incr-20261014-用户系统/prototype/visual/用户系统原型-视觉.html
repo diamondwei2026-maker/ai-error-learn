@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>用户系统 · 视觉原型（阶段2）</title>
+<style>
+  /* ==========================================================================
+     阶段2 视觉原型
+     设计令牌 100% 对齐现有 client/src/styles/theme.scss + variables.scss
+     rpx → px 换算：750rpx 设计基准，预览宽 375px，故 1rpx = 0.5px
+     本文件为纯 HTML 预览；实际开发将复用现有组件 NavBar / AppButton /
+     ConfirmDialog / ActionSheet / Mascot，不新增样式体系。
+     ========================================================================== */
+  :root {
+    /* 品牌 */
+    --color-primary: #07c160;
+    --color-primary-ink: #056b36;
+    --color-primary-soft: #f0fbf5;
+    --color-primary-soft-strong: #e4f8ee;
+    /* 功能色 */
+    --color-warning: #f5943c;
+    --color-error: #f5514e;
+    --color-error-soft: #fff1f0;
+    --color-info: #12a8f0;
+    --color-info-soft: #eff8fe;
+    /* 背景 */
+    --bg-page: #fafbfd;
+    --bg-card: #ffffff;
+    --bg-hover: rgba(17, 24, 39, 0.045);
+    /* 文本 */
+    --text-primary: #1f2937;
+    --text-secondary: #4b5563;
+    --text-tertiary: #6b7280;
+    --text-disabled: #6b7280;
+    /* 边框/分割 */
+    --border: rgba(17, 24, 39, 0.07);
+    --divider: rgba(17, 24, 39, 0.04);
+    --mask: rgba(15, 23, 42, 0.3);
+    /* 圆角 */
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-round: 999px;
+    /* 阴影 */
+    --shadow-elev: 0 1px 2px rgba(17, 24, 39, 0.03), 0 10px 24px -16px rgba(17, 24, 39, 0.12);
+    --shadow-fab: 0 10px 24px rgba(7, 193, 96, 0.26);
+    --shadow-dialog: 0 24px 60px -20px rgba(15, 23, 42, 0.2);
+    /* 毛玻璃 */
+    --glass-nav: rgba(255, 255, 255, 0.78);
+    --glass-tab: rgba(255, 255, 255, 0.84);
+    --glass-bar: rgba(255, 255, 255, 0.72);
+    --glass-panel: rgba(255, 255, 255, 0.92);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    padding: 44px 28px 96px;
+    background: #eef0f4;
+    color: var(--text-primary);
+    font-family: 'PingFang SC', 'HarmonyOS Sans SC', 'MiSans', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  img { display: block; }
+
+  /* ---------- 文档头 ---------- */
+  .doc-head { max-width: 1280px; margin: 0 auto 30px; }
+  .doc-head h1 { font-size: 23px; margin: 0 0 8px; letter-spacing: .3px; }
+  .doc-head .meta { font-size: 13px; color: var(--text-secondary); line-height: 1.95; }
+  .doc-head .meta b { color: var(--color-primary-ink); font-weight: 600; }
+
+  .group-title { max-width: 1280px; margin: 46px auto 16px; font-size: 15px; font-weight: 600; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 10px; }
+  .group-desc { max-width: 1280px; margin: -8px auto 16px; font-size: 12.5px; color: var(--text-tertiary); }
+  .frames { max-width: 1280px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; }
+  .frame { width: 375px; }
+  .frame-cap { font-size: 12px; color: var(--text-tertiary); margin: 0 0 10px; font-weight: 600; letter-spacing: .2px; }
+
+  /* ---------- 手机外壳 ---------- */
+  .phone {
+    width: 375px; height: 720px; background: var(--bg-page);
+    border-radius: 28px; overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+    box-shadow: 0 22px 60px -30px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(17, 24, 39, 0.06);
+  }
+  .statusbar { height: 40px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: 12.5px; font-weight: 600; color: var(--text-primary); position: relative; z-index: 3; }
+  .statusbar .caps { width: 62px; height: 17px; border: 1px solid rgba(17, 24, 39, 0.18); border-radius: 9px; }
+
+  /* ---------- 导航栏（对齐 NavBar：毛玻璃①） ---------- */
+  .navbar {
+    height: 44px; flex: none; display: flex; align-items: center; justify-content: center;
+    position: relative; z-index: 3;
+    background: var(--glass-nav);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid var(--border);
+  }
+  .navbar .title { font-size: 17px; font-weight: 600; color: var(--text-primary); }
+  .navbar .back { position: absolute; left: 8px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; color: var(--text-primary); }
+  .navbar .cap { position: absolute; right: 12px; width: 74px; height: 24px; border: 1px solid rgba(17, 24, 39, 0.18); border-radius: 13px; }
+
+  .body { flex: 1; overflow: hidden; padding: 12px 16px 28px; display: flex; flex-direction: column; }
+  .body.center { align-items: center; }
+
+  /* ---------- 卡片 ---------- */
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius-md); box-shadow: var(--shadow-elev);
+  }
+  .card + .card { margin-top: 12px; }
+  .card.pad { padding: 16px; }
+  .card.pad-lg { padding: 20px; border-radius: var(--radius-lg); }
+
+  /* ---------- 头像 ---------- */
+  .avatar { border-radius: 50%; overflow: hidden; flex: none; display: flex; align-items: center; justify-content: center; background: var(--color-primary-soft-strong); border: 1px solid rgba(7, 193, 96, 0.18); }
+  .avatar img { width: 82%; height: 82%; object-fit: contain; }
+  .avatar.a56 { width: 56px; height: 56px; }
+  .avatar.a68 { width: 68px; height: 68px; }
+  .avatar.a88 { width: 88px; height: 88px; }
+
+  /* ---------- 按钮（对齐 AppButton） ---------- */
+  .btn { height: 50px; border-radius: var(--radius-round); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 17px; font-weight: 600; transition: opacity .15s ease; }
+  .btn:active { opacity: .9; }
+  .btn.block { width: 100%; }
+  .btn.primary { background: var(--color-primary); color: #fff; box-shadow: 0 10px 24px -12px rgba(7, 193, 96, 0.55); }
+  .btn.text { height: 44px; background: none; color: var(--text-secondary); font-size: 15px; font-weight: 400; }
+  .btn.text:active { opacity: 1; background: var(--bg-hover); }
+
+  /* ---------- 文本 ---------- */
+  .t-title { font-size: 17px; font-weight: 600; line-height: 1.5; }
+  .t-sub { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  .t-ter { font-size: 13px; color: var(--text-tertiary); line-height: 1.6; }
+
+  /* ---------- 列表行 ---------- */
+  .list { padding: 2px 16px; }
+  .row { display: flex; align-items: center; justify-content: space-between; height: 56px; transition: background .15s ease; }
+  .row + .row { border-top: 1px solid var(--divider); }
+  .row .label { font-size: 15px; color: var(--text-primary); }
+  .row .label.danger { color: var(--color-error); }
+  .row .chev { color: rgba(107, 114, 128, 0.7); display: flex; }
+
+  /* ---------- 个人头块（可点击） ---------- */
+  .profile-head { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+  .profile-head:active { opacity: .85; }
+  .profile-head .info { flex: 1; min-width: 0; }
+  .profile-head .name { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+  .profile-head .hint { margin-top: 4px; font-size: 12.5px; color: var(--text-tertiary); }
+
+  /* ---------- 输入框 ---------- */
+  .field {
+    display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 16px;
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-elev);
+  }
+  .field.focus { border-color: rgba(7, 193, 96, 0.55); box-shadow: 0 0 0 3px rgba(7, 193, 96, 0.12); }
+  .field .ph { flex: 1; font-size: 15px; color: #9aa3af; }
+  .field .val { flex: 1; font-size: 15px; color: var(--text-primary); }
+  .field .count { font-size: 12px; color: var(--text-tertiary); }
+  .field-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
+
+  .avatar-edit { position: relative; cursor: pointer; }
+  .avatar-edit:active { opacity: .88; }
+  .avatar-edit .badge {
+    position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--color-primary); border: 2px solid #fff; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 10px rgba(7, 193, 96, 0.35);
+  }
+
+  /* ---------- 底部固定操作条（对齐现有 actionBar） ---------- */
+  .footer-bar {
+    flex: none; padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+    background: var(--glass-bar);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ---------- tabBar（原生 tabBar 观感，毛玻璃②） ---------- */
+  .tabbar {
+    flex: none; height: 54px; display: flex;
+    background: var(--glass-tab);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-top: 1px solid var(--border);
+  }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 10.5px; color: var(--text-secondary); }
+  .tab svg { width: 23px; height: 23px; }
+  .tab.active { color: var(--color-primary-ink); font-weight: 600; }
+
+  /* ---------- 遮罩 / 弹层 ---------- */
+  .mask {
+    position: absolute; inset: 0; z-index: 6; background: var(--mask);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 7;
+    border-radius: 16px 16px 0 0; padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
+    background: var(--glass-panel);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: blur(30px) saturate(180%);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -16px 40px -24px rgba(15, 23, 42, 0.28);
+  }
+  .sheet .sheet-title { font-size: 17px; font-weight: 600; text-align: center; }
+  .sheet .sheet-desc { font-size: 13px; color: var(--text-secondary); text-align: center; line-height: 1.65; margin-top: 8px; }
+
+  .dialog {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7;
+    width: 280px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden; text-align: center; box-shadow: var(--shadow-dialog);
+  }
+  .dialog .dbody { padding: 24px 22px 20px; }
+  .dialog .warn { width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 50%; background: var(--color-error-soft); display: flex; align-items: center; justify-content: center; }
+  .dialog .foot { display: flex; border-top: 1px solid var(--divider); }
+  .dialog .foot > div { flex: 1; height: 50px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .dialog .foot .cancel { color: var(--text-secondary); }
+  .dialog .foot .confirm { color: var(--color-error); font-weight: 600; border-left: 1px solid var(--divider); }
+
+  /* ---------- 首页上下文（复用现有首页视觉） ---------- */
+  .hero { display: flex; align-items: flex-start; justify-content: space-between; padding: 6px 2px 22px; }
+  .hero-text { flex: 1; min-width: 0; }
+  .chip { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: var(--radius-round); font-size: 12px; font-weight: 600; background: var(--color-primary-soft-strong); color: var(--color-primary-ink); border: 1px solid rgba(7, 193, 96, 0.22); }
+  .slogan { display: block; margin-top: 12px; font-size: 24px; line-height: 34px; font-weight: 600; color: var(--text-primary); }
+  .slogan .accent { color: var(--color-primary-ink); }
+  .slogan-sub { display: block; margin-top: 10px; font-size: 13px; line-height: 20px; color: var(--text-secondary); }
+  .hero-mascot { width: 104px; height: 104px; margin-left: 4px; }
+
+  .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-elev); padding: 16px; }
+  .stat-label { font-size: 13px; color: var(--text-secondary); }
+  .stat-value { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; }
+  .stat-num { font-size: 38px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; }
+  .stat-unit { font-size: 15px; color: var(--text-secondary); }
+
+  .entry { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px; border-radius: 16px; margin-top: 12px; transition: transform .15s ease; }
+  .entry:active { transform: scale(0.995); }
+  .entry.primary { background: var(--color-primary-soft-strong); border: 1px solid rgba(7, 193, 96, 0.3); box-shadow: var(--shadow-elev); }
+  .entry.secondary { background: var(--bg-card); border: 1px solid var(--border); box-shadow: var(--shadow-elev); }
+  .entry .ico { flex: none; width: 48px; height: 48px; border-radius: 15px; display: flex; align-items: center; justify-content: center; }
+  .entry.primary .ico { background: var(--color-primary); box-shadow: 0 6px 14px rgba(7, 193, 96, 0.3); }
+  .entry.secondary .ico { background: var(--color-info-soft); }
+  .entry .txt { flex: 1; min-width: 0; }
+  .entry .t1 { display: block; font-size: 17px; line-height: 26px; font-weight: 600; }
+  .entry.primary .t1 { color: var(--color-primary-ink); }
+  .entry .t2 { display: block; margin-top: 2px; font-size: 13px; line-height: 20px; }
+  .entry.primary .t2 { color: var(--color-primary-ink); }
+  .entry.secondary .t1 { color: var(--text-primary); }
+  .entry.secondary .t2 { color: var(--text-secondary); }
+  .entry .arrow { opacity: .55; }
+
+  /* ---------- tabBar 对比 ---------- */
+  .strip { width: 375px; border-radius: 16px; overflow: hidden; box-shadow: 0 12px 30px -22px rgba(15,23,42,.4), 0 0 0 1px var(--border); background: #fff; }
+
+  /* ---------- 设计说明（界面之外） ---------- */
+  .notes { max-width: 1280px; margin: 60px auto 0; background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 30px 32px; box-shadow: var(--shadow-elev); }
+  .notes h2 { font-size: 18px; margin: 0 0 6px; }
+  .notes h3 { font-size: 14px; margin: 26px 0 10px; color: var(--color-primary-ink); }
+  .notes p, .notes li { font-size: 13.5px; line-height: 1.9; color: var(--text-secondary); }
+  .notes ul, .notes ol { margin: 6px 0; padding-left: 20px; }
+  .notes table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  .notes th, .notes td { border: 1px solid rgba(17,24,39,.08); padding: 8px 10px; text-align: left; color: var(--text-secondary); }
+  .notes th { background: #fafbfd; color: var(--text-primary); font-weight: 600; }
+  .notes code { background: var(--bg-hover); border-radius: 4px; padding: 1px 5px; font-size: 12.5px; color: var(--color-primary-ink); }
+  .notes .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; border: 1px solid rgba(17,24,39,.1); }
+  .notes .tag { display: inline-block; font-size: 12px; background: var(--color-primary-soft); color: var(--color-primary-ink); border: 1px solid #d6f2e3; border-radius: 6px; padding: 1px 8px; margin-right: 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="doc-head">
+  <h1>用户系统 · 视觉原型（阶段2）</h1>
+  <div class="meta">
+    增量编号：<b>incr-20261014-用户系统</b>　|　阶段：<b>视觉对齐（高保真）</b>　|　严格对齐现有设计令牌：微信绿 <b>#07C160</b> · 主色墨绿 <b>#056B36</b> · 页面底 <b>#FAFBFD</b><br />
+    说明：本原型为纯 HTML 预览，用于确认视觉方向；实际开发复用现有组件（NavBar / AppButton / ConfirmDialog / ActionSheet / Mascot），不新增样式体系。
+  </div>
+</header>
+
+<!-- ============================================================
+     原型组 1：「我的」页
+     ============================================================ -->
+<div class="group-title">原型组 1 ｜ 「我的」Tab 页</div>
+<div class="group-desc">头像默认用品牌吉祥物承接头块，未登录态强调引导，已登录态弱化危险操作。</div>
+<div class="frames">
+
+  <!-- ① 未登录 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ①　未登录 · 引导登录</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">我的</span></div>
+      <div class="body">
+        <div class="card pad-lg">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="avatar a68"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCI+CiAgPGVsbGlwc2UgY3g9IjYwIiBjeT0iMTExIiByeD0iMzAiIHJ5PSI1IiBmaWxsPSIjMGYxNzJhIiBmaWxsLW9wYWNpdHk9IjAuMDciIC8+CiAgPHJlY3QgeD0iNDQiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHJlY3QgeD0iNjUiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHBhdGggZD0iTTMxIDYwYy05IDItMTQgNy0xNSAxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgLz4KICA8cGF0aCBkPSJNODkgNjBjOSAyIDE0IDcgMTUgMTMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzBFOEY1MiIgc3Ryb2tlLXdpZHRoPSI3IiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CiAgPHJlY3QgeD0iMjYiIHk9IjE4IiB3aWR0aD0iNjgiIGhlaWdodD0iODAiIHJ4PSIxOCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjQiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjM0IiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cmVjdCB4PSIzNCIgeT0iNTAiIHdpZHRoPSIxMCIgaGVpZ2h0PSI1IiByeD0iMi41IiBmaWxsPSIjQzZFQkQ4IiAvPgogIDxyZWN0IHg9IjM0IiB5PSI2NiIgd2lkdGg9IjEwIiBoZWlnaHQ9IjUiIHJ4PSIyLjUiIGZpbGw9IiNDNkVCRDgiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjgyIiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cGF0aCBkPSJNNzQgMThoMTV2MjFsLTcuNS02LjVMNzQgMzl6IiBmaWxsPSIjRkZDMDc4IiAvPgogIDxjaXJjbGUgY3g9IjU3IiBjeT0iNTAiIHI9IjQiIGZpbGw9IiMyMjQwM0EiIC8+CiAgPGNpcmNsZSBjeD0iNzgiIGN5PSI1MCIgcj0iNCIgZmlsbD0iIzIyNDAzQSIgLz4KICA8Y2lyY2xlIGN4PSI0NyIgY3k9IjYyIiByPSI1LjUiIGZpbGw9IiNGRkM3QTYiIGZpbGwtb3BhY2l0eT0iMC45IiAvPgogIDxjaXJjbGUgY3g9Ijg5IiBjeT0iNjIiIHI9IjUuNSIgZmlsbD0iI0ZGQzdBNiIgZmlsbC1vcGFjaXR5PSIwLjkiIC8+CiAgPHBhdGggZD0iTTYxIDYzcTcgNiAxNCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMjQwM0EiIHN0cm9rZS13aWR0aD0iMy4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+Cjwvc3ZnPgo=" alt="" /></div>
+            <div class="info">
+              <div class="t-title">未登录</div>
+              <div class="hint">登录后可在多设备同步错题</div>
+            </div>
+          </div>
+          <div class="btn primary block" style="margin-top:18px;">微信一键登录</div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.2 12 3l9 7.2"/><path d="M5.5 9.5V20h13V9.5"/></svg><span>首页</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M11 4h7.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H11"/></svg><span>题库</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.6 6.1"/><path d="M21 5v6h-6"/></svg><span>刷题</span></div>
+        <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 已登录 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ②　已登录 · 头像昵称 + 退出/注销</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">我的</span></div>
+      <div class="body">
+        <div class="card pad-lg">
+          <div class="profile-head">
+            <div class="avatar a56"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCI+CiAgPGVsbGlwc2UgY3g9IjYwIiBjeT0iMTExIiByeD0iMzAiIHJ5PSI1IiBmaWxsPSIjMGYxNzJhIiBmaWxsLW9wYWNpdHk9IjAuMDciIC8+CiAgPHJlY3QgeD0iNDQiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHJlY3QgeD0iNjUiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHBhdGggZD0iTTMxIDYwYy05IDItMTQgNy0xNSAxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgLz4KICA8cGF0aCBkPSJNODkgNjBjOSAyIDE0IDcgMTUgMTMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzBFOEY1MiIgc3Ryb2tlLXdpZHRoPSI3IiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CiAgPHJlY3QgeD0iMjYiIHk9IjE4IiB3aWR0aD0iNjgiIGhlaWdodD0iODAiIHJ4PSIxOCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjQiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjM0IiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cmVjdCB4PSIzNCIgeT0iNTAiIHdpZHRoPSIxMCIgaGVpZ2h0PSI1IiByeD0iMi41IiBmaWxsPSIjQzZFQkQ4IiAvPgogIDxyZWN0IHg9IjM0IiB5PSI2NiIgd2lkdGg9IjEwIiBoZWlnaHQ9IjUiIHJ4PSIyLjUiIGZpbGw9IiNDNkVCRDgiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjgyIiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cGF0aCBkPSJNNzQgMThoMTV2MjFsLTcuNS02LjVMNzQgMzl6IiBmaWxsPSIjRkZDMDc4IiAvPgogIDxjaXJjbGUgY3g9IjU3IiBjeT0iNTAiIHI9IjQiIGZpbGw9IiMyMjQwM0EiIC8+CiAgPGNpcmNsZSBjeD0iNzgiIGN5PSI1MCIgcj0iNCIgZmlsbD0iIzIyNDAzQSIgLz4KICA8Y2lyY2xlIGN4PSI0NyIgY3k9IjYyIiByPSI1LjUiIGZpbGw9IiNGRkM3QTYiIGZpbGwtb3BhY2l0eT0iMC45IiAvPgogIDxjaXJjbGUgY3g9Ijg5IiBjeT0iNjIiIHI9IjUuNSIgZmlsbD0iI0ZGQzdBNiIgZmlsbC1vcGFjaXR5PSIwLjkiIC8+CiAgPHBhdGggZD0iTTYxIDYzcTcgNiAxNCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMjQwM0EiIHN0cm9rZS13aWR0aD0iMy4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+Cjwvc3ZnPgo=" alt="" /></div>
+            <div class="info">
+              <div class="name">同学小错</div>
+              <div class="hint">点击修改头像与昵称</div>
+            </div>
+            <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <div class="list">
+            <div class="row">
+              <span class="label">退出登录</span>
+              <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+            </div>
+            <div class="row">
+              <span class="label danger">注销账号</span>
+              <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.2 12 3l9 7.2"/><path d="M5.5 9.5V20h13V9.5"/></svg><span>首页</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M11 4h7.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H11"/></svg><span>题库</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.6 6.1"/><path d="M21 5v6h-6"/></svg><span>刷题</span></div>
+        <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 完善资料 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ③　完善资料 · 二级页</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar">
+        <span class="back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg></span>
+        <span class="title">完善资料</span>
+      </div>
+      <div class="body center">
+        <div class="avatar-edit" style="margin-top:24px;">
+          <div class="avatar a88"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCI+CiAgPGVsbGlwc2UgY3g9IjYwIiBjeT0iMTExIiByeD0iMzAiIHJ5PSI1IiBmaWxsPSIjMGYxNzJhIiBmaWxsLW9wYWNpdHk9IjAuMDciIC8+CiAgPHJlY3QgeD0iNDQiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHJlY3QgeD0iNjUiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHBhdGggZD0iTTMxIDYwYy05IDItMTQgNy0xNSAxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgLz4KICA8cGF0aCBkPSJNODkgNjBjOSAyIDE0IDcgMTUgMTMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzBFOEY1MiIgc3Ryb2tlLXdpZHRoPSI3IiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CiAgPHJlY3QgeD0iMjYiIHk9IjE4IiB3aWR0aD0iNjgiIGhlaWdodD0iODAiIHJ4PSIxOCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjQiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjM0IiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cmVjdCB4PSIzNCIgeT0iNTAiIHdpZHRoPSIxMCIgaGVpZ2h0PSI1IiByeD0iMi41IiBmaWxsPSIjQzZFQkQ4IiAvPgogIDxyZWN0IHg9IjM0IiB5PSI2NiIgd2lkdGg9IjEwIiBoZWlnaHQ9IjUiIHJ4PSIyLjUiIGZpbGw9IiNDNkVCRDgiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjgyIiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cGF0aCBkPSJNNzQgMThoMTV2MjFsLTcuNS02LjVMNzQgMzl6IiBmaWxsPSIjRkZDMDc4IiAvPgogIDxjaXJjbGUgY3g9IjU3IiBjeT0iNTAiIHI9IjQiIGZpbGw9IiMyMjQwM0EiIC8+CiAgPGNpcmNsZSBjeD0iNzgiIGN5PSI1MCIgcj0iNCIgZmlsbD0iIzIyNDAzQSIgLz4KICA8Y2lyY2xlIGN4PSI0NyIgY3k9IjYyIiByPSI1LjUiIGZpbGw9IiNGRkM3QTYiIGZpbGwtb3BhY2l0eT0iMC45IiAvPgogIDxjaXJjbGUgY3g9Ijg5IiBjeT0iNjIiIHI9IjUuNSIgZmlsbD0iI0ZGQzdBNiIgZmlsbC1vcGFjaXR5PSIwLjkiIC8+CiAgPHBhdGggZD0iTTYxIDYzcTcgNiAxNCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMjQwM0EiIHN0cm9rZS13aWR0aD0iMy4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+Cjwvc3ZnPgo=" alt="" /></div>
+          <div class="badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.2-1.8h7.2L16.8 6h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg>
+          </div>
+        </div>
+        <div class="t-ter" style="margin-top:12px;">点击头像可更换</div>
+
+        <div style="width:100%; margin-top:32px;">
+          <div class="field-label">昵称</div>
+          <div class="field focus">
+            <span class="val">同学小错</span>
+            <span class="count">4/20</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <div class="btn primary block">保存</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     原型组 2：登录引导 / 注销确认
+     ============================================================ -->
+<div class="group-title">原型组 2 ｜ 登录引导（游客触发受限操作）与注销二次确认</div>
+<div class="group-desc">登录引导覆盖在现有首页之上；注销确认直接复用现有 ConfirmDialog 视觉。</div>
+<div class="frames">
+
+  <!-- ④ 登录引导 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ④　首页 · 点「拍照录入」→ 底部登录引导</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">错题本</span></div>
+
+      <!-- 现有首页视觉（背景层） -->
+      <div class="body">
+        <div class="hero">
+          <div class="hero-text">
+            <span class="chip">MVP 核心闭环</span>
+            <span class="slogan">把每一道错题，<br />变成一次<span class="accent">进步</span></span>
+            <span class="slogan-sub">拍下题目即入库 · 随时翻面复习</span>
+          </div>
+          <img class="hero-mascot" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCI+CiAgPGVsbGlwc2UgY3g9IjYwIiBjeT0iMTExIiByeD0iMzAiIHJ5PSI1IiBmaWxsPSIjMGYxNzJhIiBmaWxsLW9wYWNpdHk9IjAuMDciIC8+CiAgPHJlY3QgeD0iNDQiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHJlY3QgeD0iNjUiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHBhdGggZD0iTTMxIDYwYy05IDItMTQgNy0xNSAxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgLz4KICA8cGF0aCBkPSJNODkgNjBjOSAyIDE0IDcgMTUgMTMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzBFOEY1MiIgc3Ryb2tlLXdpZHRoPSI3IiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CiAgPHJlY3QgeD0iMjYiIHk9IjE4IiB3aWR0aD0iNjgiIGhlaWdodD0iODAiIHJ4PSIxOCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjQiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjM0IiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cmVjdCB4PSIzNCIgeT0iNTAiIHdpZHRoPSIxMCIgaGVpZ2h0PSI1IiByeD0iMi41IiBmaWxsPSIjQzZFQkQ4IiAvPgogIDxyZWN0IHg9IjM0IiB5PSI2NiIgd2lkdGg9IjEwIiBoZWlnaHQ9IjUiIHJ4PSIyLjUiIGZpbGw9IiNDNkVCRDgiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjgyIiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cGF0aCBkPSJNNzQgMThoMTV2MjFsLTcuNS02LjVMNzQgMzl6IiBmaWxsPSIjRkZDMDc4IiAvPgogIDxjaXJjbGUgY3g9IjU3IiBjeT0iNTAiIHI9IjQiIGZpbGw9IiMyMjQwM0EiIC8+CiAgPGNpcmNsZSBjeD0iNzgiIGN5PSI1MCIgcj0iNCIgZmlsbD0iIzIyNDAzQSIgLz4KICA8Y2lyY2xlIGN4PSI0NyIgY3k9IjYyIiByPSI1LjUiIGZpbGw9IiNGRkM3QTYiIGZpbGwtb3BhY2l0eT0iMC45IiAvPgogIDxjaXJjbGUgY3g9Ijg5IiBjeT0iNjIiIHI9IjUuNSIgZmlsbD0iI0ZGQzdBNiIgZmlsbC1vcGFjaXR5PSIwLjkiIC8+CiAgPHBhdGggZD0iTTYxIDYzcTcgNiAxNCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMjQwM0EiIHN0cm9rZS13aWR0aD0iMy4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+Cjwvc3ZnPgo=" alt="" />
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">错题总数</div>
+          <div class="stat-value"><span class="stat-num">128</span><span class="stat-unit">道</span></div>
+        </div>
+        <div class="entry primary">
+          <span class="ico"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.7l1.2-1.8h7.2L16.8 6h1.7A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg></span>
+          <span class="txt"><span class="t1">拍照录入</span><span class="t2">拍下题目，自动识别文字</span></span>
+          <span class="arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#056b36" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+        </div>
+        <div class="entry secondary">
+          <span class="ico"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="#0a6ba8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.6 6.1"/><path d="M21 5v6h-6"/></svg></span>
+          <span class="txt"><span class="t1">开始刷题</span><span class="t2">随机抽题 · 翻面看答案</span></span>
+          <span class="arrow"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+        </div>
+      </div>
+
+      <!-- 遮罩 + 底部登录引导（毛玻璃弹层） -->
+      <div class="mask"></div>
+      <div class="sheet">
+        <div class="sheet-title">登录后使用拍照识别</div>
+        <div class="sheet-desc">识别题目需要登录账号，登录后还可在多设备同步错题</div>
+        <div class="btn primary block" style="margin-top:18px;">微信一键登录</div>
+        <div class="btn text block" style="margin-top:4px;">暂不登录</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ 注销确认 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ⑤　注销账号 · 二次确认</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">我的</span></div>
+
+      <div class="body">
+        <div class="card pad-lg">
+          <div class="profile-head">
+            <div class="avatar a56"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCI+CiAgPGVsbGlwc2UgY3g9IjYwIiBjeT0iMTExIiByeD0iMzAiIHJ5PSI1IiBmaWxsPSIjMGYxNzJhIiBmaWxsLW9wYWNpdHk9IjAuMDciIC8+CiAgPHJlY3QgeD0iNDQiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHJlY3QgeD0iNjUiIHk9IjkyIiB3aWR0aD0iMTEiIGhlaWdodD0iMTYiIHJ4PSI1LjUiIGZpbGw9IiMwRThGNTIiIC8+CiAgPHBhdGggZD0iTTMxIDYwYy05IDItMTQgNy0xNSAxMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjciIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgLz4KICA8cGF0aCBkPSJNODkgNjBjOSAyIDE0IDcgMTUgMTMiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzBFOEY1MiIgc3Ryb2tlLXdpZHRoPSI3IiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+CiAgPHJlY3QgeD0iMjYiIHk9IjE4IiB3aWR0aD0iNjgiIGhlaWdodD0iODAiIHJ4PSIxOCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjMEU4RjUyIiBzdHJva2Utd2lkdGg9IjQiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjM0IiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cmVjdCB4PSIzNCIgeT0iNTAiIHdpZHRoPSIxMCIgaGVpZ2h0PSI1IiByeD0iMi41IiBmaWxsPSIjQzZFQkQ4IiAvPgogIDxyZWN0IHg9IjM0IiB5PSI2NiIgd2lkdGg9IjEwIiBoZWlnaHQ9IjUiIHJ4PSIyLjUiIGZpbGw9IiNDNkVCRDgiIC8+CiAgPHJlY3QgeD0iMzQiIHk9IjgyIiB3aWR0aD0iMTAiIGhlaWdodD0iNSIgcng9IjIuNSIgZmlsbD0iI0M2RUJEOCIgLz4KICA8cGF0aCBkPSJNNzQgMThoMTV2MjFsLTcuNS02LjVMNzQgMzl6IiBmaWxsPSIjRkZDMDc4IiAvPgogIDxjaXJjbGUgY3g9IjU3IiBjeT0iNTAiIHI9IjQiIGZpbGw9IiMyMjQwM0EiIC8+CiAgPGNpcmNsZSBjeD0iNzgiIGN5PSI1MCIgcj0iNCIgZmlsbD0iIzIyNDAzQSIgLz4KICA8Y2lyY2xlIGN4PSI0NyIgY3k9IjYyIiByPSI1LjUiIGZpbGw9IiNGRkM3QTYiIGZpbGwtb3BhY2l0eT0iMC45IiAvPgogIDxjaXJjbGUgY3g9Ijg5IiBjeT0iNjIiIHI9IjUuNSIgZmlsbD0iI0ZGQzdBNiIgZmlsbC1vcGFjaXR5PSIwLjkiIC8+CiAgPHBhdGggZD0iTTYxIDYzcTcgNiAxNCAwIiBmaWxsPSJub25lIiBzdHJva2U9IiMyMjQwM0EiIHN0cm9rZS13aWR0aD0iMy4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiIC8+Cjwvc3ZnPgo=" alt="" /></div>
+            <div class="info"><div class="name">同学小错</div><div class="hint">点击修改头像与昵称</div></div>
+            <span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="list">
+            <div class="row"><span class="label">退出登录</span><span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></div>
+            <div class="row"><span class="label danger">注销账号</span><span class="chev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.2 12 3l9 7.2"/><path d="M5.5 9.5V20h13V9.5"/></svg><span>首页</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M11 4h7.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H11"/></svg><span>题库</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.6 6.1"/><path d="M21 5v6h-6"/></svg><span>刷题</span></div>
+        <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span>我的</span></div>
+      </div>
+
+      <div class="mask"></div>
+      <div class="dialog">
+        <div class="dbody">
+          <div class="warn"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f5514e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 3.9 2.5 18a1.6 1.6 0 0 0 1.4 2.4h16.2A1.6 1.6 0 0 0 21.5 18L13.4 3.9a1.6 1.6 0 0 0-2.8 0Z"/><path d="M12 9v4.5"/><path d="M12 17h.01"/></svg></div>
+          <div class="t-title">注销账号</div>
+          <div class="t-sub" style="margin-top:8px;">注销后将删除账号及云端全部错题数据，且无法恢复</div>
+        </div>
+        <div class="foot">
+          <div class="cancel">取消</div>
+          <div class="confirm">确认注销</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================
+     原型组 3：tabBar 变更
+     ============================================================ -->
+<div class="group-title">原型组 3 ｜ 底部 tabBar：3 项 → 4 项</div>
+<div class="group-desc">沿用现有原生 tabBar 结构；「我的」使用线性人像图标，选中态取墨绿 #056B36。</div>
+<div class="frames">
+  <div class="frame">
+    <p class="frame-cap">变更前（现状）</p>
+    <div class="strip">
+      <div class="tabbar" style="background:#fff;">
+        <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.2 12 3l9 7.2"/><path d="M5.5 9.5V20h13V9.5"/></svg><span>首页</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M11 4h7.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H11"/></svg><span>题库</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.6 6.1"/><path d="M21 5v6h-6"/></svg><span>刷题</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="frame">
+    <p class="frame-cap">变更后（新增「我的」）</p>
+    <div class="strip">
+      <div class="tabbar" style="background:#fff;">
+        <div class="tab active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.2 12 3l9 7.2"/><path d="M5.5 9.5V20h13V9.5"/></svg><span>首页</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M11 4h7.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H11"/></svg><span>题库</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.6 6.1"/><path d="M21 5v6h-6"/></svg><span>刷题</span></div>
+        <div class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     设计说明（界面之外）
+     ============================================================ -->
+<section class="notes">
+  <h2>设计说明</h2>
+  <p>本节为视觉原型配套说明，<b>不进入任何界面</b>。所有视觉决策均以「严格对齐现有 UI 体系」为第一原则，未引入新的配色或组件规范。</p>
+
+  <h3>一、沿用的现有设计令牌（未新增任何变量）</h3>
+  <table>
+    <tr><th>用途</th><th>取值</th><th>来源（现有变量）</th></tr>
+    <tr><td>品牌主色 / 主按钮</td><td><span class="sw" style="background:#07c160"></span>#07C160</td><td><code>$color-primary</code></td></tr>
+    <tr><td>墨绿（强调文字/选中态）</td><td><span class="sw" style="background:#056b36"></span>#056B36</td><td><code>$color-primary-ink</code></td></tr>
+    <tr><td>品牌弱底（图标底/未登录头像底）</td><td><span class="sw" style="background:#e4f8ee"></span>#E4F8EE / <span class="sw" style="background:#f0fbf5"></span>#F0FBF5</td><td><code>$color-primary-soft-strong / $color-primary-soft</code></td></tr>
+    <tr><td>页面底色</td><td><span class="sw" style="background:#fafbfd"></span>#FAFBFD</td><td><code>$color-bg-page</code></td></tr>
+    <tr><td>卡片描边 / 分割线</td><td>rgba(17,24,39,.07) / .04</td><td><code>$color-border / $color-divider</code></td></tr>
+    <tr><td>卡片阴影</td><td>0 1px 2px + 0 10px 24px -16px</td><td><code>$shadow-elev</code></td></tr>
+    <tr><td>危险色（注销）</td><td><span class="sw" style="background:#f5514e"></span>#F5514E / <span class="sw" style="background:#fff1f0"></span>#FFF1F0</td><td><code>$color-error / $color-error-soft</code></td></tr>
+    <tr><td>弹层毛玻璃</td><td>rgba(255,255,255,.92) + blur(30px)</td><td><code>$glass-panel-bg</code> + <code>@include frosted-glass(30px)</code></td></tr>
+    <tr><td>导航栏 / tabBar 毛玻璃</td><td>.78 / .84 + blur(20px)</td><td><code>$glass-nav-bg / $glass-tab-bg</code></td></tr>
+    <tr><td>胶囊按钮圆角</td><td>999px，高 50px</td><td><code>$radius-button</code>（AppButton 现状）</td></tr>
+  </table>
+
+  <h3>二、与现有组件的复用关系（开发时对齐）</h3>
+  <ul>
+    <li><b>NavBar</b>：我的 / 完善资料页直接复用，毛玻璃与避让胶囊逻辑不变。</li>
+    <li><b>AppButton</b>：主按钮（微信一键登录 / 保存）用 <code>primary</code>；「暂不登录」用 <code>text</code> 变体。</li>
+    <li><b>ConfirmDialog</b>：注销二次确认<b>零改动复用</b>，仅传入标题/描述文案。</li>
+    <li><b>ActionSheet 弹层观感</b>：登录引导底部弹层沿用其毛玻璃面板与圆角规范（<code>$glass-panel-bg</code>）。</li>
+    <li><b>Mascot</b>：未登录头像与首页品牌区复用现有吉祥物资源（default 变体），不新增插画。</li>
+  </ul>
+
+  <h3>三、本次视觉处理的关键决策</h3>
+  <ol>
+    <li><b>未登录头像用吉祥物承载</b>：避免「灰色空头像」的冰冷感，沿用产品既有的亲和调性；已登录后替换为用户头像。</li>
+    <li><b>危险操作降级呈现</b>：退出/注销不做实心按钮，而是列表行 + 右侧 chevron，仅「注销账号」用危险色文字，符合「避免误触」的通行做法。</li>
+    <li><b>登录引导用底部弹层而非整页</b>：用户点击「拍照录入」后就地弹出，含「暂不登录」可取消，不阻断浏览；符合小程序不得强制登录的审核要求。</li>
+    <li><b>昵称输入聚焦态</b>：使用品牌绿描边 + 3px 柔光聚焦环，与现有主色体系一致（非默认蓝）。</li>
+    <li><b>动效克制</b>：仅保留按钮按压（opacity .9）与卡片按压（scale .995），并遵循 <code>prefers-reduced-motion</code>；不做花哨入场动画，与现有页面风格一致。</li>
+  </ol>
+
+  <h3>四、同类产品参考（仅借鉴细节，不照搬风格）</h3>
+  <ul>
+    <li>个人中心头块置顶、圆形头像可点改（通行范式）。</li>
+    <li>未登录态以引导登录取代强制阻断（微信登录授权规范）。</li>
+    <li>受限操作触发式登录 + 弹层含取消（小程序登录原型通行做法）。</li>
+    <li>注销类危险操作二次确认并说明后果（账户与安全通行规范）。</li>
+  </ul>
+
+  <h3>五、待确认</h3>
+  <p><span class="tag">视觉确认</span>请确认整体视觉方向（配色 / 层级 / 弹层与列表处理）。确认后将做风险评估并输出开发计划，再进入编码。此阶段仍可调整的是视觉细节，结构已冻结。</p>
+</section>
+
+</body>
+</html>

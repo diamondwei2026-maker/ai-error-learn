@@ -6,3 +6,7 @@ python-dotenv>=1.0
 # 测试（TDD）
 pytest>=8.0
 httpx>=0.27
+# 用户账号体系（ORM 抽象：开发期 SQLite → 上线阿里云 RDS）
+SQLAlchemy>=2.0,<3.0
+# JWT 登录态
+PyJWT>=2.8,<3.0

@@ -1,0 +1,50 @@
+@use '@/styles/variables.scss' as *;
+
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  background: $color-mask;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  border-radius: 32rpx 32rpx 0 0;
+  overflow: hidden;
+  border-top: 1rpx solid $color-border;
+  padding: 48rpx 32rpx calc(24rpx + constant(safe-area-inset-bottom));
+  padding: 48rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  @include frosted-glass(30px, $glass-panel-bg);
+}
+
+.title {
+  display: block;
+  text-align: center;
+  font-size: 38rpx; // 19px
+  line-height: 56rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.desc {
+  display: block;
+  margin: 16rpx auto 40rpx;
+  max-width: 580rpx;
+  text-align: center;
+  font-size: 28rpx; // 14px
+  line-height: 44rpx;
+  color: $color-text-secondary;
+}
+
+.cancel {
+  margin-top: 8rpx;
+}

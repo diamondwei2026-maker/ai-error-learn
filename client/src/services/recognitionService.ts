@@ -2,6 +2,8 @@ import Taro from '@tarojs/taro'
 
 import { RECOGNIZE_API_BASE, RECOGNIZE_ERROR_MESSAGES } from '@/constants'
 
+import { authRepo } from './repo/authRepo'
+
 /** 答案来源：vlm=多模态识别 / none=未识别到答案 */
 export type SplitMethod = 'vlm' | 'none'
 
@@ -38,10 +40,12 @@ function toSplitMethod(raw?: string): SplitMethod {
 export const recognitionService = {
   async recognize(tempFilePath: string): Promise<RecognitionResult> {
     try {
+      const session = authRepo.getSession()
       const res = await Taro.uploadFile({
         url: `${RECOGNIZE_API_BASE}/api/v1/recognize`,
         filePath: tempFilePath,
         name: 'file',
+        header: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {},
         timeout: 30000,
       })
 
@@ -55,13 +59,17 @@ export const recognitionService = {
           wordsCount: body.wordsCount || 0,
         }
       }
+      // 2001/2002：识别接口要求登录后使用
+      const needLogin = body.code === 2001 || body.code === 2002
       return {
         ok: false,
         text: '',
         answer: '',
         splitMethod: 'none',
         wordsCount: 0,
-        message: body.message || RECOGNIZE_ERROR_MESSAGES[body.code] || '识别失败，请手动输入',
+        message: needLogin
+          ? '请先登录后使用拍照识别'
+          : body.message || RECOGNIZE_ERROR_MESSAGES[body.code] || '识别失败，请手动输入',
       }
     } catch (error) {
       console.error('[recognitionService] recognize failed', error)

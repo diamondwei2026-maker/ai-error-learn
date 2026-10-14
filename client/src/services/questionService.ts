@@ -2,8 +2,10 @@ import { PAGE_SIZE, SCHEMA_VERSION } from '@/constants'
 import { createId } from '@/utils/id'
 import type { Question } from '@/types/question'
 
+import { authRepo } from './repo/authRepo'
 import { fileRepo } from './repo/fileRepo'
 import { storageRepo } from './repo/storageRepo'
+import { syncService } from './syncService'
 
 export interface CreateQuestionInput {
   content: string
@@ -69,6 +71,9 @@ export const questionService = {
       imageBytes: meta.imageBytes + imageSize,
     })
 
+    // 登录态下异步镜像到云端（节流，失败静默）
+    syncService.scheduleSync()
+
     return question
   },
 
@@ -107,6 +112,10 @@ export const questionService = {
     })
 
     roundDrawn = roundDrawn.filter((drawnId) => drawnId !== id)
+
+    // 记录删除墓碑，供云端同步删除；并触发一次后台同步
+    authRepo.addTombstone(id)
+    syncService.scheduleSync()
   },
 
   /** 随机抽题：Fisher-Yates 洗牌 + 本轮已抽集合，抽完一轮自动重置 */

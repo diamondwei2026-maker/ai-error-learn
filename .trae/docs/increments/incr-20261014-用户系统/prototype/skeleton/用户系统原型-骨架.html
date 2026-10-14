@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>用户系统 · 原型骨架（阶段1）</title>
+<style>
+  /* ============================================================
+     阶段1 骨架：仅表达信息架构、布局、模块位置、交互流转
+     不追求视觉美化；配色仅借用现有设计令牌以体现「与现有系统的一致性」
+     ============================================================ */
+  :root {
+    --page-bg: #f5f6f8;
+    --frame-bg: #ffffff;
+    --ink: #1f2937;
+    --ink-2: #4b5563;
+    --ink-3: #9ca3af;
+    --line: #e5e7eb;
+    --block: #f3f4f6;
+    --block-2: #eceff3;
+    --brand: #07c160;       /* 现有品牌色 */
+    --brand-ink: #056b36;
+    --danger: #f5514e;
+    --wire: #cbd5e1;
+    --dash: repeating-linear-gradient(45deg, #eef1f5 0 6px, #e6eaf0 6px 12px);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 28px 80px;
+    background: var(--page-bg);
+    color: var(--ink);
+    font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- 文档头 ---------- */
+  .doc-head { max-width: 1280px; margin: 0 auto 32px; }
+  .doc-head h1 { font-size: 22px; margin: 0 0 8px; letter-spacing: .5px; }
+  .doc-head .meta { font-size: 13px; color: var(--ink-2); line-height: 1.9; }
+  .doc-head .meta b { color: var(--brand-ink); font-weight: 600; }
+
+  /* ---------- 原型组 ---------- */
+  .group-title { max-width: 1280px; margin: 44px auto 16px; font-size: 15px; font-weight: 600; color: var(--ink-2); border-left: 3px solid var(--brand); padding-left: 10px; }
+  .frames { max-width: 1280px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 26px; align-items: flex-start; }
+  .frame { width: 375px; }
+  .frame-cap { font-size: 12px; color: var(--ink-3); margin: 0 0 8px; font-weight: 600; letter-spacing: .3px; }
+
+  /* ---------- 手机外壳 ---------- */
+  .phone {
+    width: 375px; height: 720px; background: var(--frame-bg);
+    border: 1px solid var(--line); border-radius: 26px; overflow: hidden;
+    position: relative; box-shadow: 0 12px 32px -20px rgba(15,23,42,.25);
+    display: flex; flex-direction: column;
+  }
+  .statusbar { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 12px; color: var(--ink-3); }
+  .statusbar .caps { width: 60px; height: 16px; border: 1px solid var(--wire); border-radius: 9px; }
+
+  /* ---------- 导航栏（现有 NavBar 结构） ---------- */
+  .navbar { height: 44px; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--line); }
+  .navbar .title { font-size: 16px; font-weight: 600; }
+  .navbar .back { position: absolute; left: 14px; font-size: 18px; color: var(--ink-2); }
+  .navbar .cap { position: absolute; right: 14px; }
+  .navbar-cap { width: 74px; height: 22px; border: 1px solid var(--wire); border-radius: 12px; }
+
+  /* ---------- 页面内容 ---------- */
+  .body { flex: 1; padding: 18px 16px 24px; overflow: hidden; }
+  .body.center { display: flex; flex-direction: column; align-items: center; }
+
+  /* 卡片 / 列表（现有 card-surface 观感） */
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card + .card { margin-top: 14px; }
+
+  /* 头像占位 */
+  .avatar { border-radius: 50%; background: var(--block); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 11px; }
+  .avatar.lg { width: 72px; height: 72px; }
+  .avatar.xl { width: 88px; height: 88px; }
+  .avatar.sm { width: 56px; height: 56px; }
+
+  /* 按钮（现有 AppButton：胶囊） */
+  .btn { height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; }
+  .btn.primary { background: var(--brand); color: #fff; }
+  .btn.text { background: transparent; color: var(--ink-3); font-weight: 400; font-size: 13px; height: 34px; }
+  .btn.danger { background: var(--danger); color: #fff; }
+  .btn.block { width: 100%; }
+
+  /* 列表行 */
+  .row { display: flex; align-items: center; justify-content: space-between; height: 52px; padding: 0 2px; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .row .label { font-size: 15px; color: var(--ink); }
+  .row .label.danger { color: var(--danger); }
+  .row .chev { color: var(--ink-3); font-size: 16px; }
+
+  /* 文本 */
+  .t-title { font-size: 17px; font-weight: 600; }
+  .t-sub { font-size: 12.5px; color: var(--ink-3); line-height: 1.6; }
+  .t-label { font-size: 13px; color: var(--ink-2); }
+  .center-text { text-align: center; }
+
+  /* 输入框 */
+  .field { display: flex; align-items: center; gap: 12px; background: var(--block); border-radius: 12px; height: 48px; padding: 0 14px; }
+  .field .ph { font-size: 14px; color: var(--ink-3); flex: 1; }
+  .field .count { font-size: 12px; color: var(--ink-3); }
+
+  /* 底部固定条 */
+  .footer-bar { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fff; }
+
+  /* 底部 tabBar（现有原生 tabBar 结构） */
+  .tabbar { height: 54px; border-top: 1px solid var(--line); display: flex; background: #fff; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 10.5px; color: var(--ink-3); }
+  .tab .ico { width: 22px; height: 22px; border-radius: 6px; background: var(--block-2); }
+  .tab.active { color: var(--brand-ink); font-weight: 600; }
+  .tab.active .ico { background: #d9f5e6; }
+
+  /* 遮罩与弹层 */
+  .mask { position: absolute; inset: 0; background: rgba(15,23,42,.34); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 18px 18px 0 0; padding: 22px 20px calc(20px + env(safe-area-inset-bottom)); }
+  .dialog { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 280px; background: #fff; border-radius: 16px; overflow: hidden; }
+  .dialog .dbody { padding: 22px 20px 18px; text-align: center; }
+  .dialog .warn { width: 44px; height: 44px; margin: 0 auto 12px; border-radius: 50%; background: #fff1f0; border: 1px solid #ffd9d7; display: flex; align-items: center; justify-content: center; color: var(--danger); font-size: 20px; }
+  .dialog .dfoot { display: flex; border-top: 1px solid var(--line); }
+  .dialog .dfoot > div { flex: 1; height: 48px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .dialog .dfoot .c { color: var(--ink-2); border-right: 1px solid var(--line); }
+  .dialog .dfoot .k { color: var(--danger); font-weight: 600; }
+
+  /* 首页上下文（用于登录引导的底图） */
+  .hero { display: flex; justify-content: space-between; align-items: center; }
+  .hero-lines { flex: 1; }
+  .line { height: 12px; border-radius: 6px; background: var(--block); margin-bottom: 8px; }
+  .line.w70 { width: 70%; } .line.w45 { width: 45%; } .line.w55 { width: 55%; }
+  .mascot-ph { width: 76px; height: 76px; border-radius: 16px; background: var(--dash); border: 1px dashed var(--wire); }
+  .entry { border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .entry.primary { background: var(--brand); }
+  .entry.secondary { background: var(--block); }
+  .entry .sq { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,255,255,.28); }
+  .entry.secondary .sq { background: #fff; border: 1px solid var(--line); }
+  .entry .et { flex: 1; }
+  .entry .et .a { font-size: 15px; font-weight: 600; color: #fff; }
+  .entry .et .a.dark { color: var(--ink); }
+  .entry .et .b { font-size: 12px; color: rgba(255,255,255,.85); margin-top: 3px; }
+  .entry .et .b.dark { color: var(--ink-3); }
+  .stat { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+
+  /* tabBar 对比条 */
+  .tabbar-strip { width: 375px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; }
+
+  /* ---------- 设计说明（严格置于界面之外） ---------- */
+  .notes { max-width: 1280px; margin: 56px auto 0; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 28px 30px; }
+  .notes h2 { font-size: 17px; margin: 0 0 6px; }
+  .notes h3 { font-size: 14px; margin: 24px 0 8px; color: var(--brand-ink); }
+  .notes p, .notes li { font-size: 13.5px; line-height: 1.85; color: var(--ink-2); }
+  .notes ul { margin: 6px 0; padding-left: 20px; }
+  .notes ol { margin: 6px 0; padding-left: 20px; }
+  .notes .tag { display: inline-block; font-size: 12px; background: #f0fbf5; color: var(--brand-ink); border: 1px solid #d6f2e3; border-radius: 6px; padding: 1px 8px; margin-right: 6px; }
+  .notes table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  .notes th, .notes td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; color: var(--ink-2); }
+  .notes th { background: #fafbfd; color: var(--ink); font-weight: 600; }
+  .notes code { background: var(--block); border-radius: 4px; padding: 1px 5px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<!-- ===================== 文档头 ===================== -->
+<header class="doc-head">
+  <h1>用户系统 · 原型骨架（阶段1）</h1>
+  <div class="meta">
+    增量编号：<b>incr-20261014-用户系统</b>　|　阶段：<b>骨架（结构确认）</b>　|　范围：仅本次新增/修改模块<br />
+    目标：确认信息架构、模块位置、页面流转；<b>本阶段不做视觉美化</b>，配色仅为体现与现有系统的上下文关系。
+  </div>
+</header>
+
+<!-- ===================== 原型组 1：「我的」页 ===================== -->
+<div class="group-title">原型组 1 ｜ 「我的」Tab 页（tabBar 第 4 项）</div>
+<div class="frames">
+
+  <!-- 我的 · 未登录 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ①　未登录（引导登录）</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">我的</span></div>
+      <div class="body">
+        <div class="card">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="avatar lg">头像</div>
+            <div>
+              <div class="t-title">未登录</div>
+              <div class="t-sub" style="margin-top:4px;">登录后可在多设备同步错题</div>
+            </div>
+          </div>
+          <div class="btn primary block" style="margin-top:18px;">微信一键登录</div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="ico"></span><span>首页</span></div>
+        <div class="tab"><span class="ico"></span><span>题库</span></div>
+        <div class="tab"><span class="ico"></span><span>刷题</span></div>
+        <div class="tab active"><span class="ico"></span><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 我的 · 已登录 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ②　已登录（头像昵称展示 + 退出/注销）</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">我的</span></div>
+      <div class="body">
+        <div class="card">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="avatar sm">头像</div>
+            <div style="flex:1;">
+              <div class="t-title">同学小错</div>
+              <div class="t-sub" style="margin-top:4px;">点击修改头像与昵称</div>
+            </div>
+            <span class="chev">›</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="row"><span class="label">退出登录</span><span class="chev">›</span></div>
+          <div class="row"><span class="label danger">注销账号</span><span class="chev">›</span></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="ico"></span><span>首页</span></div>
+        <div class="tab"><span class="ico"></span><span>题库</span></div>
+        <div class="tab"><span class="ico"></span><span>刷题</span></div>
+        <div class="tab active"><span class="ico"></span><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 完善资料 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ③　完善资料（二级页，入口=点击头像区）</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="back">‹</span><span class="title">完善资料</span></div>
+      <div class="body center">
+        <div class="avatar xl" style="margin-top:26px;">头像</div>
+        <div class="t-sub" style="margin-top:12px;">点击头像可更换</div>
+
+        <div style="width:100%; margin-top:36px;">
+          <div class="t-label" style="margin-bottom:10px;">昵称</div>
+          <div class="field">
+            <span class="ph">请输入昵称</span>
+            <span class="count">0/20</span>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <div class="btn primary block">保存</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================== 原型组 2：登录引导 ===================== -->
+<div class="group-title">原型组 2 ｜ 游客触发「拍照录入」时的登录引导（覆盖在当前页之上）</div>
+<div class="frames">
+
+  <div class="frame">
+    <p class="frame-cap">状态 ④　首页 · 点击「拍照录入」→ 底部登录引导</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">错题本</span></div>
+
+      <!-- 首页底图（现有首页结构） -->
+      <div class="body">
+        <div class="hero">
+          <div class="hero-lines">
+            <div class="line w45"></div>
+            <div class="line w70"></div>
+            <div class="line w55"></div>
+          </div>
+          <div class="mascot-ph"></div>
+        </div>
+        <div class="stat">
+          <div class="t-sub">错题总数</div>
+          <div class="t-title" style="margin-top:6px; font-size:24px;">— 道</div>
+        </div>
+        <div class="entry primary">
+          <span class="sq"></span>
+          <span class="et"><span class="a">拍照录入</span><span class="b" style="display:block;">拍下题目，自动识别文字</span></span>
+          <span style="color:#fff;">›</span>
+        </div>
+        <div class="entry secondary">
+          <span class="sq"></span>
+          <span class="et"><span class="a dark">开始刷题</span><span class="b dark" style="display:block;">随机抽题 · 翻面看答案</span></span>
+          <span class="chev">›</span>
+        </div>
+      </div>
+
+      <!-- 遮罩 + 底部引导弹层 -->
+      <div class="mask"></div>
+      <div class="sheet">
+        <div class="t-title">登录后使用拍照识别</div>
+        <div class="t-sub" style="margin-top:8px;">识别题目需要登录账号，登录后还可在多设备同步错题</div>
+        <div class="btn primary block" style="margin-top:18px;">微信一键登录</div>
+        <div class="btn text block" style="margin-top:6px;">暂不登录</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 注销确认 -->
+  <div class="frame">
+    <p class="frame-cap">状态 ⑤　注销账号 · 二次确认弹窗</p>
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span class="caps"></span></div>
+      <div class="navbar"><span class="title">我的</span></div>
+
+      <div class="body">
+        <div class="card">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div class="avatar sm">头像</div>
+            <div style="flex:1;"><div class="t-title">同学小错</div></div>
+            <span class="chev">›</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row"><span class="label">退出登录</span><span class="chev">›</span></div>
+          <div class="row"><span class="label danger">注销账号</span><span class="chev">›</span></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="ico"></span><span>首页</span></div>
+        <div class="tab"><span class="ico"></span><span>题库</span></div>
+        <div class="tab"><span class="ico"></span><span>刷题</span></div>
+        <div class="tab active"><span class="ico"></span><span>我的</span></div>
+      </div>
+
+      <div class="mask"></div>
+      <div class="dialog">
+        <div class="dbody">
+          <div class="warn">!</div>
+          <div class="t-title">注销账号</div>
+          <div class="t-sub" style="margin-top:8px;">注销后将删除账号及云端全部错题数据，且无法恢复</div>
+        </div>
+        <div class="dfoot">
+          <div class="c">取消</div>
+          <div class="k">确认注销</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================== 原型组 3：tabBar 变更 ===================== -->
+<div class="group-title">原型组 3 ｜ 底部 tabBar：3 项 → 4 项（修改现有 app.config.ts）</div>
+<div class="frames">
+  <div class="frame">
+    <p class="frame-cap">变更前（现状）</p>
+    <div class="tabbar-strip">
+      <div class="tabbar">
+        <div class="tab active"><span class="ico"></span><span>首页</span></div>
+        <div class="tab"><span class="ico"></span><span>题库</span></div>
+        <div class="tab"><span class="ico"></span><span>刷题</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="frame">
+    <p class="frame-cap">变更后（新增「我的」）</p>
+    <div class="tabbar-strip">
+      <div class="tabbar">
+        <div class="tab"><span class="ico"></span><span>首页</span></div>
+        <div class="tab"><span class="ico"></span><span>题库</span></div>
+        <div class="tab"><span class="ico"></span><span>刷题</span></div>
+        <div class="tab"><span class="ico"></span><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 设计说明（界面之外） ===================== -->
+<section class="notes">
+  <h2>设计说明</h2>
+  <p>本节为原型配套说明，<b>不进入任何界面</b>。阶段1 只表达结构与流转，视觉细节留待阶段2。</p>
+
+  <h3>一、页面与状态清单</h3>
+  <table>
+    <tr><th>编号</th><th>界面 / 状态</th><th>关键模块（自上而下）</th><th>与现有系统的关系</th></tr>
+    <tr><td>①</td><td>「我的」· 未登录</td><td>NavBar「我的」→ 头像占位+「未登录」→ 主按钮「微信一键登录」→ tabBar</td><td>新增页面；复用 NavBar / AppButton</td></tr>
+    <tr><td>②</td><td>「我的」· 已登录</td><td>NavBar → 头像+昵称+点击修改（chevron）→ 列表「退出登录」「注销账号」→ tabBar</td><td>新增页面；行样式参考现有列表卡片</td></tr>
+    <tr><td>③</td><td>完善资料</td><td>NavBar（带返回）→ 大头像（点击更换）→ 昵称输入 → 底部固定「保存」</td><td>新增二级页；复用 NavBar / AppButton</td></tr>
+    <tr><td>④</td><td>登录引导</td><td>首页底图（变暗）→ 底部弹层：标题+说明+「微信一键登录」/「暂不登录」</td><td>叠加在现有首页；复用现有 ActionSheet 弹层观感</td></tr>
+    <tr><td>⑤</td><td>注销二次确认</td><td>「我的」底图（变暗）→ 居中弹窗：警示图标+标题+说明+「取消」/「确认注销」</td><td><b>直接复用现有 ConfirmDialog</b></td></tr>
+    <tr><td>—</td><td>tabBar 变更</td><td>3 项 → 4 项，新增「我的」</td><td>修改现有 <code>app.config.ts</code>；需补 2 张图标</td></tr>
+  </table>
+
+  <h3>二、交互流转</h3>
+  <ul>
+    <li><b>未登录访客</b>：首页 / 题库 / 刷题 / 我的 均可进入；可在「我的」点「微信一键登录」。</li>
+    <li><b>受限操作触发登录</b>：游客在首页点「拍照录入」→ 弹④登录引导；点「暂不登录」关闭弹层并留在首页，不阻断其他操作。</li>
+    <li><b>登录成功</b>：弹层/页面关闭 →「我的」切到状态② → 后台自动执行一次云端同步（无用户可见 UI）。</li>
+    <li><b>修改资料</b>：状态②点头像/昵称区 → 进入③完善资料 → 保存成功返回②并刷新展示。</li>
+    <li><b>退出登录</b>：状态②点「退出登录」→ 清登录态 → 回状态①；<b>本地错题保留</b>。</li>
+    <li><b>注销账号</b>：状态②点「注销账号」→ 弹⑤二次确认 → 确认后删除云端数据 + 清除本地全部数据 → 回状态①。</li>
+  </ul>
+
+  <h3>三、状态差异说明</h3>
+  <ul>
+    <li>状态①与②为同一页面的两种登录态；差异仅在头部卡片与下方操作列表，页面骨架（NavBar + tabBar）不变。</li>
+    <li>④ 的弹层须提供「暂不登录」，取消后回到原页面，符合小程序「不得强制登录」的审核要求。</li>
+    <li>⑤ 为纯复用组件，无需新设计；确认按钮用危险色区分。</li>
+  </ul>
+
+  <h3>四、同类产品参考点（定向调研）</h3>
+  <ol>
+    <li><b>个人信息头块置顶</b>：主流个人中心以「圆形头像 + 昵称」作为头块，点击可改头像/昵称。（参考：个人中心信息架构通用范式）</li>
+    <li><b>未登录 = 引导而非强制</b>：微信登录规范要求有 tabBar 的小程序至少可见首页与「我的」，支持游客模式；授权必须由用户行为触发。（参考：微信开放社区登录授权规范讨论）</li>
+    <li><b>受限操作触发式登录</b>：登录入口置于 tabBar 页与受限操作点；弹窗须含「取消/暂不登录」，取消后可退回。（参考：小程序登录原型设计实践）</li>
+    <li><b>危险操作弱化 + 二次确认</b>：退出/注销以列表行呈现，注销用红色并在二次确认中说明后果。</li>
+    <li><b>头像昵称需用户主动提供</b>：<code>chooseAvatar</code> + <code>nickname</code> 输入控件，不能静默获取。（参考：微信官方《获取头像昵称》）</li>
+  </ol>
+
+  <h3>五、本阶段未做（留待阶段2 / 开发）</h3>
+  <ul>
+    <li>视觉细节：配色层级、字号字重、阴影、毛玻璃、动效等。</li>
+    <li>真实头像/昵称素材：骨架中以灰色占位表示。</li>
+    <li>「我的」tab 图标：需新增常规态 + 选中态两张 png 资源。</li>
+    <li>同步过程与失败态的用户提示（当前设计为无感知自动同步，异常沿用 Toast）。</li>
+  </ul>
+
+  <p style="margin-top:18px;"><span class="tag">待确认</span>请确认「我的」页结构（状态①/②）、完善资料页（③）、登录引导（④）、注销确认（⑤）与 tabBar 变更是否符合预期。</p>
+</section>
+
+</body>
+</html>

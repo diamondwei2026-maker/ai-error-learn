@@ -4,6 +4,8 @@ import { useDidShow, useDidHide } from '@tarojs/taro';
 import './app.scss';
 import { fileRepo } from './services/repo/fileRepo';
 import { storageRepo } from './services/repo/storageRepo';
+import { syncService } from './services/syncService';
+import { useUserStore } from './store/userStore';
 
 function App(props: PropsWithChildren<Record<string, never>>) {
   useEffect(() => {
@@ -17,6 +19,16 @@ function App(props: PropsWithChildren<Record<string, never>>) {
       console.info('[App] startup cleanup done, valid images =', validPaths.length);
     } catch (error) {
       console.error('[App] startup cleanup failed', error);
+    }
+
+    // 恢复登录态；已登录则后台静默同步一次（失败不影响使用）
+    try {
+      useUserStore.getState().restore();
+      if (useUserStore.getState().isLoggedIn) {
+        void syncService.syncNow();
+      }
+    } catch (error) {
+      console.error('[App] restore session failed', error);
     }
   }, []);
 

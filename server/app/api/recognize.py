@@ -2,20 +2,33 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable, Optional
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.models.schemas import RecognizeResponse
 from app.services.vision_recognize import CODE_IMAGE_TOO_LARGE, RecognizeError
 from app.utils.text_clean import count_words
 
 
-def create_recognize_router(service: Any, max_image_bytes: int) -> APIRouter:
-    """构造识别路由。service 需实现 recognize(bytes, mime_type) -> RecognizeOutcome。"""
-    router = APIRouter()
+def create_recognize_router(
+    service: Any,
+    max_image_bytes: int,
+    auth_dep: Optional[Callable[..., Any]] = None,
+) -> APIRouter:
+    """构造识别路由。service 需实现 recognize(bytes, mime_type) -> RecognizeOutcome。
 
-    @router.post("/recognize", response_model=RecognizeResponse, response_model_exclude_none=True)
+    auth_dep 为可选鉴权依赖；传入时该接口需登录后调用（AUTH_REQUIRED=true 时由 main 注入）。
+    """
+    router = APIRouter()
+    route_dependencies = [Depends(auth_dep)] if auth_dep is not None else []
+
+    @router.post(
+        "/recognize",
+        response_model=RecognizeResponse,
+        response_model_exclude_none=True,
+        dependencies=route_dependencies,
+    )
     async def recognize(file: UploadFile = File(...)) -> RecognizeResponse:
         data = await file.read()
         if not data:

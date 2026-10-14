@@ -5,20 +5,28 @@ import Taro, { useDidShow } from '@tarojs/taro';
 import ActionSheet from '@/components/ActionSheet';
 import Chip from '@/components/Chip';
 import Icon from '@/components/Icon';
+import LoginSheet from '@/components/LoginSheet';
 import Mascot from '@/components/Mascot';
 import NavBar from '@/components/NavBar';
 import { captureService } from '@/services/captureService';
 import { useQuestionStore } from '@/store/questionStore';
+import { useUserStore } from '@/store/userStore';
 import { getPageMinHeight } from '@/utils/layout';
 
 import styles from './index.module.scss';
 
 const IndexPage = () => {
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [loginSheetVisible, setLoginSheetVisible] = useState(false);
+  const [loginBusy, setLoginBusy] = useState(false);
   const total = useQuestionStore((state) => state.total);
   const refresh = useQuestionStore((state) => state.refresh);
+  const isLoggedIn = useUserStore((state) => state.isLoggedIn);
+  const restoreUser = useUserStore((state) => state.restore);
+  const login = useUserStore((state) => state.login);
 
   useDidShow(() => {
+    restoreUser();
     refresh();
   });
 
@@ -28,6 +36,30 @@ const IndexPage = () => {
     const tempFilePath = await captureService.pick(source);
     if (!tempFilePath) return;
     Taro.navigateTo({ url: `/pages/edit/index?tempPath=${encodeURIComponent(tempFilePath)}` });
+  };
+
+  /** 拍照识别需登录：游客点击时先弹登录引导 */
+  const handleEntryPrimary = () => {
+    if (!isLoggedIn) {
+      setLoginSheetVisible(true);
+      return;
+    }
+    setSheetVisible(true);
+  };
+
+  const handleLogin = async () => {
+    if (loginBusy) return;
+    setLoginBusy(true);
+    try {
+      await login();
+      setLoginSheetVisible(false);
+      Taro.showToast({ title: '登录成功', icon: 'success' });
+    } catch (error) {
+      console.error('[index] login failed', error);
+      Taro.showToast({ title: (error as Error).message || '登录失败，请重试', icon: 'none' });
+    } finally {
+      setLoginBusy(false);
+    }
   };
 
   const gotoQuiz = () => {
@@ -61,7 +93,7 @@ const IndexPage = () => {
 
         <View className={styles.spacer} />
 
-        <View className={styles.entryPrimary} onClick={() => setSheetVisible(true)}>
+        <View className={styles.entryPrimary} onClick={handleEntryPrimary}>
           <View className={styles.entryIconPrimary}>
             <Icon name="cameraWhite" size={25} />
           </View>
@@ -93,6 +125,12 @@ const IndexPage = () => {
         ]}
         onSelect={(key) => startCapture(key === 'camera' ? 'camera' : 'album')}
         onCancel={() => setSheetVisible(false)}
+      />
+
+      <LoginSheet
+        visible={loginSheetVisible}
+        onLogin={handleLogin}
+        onCancel={() => setLoginSheetVisible(false)}
       />
     </View>
   );
