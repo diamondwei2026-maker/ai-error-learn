@@ -1,0 +1,48 @@
+# 错题本后端 —— systemd 守护单元（生产环境）
+#
+# 部署位置：/etc/systemd/system/error-learn-api.service
+# 占位符：<DEPLOY_DIR> → 后端部署根目录（例如 /opt/error-learn）
+#         部署脚本 deploy.sh 会自动替换并安装本文件。
+#
+# 生效命令：
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now error-learn-api
+#   sudo systemctl status error-learn-api
+
+[Unit]
+Description=Error Learn API (FastAPI + uvicorn)
+Documentation=file:///<DEPLOY_DIR>/.trae/documents/部署教程.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+
+# 后端代码与虚拟环境所在目录
+WorkingDirectory=<DEPLOY_DIR>/server
+
+# 以 server/.venv 中的解释器启动；--env-file 读取 server/.env
+# 注意：应用内部 config.py 会以 override=True 再装载一次 .env，确保其为唯一权威来源
+ExecStart=<DEPLOY_DIR>/server/.venv/bin/python -m uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 \
+    --env-file <DEPLOY_DIR>/server/.env
+
+# 依赖异常时自动重启
+Restart=always
+RestartSec=3
+
+# 日志进入 journald（journalctl -u error-learn-api -f）
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=error-learn-api
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

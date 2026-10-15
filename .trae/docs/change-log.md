@@ -159,3 +159,29 @@
   3. 真机验证需后端 HTTPS 备案域名
 - **回滚方式**：移除 10 处 `<PrivacySheet />` 与 `app.tsx` 的 `privacyService` 调用即恢复原状（微信自动回退官方隐私弹窗）；协议页为纯新增，删除页面 + `app.config.ts` 注册项 + 「我的」页区块即可；后端与数据无改动，无需回滚
 
+---
+
+## ops-20261015-部署产物恢复
+
+- **编号**：ops-20261015-部署产物恢复
+- **日期**：2026-10-15
+- **背景**：`ops-20261014-部署上线方案` / `docs-20261015-部署文档精简` / `docs-20261015-部署教程联网校对` 三条记录所描述的部署产物与教程，**从未提交入库**（`git log` 全 17 次提交均无相关路径），当前工作区亦不存在。本次按记录重建，使其可入库、可复用。
+- **变更摘要**：
+  重建部署产物与唯一部署教程，并补齐两处使其真正可跑的前置改动。
+  **无业务逻辑改动、无 UI 改动、无新增功能。**
+- **影响模块**：
+  - 部署产物（重建 `deploy/`）
+    - `deploy/nginx/error-learn.conf`（反代 `/api/`、静态 `/static/` alias、3 处占位、HTTP/2 版本分支注释）
+    - `deploy/systemd/error-learn-api.service`（`<DEPLOY_DIR>` 占位、用户可替换）
+    - `deploy/env.production.example`（生产变量模板，含 RDS 连接串与 `UPLOADS_DIR`）
+    - `deploy/deploy.sh`（一键部署脚本，头部引用 `.trae/documents/部署教程.md`）
+  - 前端（`client/`）
+    - 新增：`.env.development`（局域网 IP）、`.env.production`（`TARO_APP_API_BASE=https://api.example.com`）
+  - 后端（`server/`）
+    - 修改：`requirements.txt`（新增 `PyMySQL>=1.1,<2.0`，支撑 RDS 连接串）
+  - 文档：新增 `.trae/documents/部署教程.md`（纯操作教程：前置三件事 / 后端 / Nginx+HTTPS / 前端发布 / 微信侧配置 / 运维 / 排障 / 参考来源）
+- **关联文档路径**：`.trae/documents/部署教程.md`；产物位于 `deploy/**`
+- **是否待合并主 spec**：**否**（运维/上线准备，**未修改** `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：产物字段与仓库代码逐条比对一致（`/api/v1/health`、`/static` ↔ `UPLOADS_DIR`、`npm run build:weapp`、AppID `wx683110d829c1f0f9`、`client/src/constants/index.ts` 的 `TARO_APP_API_BASE`、`config.py` 键名、`requirements.txt`）；`deploy.sh` 的 sed 替换与 systemd/nginx 占位一一对应
+- **待办（不阻塞产物，阻塞上线）**：① 替换 nginx/systemd/env 中的域名与证书占位；② 提交 `deploy/**`、`client/.env.production`、`client/.env.development` 入库
+- **回滚方式**：删除 `deploy/`、两个 `.env` 文件与 `.trae/documents/部署教程.md`，并还原 `server/requirements.txt` 的 PyMySQL 行
