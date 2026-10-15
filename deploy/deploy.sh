@@ -11,14 +11,20 @@
 #   4. Nginx 站点域名与 SSL 证书已就绪（本脚本不申请证书，只安装配置）
 #
 # 用法：
-#   sudo bash deploy/deploy.sh                 # 使用默认路径 /opt/error-learn
+#   sudo bash deploy/deploy.sh                 # 默认路径 /opt/error-learn、端口 8000
 #   sudo DEPLOY_DIR=/opt/error-learn DOMAIN=api.example.com bash deploy/deploy.sh
+#   sudo DEPLOY_DIR=/opt/error-learn DOMAIN=api.example.com PORT=8080 bash deploy/deploy.sh
+#
+# 共享服务器注意：本脚本不重装 Nginx、不修改既有站点配置，仅新增站点配置并 reload，
+#                 全程不会 restart Nginx，不影响服务器上已有站点。
 #
 set -euo pipefail
 
 # ---- 可配置项（可用环境变量覆盖）----
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/error-learn}"
 DOMAIN="${DOMAIN:-api.example.com}"
+# 后端监听端口（共享服务器上 8000 可能被占，可改 8080 等空闲端口）
+PORT="${PORT:-8000}"
 SSL_CERT="${SSL_CERT:-/etc/nginx/ssl/${DOMAIN}.pem}"
 SSL_KEY="${SSL_KEY:-/etc/nginx/ssl/${DOMAIN}.key}"
 RUN_USER="${RUN_USER:-www-data}"
@@ -38,6 +44,10 @@ check_prereq() {
   command -v nginx   >/dev/null || die "未找到 nginx"
   [ -d "${DEPLOY_DIR}/server" ] || die "未找到后端目录：${DEPLOY_DIR}/server（请先 git clone 仓库到 ${DEPLOY_DIR}）"
   [ -f "${DEPLOY_DIR}/server/.env" ] || die "缺少 ${DEPLOY_DIR}/server/.env，请先 cp deploy/env.production.example server/.env 并填值"
+  # 端口预检：被占用则直接退出，避免装完 systemd 才失败（共享服务器上 8000 常被占）
+  if ss -lnt 2>/dev/null | awk '{print $4}' | grep -qE "[:.]${PORT}$"; then
+    die "端口 ${PORT} 已被占用，请改用空闲端口重跑，例如：PORT=8080 bash deploy/deploy.sh"
+  fi
   [ -f "${SSL_CERT}" ] || warn "未找到证书 ${SSL_CERT}（Nginx 启动会失败，请先放置证书或用 DNS-01 签发）"
   [ -f "${SSL_KEY}" ]  || warn "未找到私钥 ${SSL_KEY}"
 }
@@ -56,7 +66,7 @@ setup_venv() {
 # ---- 2. 安装 systemd 单元 ----
 setup_systemd() {
   log "安装 systemd 单元 ${SERVICE_NAME}"
-  sed "s#<DEPLOY_DIR>#${DEPLOY_DIR}#g; s#User=www-data#User=${RUN_USER}#; s#Group=www-data#Group=${RUN_USER}#" \
+  sed "s#<DEPLOY_DIR>#${DEPLOY_DIR}#g; s#User=www-data#User=${RUN_USER}#; s#Group=www-data#Group=${RUN_USER}#; s#--port 8000#--port ${PORT}#" \
     "${DEPLOY_DIR}/deploy/systemd/${SERVICE_NAME}.service" \
     > "/etc/systemd/system/${SERVICE_NAME}.service"
   systemctl daemon-reload
@@ -70,7 +80,7 @@ setup_systemd() {
 # ---- 3. 安装 Nginx 配置 ----
 setup_nginx() {
   log "安装 Nginx 配置 error-learn.conf"
-  sed "s#api.example.com#${DOMAIN}#g; s#/etc/nginx/ssl/${DOMAIN}.pem#${SSL_CERT}#g; s#/etc/nginx/ssl/${DOMAIN}.key#${SSL_KEY}#g; s#/opt/error-learn/server/uploads#${DEPLOY_DIR}/server/uploads#g" \
+  sed "s#api.example.com#${DOMAIN}#g; s#/etc/nginx/ssl/${DOMAIN}.pem#${SSL_CERT}#g; s#/etc/nginx/ssl/${DOMAIN}.key#${SSL_KEY}#g; s#/opt/error-learn/server/uploads#${DEPLOY_DIR}/server/uploads#g; s#127.0.0.1:8000#127.0.0.1:${PORT}#g" \
     "${DEPLOY_DIR}/deploy/nginx/error-learn.conf" \
     > "${NGINX_CONF_D}/error-learn.conf"
   nginx -t || die "Nginx 配置校验失败"
@@ -83,7 +93,7 @@ setup_nginx() {
 health_check() {
   log "健康检查 GET /api/v1/health"
   local body
-  body="$(curl -fsS --max-time 5 http://127.0.0.1:8000/api/v1/health || true)"
+  body="$(curl -fsS --max-time 5 http://127.0.0.1:${PORT}/api/v1/health || true)"
   [ "${body}" = '{"status":"ok"}' ] || warn "本机健康检查返回异常：${body:-<空>}"
   log "本地健康检查通过：${body}"
   if curl -fsS --max-time 5 "https://${DOMAIN}/api/v1/health" >/dev/null 2>&1; then
@@ -95,7 +105,7 @@ health_check() {
 
 main() {
   require_root
-  log "部署目录：${DEPLOY_DIR}    域名：${DOMAIN}"
+  log "部署目录：${DEPLOY_DIR}    域名：${DOMAIN}    后端端口：${PORT}"
   check_prereq
   setup_venv
   setup_systemd

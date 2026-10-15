@@ -185,3 +185,50 @@
 - **验证结果**：产物字段与仓库代码逐条比对一致（`/api/v1/health`、`/static` ↔ `UPLOADS_DIR`、`npm run build:weapp`、AppID `wx683110d829c1f0f9`、`client/src/constants/index.ts` 的 `TARO_APP_API_BASE`、`config.py` 键名、`requirements.txt`）；`deploy.sh` 的 sed 替换与 systemd/nginx 占位一一对应
 - **待办（不阻塞产物，阻塞上线）**：① 替换 nginx/systemd/env 中的域名与证书占位；② 提交 `deploy/**`、`client/.env.production`、`client/.env.development` 入库
 - **回滚方式**：删除 `deploy/`、两个 `.env` 文件与 `.trae/documents/部署教程.md`，并还原 `server/requirements.txt` 的 PyMySQL 行
+
+---
+
+## docs-20261015-部署教程共享ECS改写
+
+- **编号**：docs-20261015-部署教程共享ECS改写
+- **日期**：2026-10-15
+- **背景**：用户实际环境为「ECS 已有原生 Nginx 站点（80/443 被占）+ 独立 RDS 实例 + 有备案主域名需新开子域名」。原教程以"全新服务器"为口径，把共存场景压缩为 §3.3 五条脚注，不匹配实际。本次以用户真实环境为主线重写教程，并最小化改造部署脚本以支持共享服务器。
+- **变更摘要**：
+  教程由"全新服务器口径"改写为"共享 ECS 共存主线"：新增「场景与前提」「现状勘察」「接入现有 Nginx」「影响范围与回滚」等章节；证书方案由三选一收敛为**只主推 DNS-01**（因 80 被既有站点占用，HTTP-01 不可用）；明确"不重装 Nginx、不改既有配置、只 reload 不 restart"。
+  脚本 `deploy/deploy.sh` 增加 `PORT` 可配置与端口占用预检，并把端口注入 systemd 与 Nginx 配置。
+  **无业务逻辑改动、无 UI 改动、无新增功能。**
+- **影响模块**：
+  - 文档：`.trae/documents/部署教程.md`（**重写**，11 章 + 参考来源）
+  - 部署产物：`deploy/deploy.sh`（修改：新增 `PORT` 变量、端口占用预检 `ss -lnt`、systemd `--port` 与 nginx `127.0.0.1:8000` 端口替换、健康检查端口、用法注释）
+  - 未改动：`deploy/nginx/error-learn.conf`、`deploy/systemd/error-learn-api.service`、`deploy/env.production.example`、前端代码、后端代码
+- **关联文档路径**：`.trae/documents/部署教程.md`；方案 `.trae/documents/更新部署教程-阿里云共享ECS场景.md`
+- **是否待合并主 spec**：**否**（文档 + 部署脚本，**未修改** `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - `bash -n deploy/deploy.sh` → **exit 0**（语法通过，Git Bash）
+  - 脚本全文核对：仅 `systemctl reload nginx`（无 `nginx restart`）、无修改既有 conf、无重装 nginx；`systemctl restart` 仅作用于本项目 `error-learn-api`
+  - 端口替换静态比对：`error-learn.conf` 中 `127.0.0.1:8000` 共 4 处（2 处 `proxy_pass` + 2 处注释）、`error-learn-api.service` 中 `--port 8000` 共 1 处，均被 `deploy.sh` 的对应 sed 表达式覆盖
+  - 教程事实与代码一致：`/api/v1/health`、`/static` ↔ `UPLOADS_DIR`、`npm run build:weapp`、AppID `wx683110d829c1f0f9`、`TARO_APP_API_BASE`
+- **待办（不阻塞，阻塞上线）**：① 按教程 §3 完成现状勘察并记录 4 项结论；② 替换域名与证书占位；③ 独立 RDS 建库 `error_learn` 并把 ECS 内网 IP 加入白名单
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md deploy/deploy.sh`；本次未改动其它文件
+
+---
+
+## docs-20261015-部署教程小白版
+
+- **编号**：docs-20261015-部署教程小白版
+- **日期**：2026-10-15
+- **背景**：用户为**零基础**，明确反馈"不知道怎么装到云服务器上""不知道去哪里执行代码新建数据库"。上一版教程虽已按共享 ECS 场景组织，但默认读者懂命令行，未说明"命令在哪个窗口执行"、未教如何登录服务器、未给图形化建库路径、且用 `vi` 编辑配置（小白不会用）。
+- **变更摘要**：
+  **仅调整讲法与粒度，技术方案不变**（仍是共享 ECS + 独立 RDS + 新开备案子域名）。
+  新增：① 开篇「两个窗口」区分（阿里云控制台 vs Workbench 黑框）+ 术语卡片 + 粘贴/中断保命操作；② **逐步教登录 ECS（Workbench 点选路径）**；③ 勘察命令逐条给"怎么判断"；④ **逐步教从 GitHub 克隆代码**（含"本地须先 `git push`"的前置提醒）；⑤ **控制台图形化建库 `error_learn`**（不要求写 SQL）+ 账号 + 白名单；⑥ 编辑 `.env` 主推 `nano`（附保存/退出键位），备选 `cat > ... <<'EOF'` 整段粘贴；⑦ 全文每步配 **✅ 验证点**；⑧ 新增 [附录 A 命令速查]、[附录 B 术语小词典]、附录 C 备用 SQL。
+- **影响模块**：
+  - 文档：`.trae/documents/部署教程.md`（**重写为"零基础版"**，14 章 + 3 附录 + 参考来源）
+  - **未改动**：`deploy/**`、前端代码、后端代码
+- **关联文档路径**：`.trae/documents/部署教程.md`；方案 `.trae/documents/更新部署教程-小白版.md`
+- **是否待合并主 spec**：**否**（**未修改** `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 命令与仓库事实逐条一致：仓库 URL `https://github.com/diamondwei2026-maker/ai-error-learn.git`（`.git/config`）、`error_learn`、`/opt/error-learn`、`127.0.0.1:8000`（可改 8080）、`/api/v1/health`、`UPLOADS_DIR` ↔ `/static` alias、`wx683110d829c1f0f9`、`npm run build:weapp`
+  - 格式核对：§3~§10 每一步均含 **✅ 验证点**
+  - 小白盲区覆盖：登录服务器 / 粘贴方式 / 建库位置 / `nano` 保存退出 / GitHub 拉不动备选 / 本地先 `push` —— 均已写入
+- **待办（不阻塞，阻塞上线）**：① 本地先 `git push`（当前 `develop` 领先远端，否则云上拉到旧代码）；② 按 §4 勘察并记录结论；③ 建库 + 白名单
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
