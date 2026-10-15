@@ -8,6 +8,7 @@ import Icon from '@/components/Icon';
 import LoginSheet from '@/components/LoginSheet';
 import Mascot from '@/components/Mascot';
 import NavBar from '@/components/NavBar';
+import PrivacySheet from '@/components/PrivacySheet';
 import { captureService } from '@/services/captureService';
 import { useQuestionStore } from '@/store/questionStore';
 import { useUserStore } from '@/store/userStore';
@@ -142,6 +143,8 @@ const IndexPage = () => {
         onLogin={handleLogin}
         onCancel={() => setLoginSheetVisible(false)}
       />
+
+      <PrivacySheet />
     </View>
   );
 };

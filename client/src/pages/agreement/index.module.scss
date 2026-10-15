@@ -1,0 +1,50 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+.body {
+  flex: 1;
+  padding: 24rpx 32rpx 80rpx; // 12px 16px 40px
+}
+
+.meta {
+  display: block;
+  padding-bottom: 28rpx; // 14px
+  border-bottom: 1rpx solid $color-divider;
+  font-size: 24rpx; // 12px
+  line-height: 40rpx;
+  color: $color-text-tertiary;
+}
+
+.section {
+  margin-top: 36rpx; // 18px
+}
+
+.heading {
+  display: block;
+  margin-bottom: 16rpx; // 8px
+  font-size: 29rpx; // 14.5px
+  line-height: 46rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.paragraph {
+  display: block;
+  margin-bottom: 12rpx; // 6px
+  font-size: 26rpx; // 13px
+  line-height: 48rpx; // 1.85
+  color: $color-text-secondary;
+}
+
+.bullet {
+  display: block;
+  font-size: 26rpx;
+  line-height: 48rpx;
+  color: $color-text-secondary;
+}

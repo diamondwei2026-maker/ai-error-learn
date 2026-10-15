@@ -5,8 +5,10 @@ import Taro from '@tarojs/taro';
 import AppButton from '@/components/AppButton';
 import Icon from '@/components/Icon';
 import NavBar from '@/components/NavBar';
-import { API_BASE, NICKNAME_MAX_LENGTH } from '@/constants';
+import PrivacySheet from '@/components/PrivacySheet';
+import { API_BASE, NICKNAME_MAX_LENGTH, PRIVACY_DENIED_MESSAGE } from '@/constants';
 import { MASCOT_DATA_URI } from '@/constants/mascot';
+import { privacyService } from '@/services/privacyService';
 import { useUserStore } from '@/store/userStore';
 import { getPageMinHeight } from '@/utils/layout';
 
@@ -38,6 +40,17 @@ const ProfileEditPage = () => {
   const handleChooseAvatar = (event: any) => {
     const url: string | undefined = event?.detail?.avatarUrl;
     if (url) setAvatarTempPath(url);
+  };
+
+  /**
+   * 昵称输入聚焦：`<input type="nickname">` 未同意隐私协议时不会触发被动监听
+   * （会静默降级为普通文本输入），因此需在聚焦时主动前置授权。
+   */
+  const handleNicknameFocus = async () => {
+    const authorized = await privacyService.requireAuthorize();
+    if (!authorized) {
+      Taro.showToast({ title: PRIVACY_DENIED_MESSAGE, icon: 'none' });
+    }
   };
 
   const handleSave = async () => {
@@ -89,6 +102,7 @@ const ProfileEditPage = () => {
               maxlength={NICKNAME_MAX_LENGTH}
               placeholder="请输入昵称"
               placeholderClass={styles.placeholder}
+              onFocus={handleNicknameFocus}
               onInput={(event) => setNickname(event.detail.value)}
             />
             <Text className={styles.counter}>
@@ -103,6 +117,8 @@ const ProfileEditPage = () => {
           保存
         </AppButton>
       </View>
+
+      <PrivacySheet />
     </View>
   );
 };

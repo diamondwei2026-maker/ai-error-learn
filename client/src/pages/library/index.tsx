@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import Empty from '@/components/Empty';
 import Icon from '@/components/Icon';
 import NavBar from '@/components/NavBar';
+import PrivacySheet from '@/components/PrivacySheet';
 import QuestionCard from '@/components/QuestionCard';
 import SwipeItem from '@/components/SwipeItem';
 import { PAGE_SIZE } from '@/constants';
@@ -221,6 +222,8 @@ const LibraryPage = () => {
         onConfirm={confirmDelete}
         onCancel={() => setDialogVisible(false)}
       />
+
+      <PrivacySheet />
     </View>
   );
 };

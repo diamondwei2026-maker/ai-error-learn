@@ -4,6 +4,7 @@ import { useDidShow, useDidHide } from '@tarojs/taro';
 import './app.scss';
 import { fileRepo } from './services/repo/fileRepo';
 import { storageRepo } from './services/repo/storageRepo';
+import { privacyService } from './services/privacyService';
 import { syncService } from './services/syncService';
 import { useUserStore } from './store/userStore';
 
@@ -29,6 +30,14 @@ function App(props: PropsWithChildren<Record<string, never>>) {
       }
     } catch (error) {
       console.error('[App] restore session failed', error);
+    }
+
+    // 隐私合规：注册被动监听 + 启动查询授权状态（非阻断，失败不阻塞启动）
+    try {
+      privacyService.init();
+      privacyService.checkOnLaunch();
+    } catch (error) {
+      console.error('[App] privacy init failed', error);
     }
   }, []);
 

@@ -20,19 +20,17 @@ export const SCHEMA_VERSION = 1
 export const PAGE_SIZE = 10
 
 /**
- * 识别代理后端地址（Python FastAPI）。
- * - 必须使用「局域网 IP」：微信小程序网络层禁止访问「本机 IP / localhost」（127.0.0.1），
- *   该限制在开发者工具模拟器内同样生效，且勾选「不校验合法域名」也无法绕过，
- *   否则 uploadFile 会报 `createUploadTask:fail invalid url`。
- * - 模拟器与真机（手机与电脑同一 WiFi）均使用该局域网 IP。
- * - 开发机 IP 若因 DHCP 变化需同步修改此处；查询命令：
- *   Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' }
- *   （取「以太网」那一项，忽略 LetsTAP 等虚拟网卡）
+ * 后端服务基地址（识别与账号体系共用同一服务）。
+ * 由构建期环境变量 `TARO_APP_API_BASE` 注入（见 `client/.env.development` / `.env.production`）：
+ * - 开发/联调：局域网 IP（如 http://192.168.60.37:8000），模拟器与真机（同一 WiFi）均使用；
+ * - 生产：已备案的 HTTPS 域名（如 https://api.example.com）。
+ * 注意：微信小程序网络层禁止访问 localhost / 127.0.0.1；生产必须使用 HTTPS 域名，
+ * 且需在微信公众平台配置 request / uploadFile / downloadFile 合法域名。
  */
-export const RECOGNIZE_API_BASE = 'http://192.168.60.37:8000'
+export const API_BASE = process.env.TARO_APP_API_BASE || 'http://192.168.60.37:8000'
 
-/** 后端服务基地址（识别与账号体系共用同一服务） */
-export const API_BASE = RECOGNIZE_API_BASE
+/** 识别代理后端地址（与账号体系共用同一服务，保留旧导出名以兼容既有引用） */
+export const RECOGNIZE_API_BASE = API_BASE
 
 /** 识别后端错误码文案 */
 export const RECOGNIZE_ERROR_MESSAGES: Record<number, string> = {
@@ -57,6 +55,26 @@ export const AUTH_CODE = {
   unauthorized: 2001,
   tokenInvalid: 2002,
 } as const
+
+/** 协议类型（协议页通过 query 区分，见 AGREEMENT_PAGE_PATH） */
+export const AGREEMENT_TYPE = {
+  privacy: 'privacy',
+  terms: 'terms',
+} as const
+
+export type AgreementType = (typeof AGREEMENT_TYPE)[keyof typeof AGREEMENT_TYPE]
+
+/** 协议页路径 */
+export const AGREEMENT_PAGE_PATH = '/pages/agreement/index'
+
+/** 协议页标题映射 */
+export const AGREEMENT_TITLES: Record<string, string> = {
+  [AGREEMENT_TYPE.privacy]: '隐私政策',
+  [AGREEMENT_TYPE.terms]: '用户协议',
+}
+
+/** 用户拒绝隐私授权时的提示文案 */
+export const PRIVACY_DENIED_MESSAGE = '需同意隐私授权后才能使用该功能'
 
 /** 题干最大字数 */
 export const CONTENT_MAX_LENGTH = 200

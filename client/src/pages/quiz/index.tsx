@@ -10,6 +10,7 @@ import FlipCard from '@/components/FlipCard';
 import Icon from '@/components/Icon';
 import Mascot from '@/components/Mascot';
 import NavBar from '@/components/NavBar';
+import PrivacySheet from '@/components/PrivacySheet';
 import { questionService } from '@/services/questionService';
 import { fileRepo } from '@/services/repo/fileRepo';
 import type { Question } from '@/types/question';
@@ -101,6 +102,8 @@ const QuizPage = () => {
             onAction={gotoIndex}
           />
         </View>
+
+        <PrivacySheet />
       </View>
     );
   }
@@ -140,6 +143,8 @@ const QuizPage = () => {
             </AppButton>
           </View>
         </View>
+
+        <PrivacySheet />
       </View>
     );
   }
@@ -149,6 +154,8 @@ const QuizPage = () => {
       <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
         <NavBar title="刷题" />
         <View className={styles.body} />
+
+        <PrivacySheet />
       </View>
     );
   }
@@ -266,6 +273,8 @@ const QuizPage = () => {
           )}
         </View>
       </View>
+
+      <PrivacySheet />
     </View>
   );
 };

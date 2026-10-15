@@ -9,6 +9,7 @@ import Chip from '@/components/Chip';
 import Icon from '@/components/Icon';
 import Mascot from '@/components/Mascot';
 import NavBar from '@/components/NavBar';
+import PrivacySheet from '@/components/PrivacySheet';
 import { ANSWER_MAX_LENGTH, CONTENT_MAX_LENGTH } from '@/constants';
 import { captureService } from '@/services/captureService';
 import { recognitionService } from '@/services/recognitionService';
@@ -162,6 +163,8 @@ const EditPage = () => {
             取消识别
           </AppButton>
         </View>
+
+        <PrivacySheet />
       </View>
     );
   }
@@ -267,6 +270,8 @@ const EditPage = () => {
         onSelect={(key) => handleRetake(key === 'camera' ? 'camera' : 'album')}
         onCancel={() => setSheetVisible(false)}
       />
+
+      <PrivacySheet />
     </View>
   );
 };

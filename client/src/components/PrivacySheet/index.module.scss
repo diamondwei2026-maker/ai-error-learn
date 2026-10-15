@@ -1,0 +1,75 @@
+@use '@/styles/variables.scss' as *;
+
+/* 遮罩 / 面板规范与 LoginSheet、ActionSheet 保持一致；z-index 高于 ActionSheet(200/201) */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  background: $color-mask;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 301;
+  border-radius: 32rpx 32rpx 0 0;
+  overflow: hidden;
+  border-top: 1rpx solid $color-border;
+  padding: 48rpx 32rpx calc(24rpx + constant(safe-area-inset-bottom));
+  padding: 48rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  @include frosted-glass(30px, $glass-panel-bg);
+}
+
+.title {
+  display: block;
+  text-align: center;
+  font-size: 38rpx; // 19px
+  line-height: 56rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.text {
+  display: block;
+  margin-top: 20rpx; // 10px
+  font-size: 28rpx; // 14px
+  line-height: 44rpx;
+  color: $color-text-secondary;
+}
+
+.link {
+  font-size: 28rpx;
+  line-height: 44rpx;
+  color: $color-primary-ink;
+  text-decoration: underline;
+}
+
+.contract {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx; // 2px
+  margin-top: 24rpx; // 12px
+}
+
+.contractText {
+  font-size: 26rpx; // 13px
+  line-height: 40rpx;
+  color: $color-primary-ink;
+  text-decoration: underline;
+}
+
+.actions {
+  margin-top: 32rpx; // 16px
+}
+
+.cancel {
+  margin-top: 8rpx;
+}

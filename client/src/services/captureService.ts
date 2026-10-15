@@ -1,5 +1,7 @@
 import Taro from '@tarojs/taro';
 
+import { PRIVACY_DENIED_MESSAGE } from '@/constants';
+import { privacyService } from '@/services/privacyService';
 import { isWeapp } from '@/utils/platform';
 
 export type CaptureSource = 'camera' | 'album';
@@ -9,6 +11,12 @@ export const captureService = {
   async pick(source: CaptureSource): Promise<string | undefined> {
     try {
       if (isWeapp) {
+        // 隐私合规：拍照/相册属隐私接口，先确保已完成隐私授权；用户拒绝则给明确提示
+        const authorized = await privacyService.requireAuthorize();
+        if (!authorized) {
+          Taro.showToast({ title: PRIVACY_DENIED_MESSAGE, icon: 'none' });
+          return undefined;
+        }
         const res = await Taro.chooseMedia({
           count: 1,
           mediaType: ['image'],

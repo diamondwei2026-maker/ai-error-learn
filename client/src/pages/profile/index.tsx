@@ -6,7 +6,8 @@ import AppButton from '@/components/AppButton';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import Icon from '@/components/Icon';
 import NavBar from '@/components/NavBar';
-import { API_BASE } from '@/constants';
+import PrivacySheet from '@/components/PrivacySheet';
+import { AGREEMENT_PAGE_PATH, AGREEMENT_TYPE, API_BASE } from '@/constants';
 import { MASCOT_DATA_URI } from '@/constants/mascot';
 import { useQuestionStore } from '@/store/questionStore';
 import { useUserStore } from '@/store/userStore';
@@ -86,6 +87,11 @@ const ProfilePage = () => {
     Taro.navigateTo({ url: '/pages/profile/edit/index' });
   };
 
+  /** 打开协议页（隐私政策 / 用户协议共用同一页面，按 type 区分） */
+  const gotoAgreement = (type: string) => {
+    Taro.navigateTo({ url: `${AGREEMENT_PAGE_PATH}?type=${type}` });
+  };
+
   return (
     <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
       <NavBar title="我的" />
@@ -133,6 +139,19 @@ const ProfilePage = () => {
             </View>
           </View>
         ) : null}
+
+        {/* 服务协议：未登录也展示，便于用户在授权前查阅 */}
+        <Text className={styles.sectionLabel}>服务协议</Text>
+        <View className={styles.actionCard}>
+          <View className={styles.row} onClick={() => gotoAgreement(AGREEMENT_TYPE.terms)}>
+            <Text className={styles.rowLabel}>用户协议</Text>
+            <Icon name="chevronRightMuted" size={18} />
+          </View>
+          <View className={styles.row} onClick={() => gotoAgreement(AGREEMENT_TYPE.privacy)}>
+            <Text className={styles.rowLabel}>隐私政策</Text>
+            <Icon name="chevronRightMuted" size={18} />
+          </View>
+        </View>
       </View>
 
       <ConfirmDialog
@@ -143,6 +162,8 @@ const ProfilePage = () => {
         onConfirm={handleDelete}
         onCancel={() => setDeleteVisible(false)}
       />
+
+      <PrivacySheet />
     </View>
   );
 };

@@ -6,6 +6,7 @@ export default defineAppConfig({
     'pages/profile/index',
     'pages/edit/index',
     'pages/profile/edit/index',
+    'pages/agreement/index',
   ],
   window: {
     navigationStyle: 'custom',

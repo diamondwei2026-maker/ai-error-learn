@@ -107,3 +107,12 @@
   font-size: 32rpx;
   color: $color-error;
 }
+
+/* ===== 服务协议区块标题 ===== */
+.sectionLabel {
+  display: block;
+  margin: 32rpx 8rpx 0; // 16px 4px 0
+  font-size: 25rpx; // 12.5px
+  line-height: 40rpx;
+  color: $color-text-tertiary;
+}

@@ -14,6 +14,10 @@ export interface AppButtonProps {
   width?: number;
   icon?: ReactNode;
   className?: string;
+  /** 微信原生 open-type（当前仅用于隐私授权同意按钮） */
+  openType?: 'agreePrivacyAuthorization';
+  /** open-type="agreePrivacyAuthorization" 时，用户点击同意后的回调 */
+  onAgreePrivacyAuthorization?: () => void;
 }
 
 /** 通用按钮：胶囊主按钮 / 次按钮 / 文字按钮 / 危险按钮（对齐 §3.5） */
@@ -25,6 +29,8 @@ const AppButton = ({
   width,
   icon,
   className,
+  openType,
+  onAgreePrivacyAuthorization,
 }: AppButtonProps) => (
   <Button
     className={classnames(
@@ -36,6 +42,8 @@ const AppButton = ({
     style={width ? { width: toUnit(width * 2) } : undefined}
     hoverClass="none"
     disabled={disabled}
+    openType={openType}
+    onAgreePrivacyAuthorization={onAgreePrivacyAuthorization}
     onClick={() => {
       if (disabled) return;
       onClick?.();
