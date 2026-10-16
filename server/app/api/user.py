@@ -10,11 +10,22 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.db import get_db
 from app.deps.auth import get_current_user
-from app.errors import CODE_AVATAR_INVALID, CODE_PARAM_INVALID, ApiError
+from app.errors import (
+    CODE_AVATAR_INVALID,
+    CODE_NICKNAME_RISK,
+    CODE_PARAM_INVALID,
+    ApiError,
+)
+from app.models.media_check import VERDICT_PENDING, MediaCheckRecord
 from app.models.question_sync import QuestionSync
 from app.models.schemas import UpdateProfileRequest
 from app.models.user import User
 from app.services import auth_service
+from app.services.content_security import (
+    SCENE_PROFILE,
+    VERDICT_RISKY,
+    ContentSecurityService,
+)
 from app.utils.response import ok
 
 NICKNAME_MAX_LENGTH = 32
@@ -42,7 +53,39 @@ def _remove_avatars(avatar_dir: Path, user_id: int) -> None:
             pass
 
 
-def create_user_router(settings: Settings) -> APIRouter:
+def _submit_media_check(
+    db: Session,
+    settings: Settings,
+    content_security: ContentSecurityService,
+    user: User,
+    file_name: str,
+) -> None:
+    """头像落盘后异步送检（mediaCheckAsync），结果经消息推送回调处置。
+
+    未配置公网基地址或送检失败时降级放行，仅记日志，不影响头像可用性。
+    """
+    if not settings.media_check_ready:
+        return
+    media_url = f"{settings.public_base_url}/static/avatars/{file_name}"
+    trace_id = content_security.check_image_async(media_url, user.openid, SCENE_PROFILE)
+    if not trace_id:
+        return
+    db.add(
+        MediaCheckRecord(
+            user_id=user.id,
+            trace_id=trace_id,
+            file_name=file_name,
+            media_url=media_url,
+            verdict=VERDICT_PENDING,
+            created_at=auth_service.now_ms(),
+        )
+    )
+    db.commit()
+
+
+def create_user_router(
+    settings: Settings, content_security: ContentSecurityService
+) -> APIRouter:
     """构造用户路由。"""
     router = APIRouter()
 
@@ -60,6 +103,11 @@ def create_user_router(settings: Settings) -> APIRouter:
             nickname = payload.nickname.strip()
             if len(nickname) > NICKNAME_MAX_LENGTH:
                 raise ApiError(CODE_PARAM_INVALID, f"昵称不能超过 {NICKNAME_MAX_LENGTH} 个字符")
+            # 内容安全：命中违规拦截；接口不可用/审核建议为 review 时降级放行
+            if nickname and content_security.check_text(
+                nickname, user.openid, SCENE_PROFILE
+            ) == VERDICT_RISKY:
+                raise ApiError(CODE_NICKNAME_RISK, "昵称包含违规内容，请修改后重试")
             user.nickname = nickname or None
         user.updated_at = auth_service.now_ms()
         db.commit()
@@ -89,6 +137,8 @@ def create_user_router(settings: Settings) -> APIRouter:
         user.updated_at = auth_service.now_ms()
         db.commit()
         db.refresh(user)
+
+        _submit_media_check(db, settings, content_security, user, target.name)
         return ok({"user": auth_service.serialize_user(user)})
 
     @router.post("/user/delete")
@@ -98,6 +148,8 @@ def create_user_router(settings: Settings) -> APIRouter:
     ) -> dict:
         user_id = user.id
         db.query(QuestionSync).filter(QuestionSync.user_id == user_id).delete()
+        # 一并清理送检记录：避免 user_id 复用后，迟到的回调误删新用户的头像
+        db.query(MediaCheckRecord).filter(MediaCheckRecord.user_id == user_id).delete()
         db.delete(user)
         db.commit()
         _remove_avatars(settings.avatar_dir, user_id)

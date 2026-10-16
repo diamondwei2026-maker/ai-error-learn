@@ -1,40 +1,51 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Image, Text, Textarea, View } from '@tarojs/components';
-import Taro, { useRouter } from '@tarojs/taro';
-import classnames from 'classnames';
+import React, { useEffect, useRef, useState } from "react";
+import { Image, Text, Textarea, View } from "@tarojs/components";
+import Taro, { useRouter } from "@tarojs/taro";
+import classnames from "classnames";
 
-import ActionSheet from '@/components/ActionSheet';
-import AppButton from '@/components/AppButton';
-import Chip from '@/components/Chip';
-import Icon from '@/components/Icon';
-import Mascot from '@/components/Mascot';
-import NavBar from '@/components/NavBar';
-import PrivacySheet from '@/components/PrivacySheet';
-import { ANSWER_MAX_LENGTH, CONTENT_MAX_LENGTH } from '@/constants';
-import { captureService } from '@/services/captureService';
-import { recognitionService } from '@/services/recognitionService';
-import type { SplitMethod } from '@/services/recognitionService';
-import { questionService } from '@/services/questionService';
-import { fileRepo } from '@/services/repo/fileRepo';
-import { useQuestionStore } from '@/store/questionStore';
-import { getPageMinHeight } from '@/utils/layout';
+import ActionSheet from "@/components/ActionSheet";
+import AppButton from "@/components/AppButton";
+import Chip from "@/components/Chip";
+import Icon from "@/components/Icon";
+import Mascot from "@/components/Mascot";
+import NavBar from "@/components/NavBar";
+import PrivacySheet from "@/components/PrivacySheet";
+import {
+  ANSWER_MAX_LENGTH,
+  CONTENT_CODE,
+  CONTENT_MAX_LENGTH,
+} from "@/constants";
+import { captureService } from "@/services/captureService";
+import { recognitionService } from "@/services/recognitionService";
+import type { SplitMethod } from "@/services/recognitionService";
+import { questionService } from "@/services/questionService";
+import { ApiRequestError } from "@/services/request";
+import { fileRepo } from "@/services/repo/fileRepo";
+import { securityService } from "@/services/securityService";
+import { useQuestionStore } from "@/store/questionStore";
+import { useUserStore } from "@/store/userStore";
+import { getPageMinHeight } from "@/utils/layout";
 
-import styles from './index.module.scss';
+import styles from "./index.module.scss";
 
-type Phase = 'recognizing' | 'form';
+type Phase = "recognizing" | "form";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const EditPage = () => {
   const router = useRouter();
-  const rawTempPath = router.params.tempPath || '';
-  const initialTempPath = rawTempPath.includes('%') ? decodeURIComponent(rawTempPath) : rawTempPath;
+  const rawTempPath = router.params.tempPath || "";
+  const initialTempPath = rawTempPath.includes("%")
+    ? decodeURIComponent(rawTempPath)
+    : rawTempPath;
 
   const [tempPath, setTempPath] = useState(initialTempPath);
-  const [phase, setPhase] = useState<Phase>(initialTempPath ? 'recognizing' : 'form');
-  const [content, setContent] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [splitMethod, setSplitMethod] = useState<SplitMethod>('none');
+  const [phase, setPhase] = useState<Phase>(
+    initialTempPath ? "recognizing" : "form",
+  );
+  const [content, setContent] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [splitMethod, setSplitMethod] = useState<SplitMethod>("none");
   const [recognizeFailed, setRecognizeFailed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [imageSize, setImageSize] = useState(0);
@@ -42,11 +53,12 @@ const EditPage = () => {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [contentFocused, setContentFocused] = useState(false);
 
-  const startedRef = useRef('');
+  const startedRef = useRef("");
   const refreshStore = useQuestionStore((state) => state.refresh);
+  const isLoggedIn = useUserStore((state) => state.isLoggedIn);
 
   const runRecognize = async (path: string) => {
-    setPhase('recognizing');
+    setPhase("recognizing");
     setRecognizeFailed(false);
     setProgress(0);
 
@@ -54,7 +66,10 @@ const EditPage = () => {
       setProgress((value) => (value >= 90 ? 90 : value + 9));
     }, 140);
 
-    const [result] = await Promise.all([recognitionService.recognize(path), delay(700)]);
+    const [result] = await Promise.all([
+      recognitionService.recognize(path),
+      delay(700),
+    ]);
     clearInterval(timer);
     setProgress(100);
 
@@ -64,13 +79,16 @@ const EditPage = () => {
       setSplitMethod(result.splitMethod);
       setRecognizeFailed(false);
     } else {
-      setContent('');
-      setAnswer('');
-      setSplitMethod('none');
+      setContent("");
+      setAnswer("");
+      setSplitMethod("none");
       setRecognizeFailed(true);
-      Taro.showToast({ title: result.message || '识别失败，请手动输入', icon: 'none' });
+      Taro.showToast({
+        title: result.message || "识别失败，请手动输入",
+        icon: "none",
+      });
     }
-    setPhase('form');
+    setPhase("form");
   };
 
   useEffect(() => {
@@ -80,12 +98,12 @@ const EditPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTempPath]);
 
-  const handleRetake = async (source: 'camera' | 'album') => {
+  const handleRetake = async (source: "camera" | "album") => {
     setSheetVisible(false);
     const path = await captureService.pick(source);
     if (!path) return;
     setTempPath(path);
-    startedRef.current = '';
+    startedRef.current = "";
     await runRecognize(path);
   };
 
@@ -93,17 +111,40 @@ const EditPage = () => {
     const trimmed = content.trim();
     if (!trimmed || saved) return;
     setSaved(true);
+
+    // 保存前内容安全预检（仅登录态；未登录时内容不会上云，跳过）
+    if (isLoggedIn) {
+      try {
+        await securityService.checkQuestionText({ content: trimmed, answer });
+      } catch (error) {
+        if (
+          error instanceof ApiRequestError &&
+          error.code === CONTENT_CODE.questionRisky
+        ) {
+          setSaved(false);
+          Taro.showToast({ title: error.message, icon: "none" });
+          return;
+        }
+        // 网络/服务异常 → 降级放行，不阻塞本地保存
+        console.warn("[edit] content pre-check skipped", error);
+      }
+    }
+
     try {
-      await questionService.create({ content: trimmed, answer, tempImagePath: tempPath || undefined });
+      await questionService.create({
+        content: trimmed,
+        answer,
+        tempImagePath: tempPath || undefined,
+      });
       refreshStore();
-      console.info('[edit] question saved');
+      console.info("[edit] question saved");
       setTimeout(() => {
-        Taro.switchTab({ url: '/pages/library/index' });
+        Taro.switchTab({ url: "/pages/library/index" });
       }, 1500);
     } catch (error) {
-      console.error('[edit] save failed', error);
+      console.error("[edit] save failed", error);
       setSaved(false);
-      Taro.showToast({ title: '保存失败，请重试', icon: 'none' });
+      Taro.showToast({ title: "保存失败，请重试", icon: "none" });
     }
   };
 
@@ -118,19 +159,25 @@ const EditPage = () => {
     Taro.previewImage({ urls: [tempPath], current: tempPath });
   };
 
-  if (phase === 'recognizing') {
+  if (phase === "recognizing") {
     return (
       <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
         <NavBar title="识别中" />
         <View className={styles.body}>
           <View className={styles.thumbCard}>
             <View className={styles.recognizeThumb}>
-              <Image className={styles.thumbImg} src={tempPath} mode="aspectFill" />
+              <Image
+                className={styles.thumbImg}
+                src={tempPath}
+                mode="aspectFill"
+              />
             </View>
             <View className={styles.thumbInfo}>
               <Text className={styles.thumbTitle}>原图已压缩</Text>
               <Text className={styles.thumbSub}>
-                {imageSize > 0 ? `${Math.max(1, Math.round(imageSize / 1024))} KB · 已压缩上传` : '已压缩上传'}
+                {imageSize > 0
+                  ? `${Math.max(1, Math.round(imageSize / 1024))} KB · 已压缩上传`
+                  : "已压缩上传"}
               </Text>
             </View>
             <Chip type="blue">识别中</Chip>
@@ -145,7 +192,10 @@ const EditPage = () => {
           </View>
 
           <View className={styles.bar}>
-            <View className={styles.barInner} style={{ width: `${progress}%` }} />
+            <View
+              className={styles.barInner}
+              style={{ width: `${progress}%` }}
+            />
           </View>
           <Text className={styles.recognizePercent}>已完成 {progress}%</Text>
 
@@ -172,24 +222,34 @@ const EditPage = () => {
   const canSave = content.trim().length > 0 && !saved;
 
   const answerTip = recognizeFailed
-    ? '请手动填写'
-    : splitMethod === 'vlm'
-      ? 'AI 已识别解答 · 请校对'
-      : '未识别到答案 · 可手动填写';
+    ? "请手动填写"
+    : splitMethod === "vlm"
+      ? "AI 已识别解答 · 请校对"
+      : "未识别到答案 · 可手动填写";
 
   return (
     <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
-      <NavBar title="编辑校对" rightText="重拍" onRightClick={() => setSheetVisible(true)} />
+      <NavBar
+        title="编辑校对"
+        rightText="重拍"
+        onRightClick={() => setSheetVisible(true)}
+      />
 
       <View className={styles.formBody}>
         <View className={styles.thumbCard}>
           <View className={styles.thumb}>
-            <Image className={styles.thumbImg} src={tempPath} mode="aspectFill" />
+            <Image
+              className={styles.thumbImg}
+              src={tempPath}
+              mode="aspectFill"
+            />
           </View>
           <View className={styles.thumbInfo}>
             <Text className={styles.thumbTitle}>原图已保存</Text>
             <Text className={styles.thumbSub}>
-              {imageSize > 0 ? `压缩后 ${Math.max(1, Math.round(imageSize / 1024))} KB` : '已压缩'}
+              {imageSize > 0
+                ? `压缩后 ${Math.max(1, Math.round(imageSize / 1024))} KB`
+                : "已压缩"}
             </Text>
           </View>
           {tempPath ? (
@@ -205,11 +265,16 @@ const EditPage = () => {
           </Text>
           <View className={styles.fieldActions}>
             <Text className={styles.fieldTip}>
-              {recognizeFailed ? '识别失败 · 请手动输入' : 'AI 已识别 · 请校对'}
+              {recognizeFailed ? "识别失败 · 请手动输入" : "AI 已识别 · 请校对"}
             </Text>
           </View>
         </View>
-        <View className={classnames(styles.inputBox, contentFocused && styles.inputBoxFocused)}>
+        <View
+          className={classnames(
+            styles.inputBox,
+            contentFocused && styles.inputBoxFocused,
+          )}
+        >
           <Textarea
             className={styles.textarea}
             value={content}
@@ -243,7 +308,9 @@ const EditPage = () => {
 
         <View className={styles.note}>
           <Icon name="infoBlueInk" size={16} />
-          <Text className={styles.noteText}>仅支持纯文本，不解析公式与图文混排</Text>
+          <Text className={styles.noteText}>
+            仅支持纯文本，不解析公式与图文混排
+          </Text>
         </View>
       </View>
 
@@ -264,10 +331,18 @@ const EditPage = () => {
         visible={sheetVisible}
         title="选择录入方式"
         items={[
-          { key: 'camera', label: '拍照', icon: <Icon name="cameraInk" size={23} /> },
-          { key: 'album', label: '从相册选择', icon: <Icon name="albumInk" size={23} /> },
+          {
+            key: "camera",
+            label: "拍照",
+            icon: <Icon name="cameraInk" size={23} />,
+          },
+          {
+            key: "album",
+            label: "从相册选择",
+            icon: <Icon name="albumInk" size={23} />,
+          },
         ]}
-        onSelect={(key) => handleRetake(key === 'camera' ? 'camera' : 'album')}
+        onSelect={(key) => handleRetake(key === "camera" ? "camera" : "album")}
         onCancel={() => setSheetVisible(false)}
       />
 

@@ -16,9 +16,11 @@ CODE_LOGIN_NOT_CONFIGURED = 2003  # 服务端未配置微信登录
 CODE_WECHAT_CODE_INVALID = 2004  # 微信 code 无效
 CODE_PARAM_INVALID = 2005  # 参数校验失败
 CODE_AVATAR_INVALID = 2006  # 头像文件无效或过大
+CODE_NICKNAME_RISK = 2007  # 昵称含违规内容（微信内容安全）
 
 # 同步域 3xxx
 CODE_SYNC_PAYLOAD_INVALID = 3001  # 同步数据格式错误
+CODE_SYNC_CONTENT_RISK = 3002  # 错题题干/答案含违规内容（微信内容安全）
 
 
 class ApiError(Exception):

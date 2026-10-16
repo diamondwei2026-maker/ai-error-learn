@@ -23,6 +23,8 @@ DEFAULT_JWT_REFRESH_TTL = 2592000  # 30 天
 DEFAULT_DATABASE_URL = "sqlite:///./app.db"
 # 头像上限：2MB
 DEFAULT_AVATAR_MAX_BYTES = 2 * 1024 * 1024
+# 微信内容安全
+DEFAULT_CONTENT_SECURITY_TIMEOUT = 10
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,14 @@ class Settings:
     # CORS：逗号分隔的白名单；"*" 表示放开（开发期）
     cors_origins: str = "*"
 
+    # 微信内容安全（msgSecCheck / mediaCheckAsync）
+    content_security_enabled: bool = True
+    content_security_timeout: int = DEFAULT_CONTENT_SECURITY_TIMEOUT
+    # 图片送检需公网基地址（如 https://api.example.com）；为空则跳过图片送检
+    public_base_url: str = ""
+    # 消息推送验签 Token（与 MP 后台「消息推送」配置一致）
+    wechat_callback_token: str = field(default="", repr=False)
+
     # 静态资源根目录；为空时使用 server/uploads（测试可覆盖）
     uploads_root: str = ""
 
@@ -70,6 +80,16 @@ class Settings:
     def wechat_configured(self) -> bool:
         """是否已配置微信登录密钥。"""
         return bool(self.wechat_appid and self.wechat_app_secret)
+
+    @property
+    def content_security_ready(self) -> bool:
+        """内容安全是否可用（开关打开且已配置微信密钥）。未就绪时整体降级放行。"""
+        return bool(self.content_security_enabled and self.wechat_configured)
+
+    @property
+    def media_check_ready(self) -> bool:
+        """图片异步送检是否可用（需内容安全可用且有公网基地址）。"""
+        return bool(self.content_security_ready and self.public_base_url)
 
     @property
     def cors_origin_list(self) -> List[str]:
@@ -148,6 +168,12 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
         auth_required=_parse_bool(source.get("AUTH_REQUIRED"), True),
         avatar_max_bytes=_parse_int(source.get("AVATAR_MAX_BYTES"), DEFAULT_AVATAR_MAX_BYTES),
         cors_origins=source.get("CORS_ORIGINS", "*") or "*",
+        content_security_enabled=_parse_bool(source.get("CONTENT_SECURITY_ENABLED"), True),
+        content_security_timeout=_parse_int(
+            source.get("CONTENT_SECURITY_TIMEOUT"), DEFAULT_CONTENT_SECURITY_TIMEOUT
+        ),
+        public_base_url=(source.get("PUBLIC_BASE_URL", "") or "").rstrip("/"),
+        wechat_callback_token=source.get("WECHAT_CALLBACK_TOKEN", "") or "",
         uploads_root=source.get("UPLOADS_DIR", "") or "",
     )
 

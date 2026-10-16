@@ -55,3 +55,10 @@ class SyncPushRequest(BaseModel):
 
     items: List[Dict[str, Any]] = []
     cursor: Optional[int] = None
+
+
+class TextCheckRequest(BaseModel):
+    """错题内容保存前预检：题干与答案合并且只送检一次。"""
+
+    content: str = ""
+    answer: str = ""

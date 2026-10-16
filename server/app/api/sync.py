@@ -14,6 +14,12 @@ from app.models.question_sync import QuestionSync
 from app.models.schemas import SyncPushRequest
 from app.models.user import User
 from app.services import auth_service
+from app.services.content_security import (
+    SCENE_FORUM,
+    VERDICT_RISKY,
+    ContentSecurityService,
+    merge_check_text,
+)
 from app.utils.response import ok
 
 _REQUIRED_KEYS = ("id", "content", "answer", "createdAt", "updatedAt", "deleted")
@@ -48,7 +54,7 @@ def _serialize(row: QuestionSync) -> Dict[str, Any]:
     }
 
 
-def create_sync_router() -> APIRouter:
+def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
     """构造同步路由。"""
     router = APIRouter()
 
@@ -60,6 +66,7 @@ def create_sync_router() -> APIRouter:
     ) -> dict:
         server_time = auth_service.now_ms()
         accepted: List[str] = []
+        rejected: List[str] = []
 
         for raw in payload.items:
             item = _validate_item(raw)
@@ -71,6 +78,16 @@ def create_sync_router() -> APIRouter:
                 )
                 .one_or_none()
             )
+            # 仅对新增/内容更新且非删除墓碑的项做内容安全兜底（控制送检量）
+            is_new_or_changed = row is None or item["updatedAt"] > row.updated_at
+            if is_new_or_changed and not item["deleted"]:
+                text = merge_check_text(item["content"], item["answer"])
+                if text and content_security.check_text(
+                    text, user.openid, SCENE_FORUM
+                ) == VERDICT_RISKY:
+                    rejected.append(item["id"])
+                    continue  # 不落库、不计入 accepted
+
             if row is None:
                 db.add(
                     QuestionSync(
@@ -95,7 +112,7 @@ def create_sync_router() -> APIRouter:
             accepted.append(item["id"])
 
         db.commit()
-        return ok({"accepted": accepted, "serverTime": server_time})
+        return ok({"accepted": accepted, "rejected": rejected, "serverTime": server_time})
 
     @router.get("/sync/pull")
     async def pull(

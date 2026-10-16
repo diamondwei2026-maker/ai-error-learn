@@ -44,6 +44,7 @@ def get_session_factory() -> sessionmaker[Session]:
 
 def init_db() -> None:
     """建表（幂等）。导入模型以确保元数据已注册。"""
+    from app.models import media_check as _media_check  # noqa: F401
     from app.models import question_sync as _question_sync  # noqa: F401
     from app.models import user as _user  # noqa: F401
 

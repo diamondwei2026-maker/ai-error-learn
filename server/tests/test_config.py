@@ -98,3 +98,50 @@ def test_user_system_secrets_not_exposed_in_repr():
     dumped = repr(settings)
     assert "wechat-secret" not in dumped
     assert "jwt-secret" not in dumped
+
+
+# ---------- 内容安全配置 ----------
+
+
+def test_content_security_defaults():
+    settings = load_settings(env={})
+    assert settings.content_security_enabled is True
+    assert settings.public_base_url == ""
+    assert settings.wechat_callback_token == ""
+    # 未配置微信密钥 → 整体降级放行
+    assert settings.content_security_ready is False
+    assert settings.media_check_ready is False
+
+
+def test_content_security_env_overrides():
+    settings = load_settings(
+        env={
+            "WECHAT_APPID": "wx-1",
+            "WECHAT_APP_SECRET": "sec",
+            "CONTENT_SECURITY_ENABLED": "false",
+            "PUBLIC_BASE_URL": "https://api.example.com/",
+            "WECHAT_CALLBACK_TOKEN": "tok",
+        }
+    )
+    assert settings.content_security_enabled is False
+    assert settings.public_base_url == "https://api.example.com"  # 去掉尾斜杠
+    assert settings.wechat_callback_token == "tok"
+    assert settings.content_security_ready is False  # 开关关闭
+    assert settings.media_check_ready is False
+
+
+def test_content_security_ready_flags():
+    settings = load_settings(
+        env={
+            "WECHAT_APPID": "wx-1",
+            "WECHAT_APP_SECRET": "sec",
+            "PUBLIC_BASE_URL": "https://api.example.com",
+        }
+    )
+    assert settings.content_security_ready is True
+    assert settings.media_check_ready is True
+
+
+def test_content_security_callback_token_not_exposed_in_repr():
+    settings = load_settings(env={"WECHAT_CALLBACK_TOKEN": "callback-topsecret"})
+    assert "callback-topsecret" not in repr(settings)

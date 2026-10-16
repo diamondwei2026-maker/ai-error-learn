@@ -16,12 +16,15 @@ from fastapi.staticfiles import StaticFiles
 from app.api.ai import create_ai_router
 from app.api.auth import create_auth_router
 from app.api.recognize import create_recognize_router
+from app.api.security import create_security_router
 from app.api.sync import create_sync_router
 from app.api.user import create_user_router
+from app.api.wechat_callback import create_wechat_callback_router
 from app.config import Settings, load_settings, set_current_settings
 from app.db import configure_database, init_db
 from app.deps.auth import get_current_user
 from app.errors import ApiError
+from app.services.content_security import ContentSecurityService
 from app.services.vision_recognize import VisionClient, VisionRecognizeService
 from app.services.wechat_service import WechatService
 
@@ -37,6 +40,14 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         logging.getLogger(__name__).warning("JWT_SECRET 未配置，登录/同步接口将不可用")
     if not settings.wechat_app_secret:
         logging.getLogger(__name__).warning("WECHAT_APP_SECRET 未配置，微信登录将返回 2003")
+    if settings.content_security_enabled and not settings.wechat_configured:
+        logging.getLogger(__name__).warning(
+            "内容安全已开启但未配置微信密钥，昵称/错题/头像校验将整体降级放行"
+        )
+    if settings.content_security_ready and not settings.public_base_url:
+        logging.getLogger(__name__).warning(
+            "PUBLIC_BASE_URL 未配置，头像图片将不做内容安全送检"
+        )
 
     app = FastAPI(
         title="错题本识别代理",
@@ -68,6 +79,12 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     )
     vision_service = VisionRecognizeService(vision_client)
     wechat_service = WechatService(settings.wechat_appid, settings.wechat_app_secret)
+    content_security = ContentSecurityService(
+        settings.wechat_appid,
+        settings.wechat_app_secret,
+        settings.content_security_enabled,
+        settings.content_security_timeout,
+    )
 
     app.include_router(
         create_recognize_router(
@@ -82,8 +99,20 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     app.include_router(
         create_auth_router(wechat_service, settings), prefix="/api/v1", tags=["auth"]
     )
-    app.include_router(create_user_router(settings), prefix="/api/v1", tags=["user"])
-    app.include_router(create_sync_router(), prefix="/api/v1", tags=["sync"])
+    app.include_router(
+        create_user_router(settings, content_security), prefix="/api/v1", tags=["user"]
+    )
+    app.include_router(
+        create_sync_router(content_security), prefix="/api/v1", tags=["sync"]
+    )
+    app.include_router(
+        create_security_router(content_security), prefix="/api/v1", tags=["security"]
+    )
+    app.include_router(
+        create_wechat_callback_router(settings),
+        prefix="/api/v1",
+        tags=["wechat"],
+    )
 
     # 静态资源（头像）：目录不存在时先创建，避免 StaticFiles 挂载失败
     settings.uploads_dir.mkdir(parents=True, exist_ok=True)

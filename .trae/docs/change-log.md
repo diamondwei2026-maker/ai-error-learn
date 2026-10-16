@@ -423,3 +423,43 @@
 - **是否待合并主 spec**：**否**（文档更新，未修改 `.trae/specs/mvp-reverse-docs/`）
 - **验证结果**：联网核实（微信官方知识库 + 开发者社区帖，均一致）——现网版入口为「账号设置 → 服务内容声明 → 用户隐私保护指引」；提审版入口为「版本管理 → 提交代码审核 → 用户隐私保护指引设置」
 - **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
+
+---
+
+## incr-20261016-内容安全接入
+
+- **编号**：incr-20261016-内容安全接入
+- **日期**：2026-10-16
+- **背景**：上线物料缺口清单 C3「内容安全未接入」——全仓此前**零实现**，且**没有微信 `access_token` 获取/缓存逻辑**（`wechat_service.py` 只有 `code2session`），无法调用 `msgSecCheck`。本次落地微信内容安全接入，覆盖全部 UGC 写入点。
+- **变更摘要**：
+  接入微信内容安全，三类 UGC 全覆盖（上游方案 `.trae/documents/微信内容安全接入改造方案.md`）：
+  ① **文本**——`msgSecCheck` v2：昵称（scene=1 资料，`PATCH /user/me` 同步拦截，返回 2007）；错题题干/答案（scene=3 论坛，**保存前预检** `POST /security/text-check` 返回 3002 + **服务端 `sync/push` 兜底**列入 `rejected` 且不落库）。
+  ② **图片**——`mediaCheckAsync` v2：头像上传后异步送检（需 `PUBLIC_BASE_URL`），结果经**消息推送回调** `GET/POST /api/v1/wechat/callback`（明文模式 SHA1 验签，兼容 JSON/XML）匹配 `trace_id`；命中 `risky` → 删除头像文件 + 清空 `avatar_url`。
+  ③ **前置能力**——新增 `ContentSecurityService`：`getStableAccessToken` 获取 + 内存缓存（提前 300s 失效、40001 清缓存重试一次）。
+  ④ **降级策略**：未配置密钥 / 接口报错 / 无权限 / IP 未白名单 / `suggest=review` → **放行 + 记日志**，绝不阻塞用户写入。
+  ⑤ 新增表 `media_check_record`（trace_id 唯一）用于异步结果匹配；`init_db` 已登记。
+  **无 UI 结构/视觉改动**（保存错题时仅多一次网络预检 + 命中 toast）→ 按项目规则**未触发双阶段原型流程**；**未修改** `.trae/specs/mvp-reverse-docs/`。
+- **影响模块**：
+  - 后端（`server/`）
+    - 新增：`app/services/content_security.py`、`app/api/security.py`、`app/api/wechat_callback.py`、`app/models/media_check.py`、`tests/test_content_security_api.py`
+    - 修改：`app/config.py`（+`CONTENT_SECURITY_ENABLED`/`PUBLIC_BASE_URL`/`WECHAT_CALLBACK_TOKEN`/`CONTENT_SECURITY_TIMEOUT` 与 `content_security_ready`/`media_check_ready`）、`app/errors.py`（+`CODE_NICKNAME_RISK=2007`、`CODE_SYNC_CONTENT_RISK=3002`）、`app/models/schemas.py`（+`TextCheckRequest`）、`app/db/session.py`（登记新模型）、`app/api/user.py`（昵称校验 + 头像异步送检 + 注销时清理送检记录）、`app/api/sync.py`（push 兜底校验 + `rejected` 字段）、`app/main.py`（装配 + 启动告警）、`.env.example`、`tests/conftest.py`（autouse `stub_content_security` 夹具 + 回调 Token/公网基地址）、`tests/test_config.py`（+4 例内容安全配置）
+  - 前端（`client/`）
+    - 新增：`src/services/securityService.ts`
+    - 修改：`src/constants/index.ts`（+`CONTENT_CODE`/`CONTENT_ERROR_MESSAGES`）、`src/services/request.ts`（`messageFor` 兜底内容安全文案）、`src/pages/edit/index.tsx`（保存前预检：命中 3002 拦截，异常降级放行）、`src/services/syncService.ts`（`PushResult.rejected` + 告警日志）
+  - 部署：`deploy/env.production.example`（补内容安全四项变量）
+  - 文档：`.trae/documents/微信内容安全接入改造方案.md`、`.trae/docs/increments/incr-20261016-内容安全接入/{方案.md,tasks.md,checklist.md}`
+- **关联文档路径**：`.trae/documents/微信内容安全接入改造方案.md`；`.trae/docs/increments/incr-20261016-内容安全接入/`
+- **是否待合并主 spec**：**否**（普通增量走 `/plan`，**未修改** `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 后端：`.venv\Scripts\python.exe -m pytest` → **105 passed**（原 80 + 新增 25，无回归）
+    - ⚠️ 说明：`server/.env` 的 `DATABASE_URL` 仅填主机名（非合法连接串），会导致导入 `app.main` 时 `create_app()` 失败。本次以**临时移开 `.env`** 的方式完成回归，跑完已**原样还原**（既有环境问题，非本次引入）
+  - 前端：`npx tsc --noEmit` → 无新增类型错误（仅全仓既有的 `React` 未使用基线告警 + Taro 依赖类型声明告警）；`npm run build:weapp` → **构建成功**（exit 0，仅有既有的 mini-css-extract-plugin Conflicting order 告警）
+- **上线前置条件（不阻塞编码，阻塞生效）**：
+  1. MP 后台「开发管理 → 开发设置 → **IP 白名单**」加入 ECS 公网出口 IP（否则 `getStableAccessToken` 报 `40164`，内容安全整体降级放行）
+  2. MP 后台「**消息推送**」：URL `https://errorlearn.diamondwtech.com/api/v1/wechat/callback`、Token 与 `WECHAT_CALLBACK_TOKEN` 一致、数据格式 JSON、加解密方式**明文模式**
+  3. `server/.env` 配置 `CONTENT_SECURITY_ENABLED=true`、`PUBLIC_BASE_URL=https://errorlearn.diamondwtech.com`、`WECHAT_CALLBACK_TOKEN=<与后台一致>`
+  4. 域名已备案且 `https://<域名>/static/avatars/*` 可被外网直接下载（`mediaCheckAsync` 由微信服务器拉取）
+  5. 注意：**未上架小程序文本检查限 100 次/天**（已通过"仅新增/变更项送检"限流）
+- **回滚方式**：`server/.env` 置 `CONTENT_SECURITY_ENABLED=false` → 全链路立即降级放行（无需改代码）；代码级 `git checkout <上一可用提交> -- server/ client/`；新增表 `media_check_record` 为纯追加，无需回滚；微信侧清空「消息推送」配置即断开回调
+
+---
