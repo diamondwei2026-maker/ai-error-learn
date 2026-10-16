@@ -8,6 +8,7 @@ export default defineAppConfig({
     'pages/profile/edit/index',
     'pages/agreement/index',
   ],
+  lazyCodeLoading: 'requiredComponents',
   window: {
     navigationStyle: 'custom',
     backgroundTextStyle: 'light',
