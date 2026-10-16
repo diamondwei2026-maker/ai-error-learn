@@ -38,6 +38,17 @@ if (API_BASE.includes("api.example.com")) {
   );
 }
 
+// 防复发：生产构建若指向局域网 IP / HTTP（如误用 dev 构建产物上传体验版/正式版），
+// 真机上微信会强制校验合法域名，请求直接在网络层失败，表现为「网络异常」。
+if (
+  process.env.NODE_ENV === "production" &&
+  !/^https:\/\/[a-z0-9.-]+\.[a-z]{2,}$/i.test(API_BASE)
+) {
+  console.error(
+    `[config] 生产构建的 API_BASE 非法：${API_BASE}（须为 HTTPS 公网域名），请检查 client/.env.production`,
+  );
+}
+
 /** 识别代理后端地址（与账号体系共用同一服务，保留旧导出名以兼容既有引用） */
 export const RECOGNIZE_API_BASE = API_BASE;
 

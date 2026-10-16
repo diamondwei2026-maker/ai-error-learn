@@ -555,3 +555,67 @@
 - **回滚方式**：`git checkout <上一可用提交> -- client/src/constants/index.ts` 撤销守卫；产物重跑 `npm run dev:weapp` 或 `npm run build:weapp` 覆盖 `dist/`；后端按原命令重启。**未改动任何后端代码与配置文件。**
 
 ---
+
+## fix-20261016-体验版误用开发构建（登录报网络异常）
+
+- **编号**：fix-20261016-体验版误用开发构建（登录报网络异常）
+- **日期**：2026-10-16
+- **背景**：**生产环境体验版**（开发者工具「上传」后真机扫码）点「微信一键登录」报「网络异常」。与上一条 `fix-20261016-开发联调误用生产构建` 属**同一类根因的另一次发作**，但发生在生产/体验版链路上。
+- **根因（已实测确认）**：`client/dist/` 当时是**开发模式**构建产物（`common.js` 抽出 `API_BASE = "http://192.168.60.37:8000"`，构建时间 `2026/10/16 16:16:19`），被直接上传为体验版 → 真机访问局域网 IP + HTTP：不在微信服务器域名白名单、非 HTTPS、手机不在该局域网时不可达 → `Taro.request` 失败 → 命中 [request.ts L84-87](file:///d:/Users/weij/ai-error-learn/client/src/services/request.ts#L84-L87) 的「网络异常，请检查网络后重试」。
+  并存的第二个必爆点：`client/.env.production` 仍是占位域名 `https://api.example.com`，**即使改回生产构建也连不上**。两者必须同时修。
+  掩盖因素：开发者工具 [project.private.config.json L6](file:///d:/Users/weij/ai-error-learn/client/project.private.config.json#L6) `urlCheck: false` **仅对本机模拟器生效**，体验版/正式版在真机强制校验合法域名。
+- **变更摘要**：
+  **仅前端链路（用户确认「服务器与域名侧视作就绪」），无后端改动、无 UI/业务逻辑改动**：
+  ① `client/.env.production`：`TARO_APP_API_BASE` 由占位域名改为真实生产域名 `https://errorlearn.diamondwtech.com`（无尾斜杠、无端口），并补注释强调"上传体验版前必须用生产构建"；
+  ② 以**生产模式**重新构建 `client/dist/`（`npm run build:weapp`，**不带** `--watch`）；
+  ③ 【防复发·唯一的代码改动】[constants/index.ts](file:///d:/Users/weij/ai-error-learn/client/src/constants/index.ts#L41-L50) 在既有占位域名守卫之后，新增生产构建守卫：`NODE_ENV === 'production'` 且 `API_BASE` 非 HTTPS 公网域名时 `console.error` 告警（覆盖"误传 dev 产物 / 占位域名"两种翻车姿势）；
+  ④ 更新 [部署教程 §10](file:///d:/Users/weij/ai-error-learn/.trae/documents/部署教程.md#L947-L949)（上传前必须生产构建 + 「不校验合法域名」仅本机生效的警示）、上一版排查文档加交叉引用、刷新根目录 `todo.md`。
+- **影响模块**：
+  - 前端（`client/`）：修改 `src/constants/index.ts`（新增 10 行守卫，无业务/UI 变化）、`.env.production`（域名由占位改为真实值）
+  - 前端产物：`client/dist/**`（dev 产物 → prod 产物，`common.js` 已确认 `API_BASE = "https://errorlearn.diamondwtech.com"`、`192.168.60.37` 出现 0 次）
+  - 文档：新增 `.trae/documents/体验版微信登录网络异常修复方案.md`；修改 `.trae/documents/部署教程.md`、`.trae/documents/微信小程序网络异常修复-生产构建误用.md`；`todo.md`（刷新）
+  - **未改动**：`server/**`、`client/project.config.json`、`client/project.private.config.json`、`deploy/**`
+- **关联文档路径**：`.trae/documents/体验版微信登录网络异常修复方案.md`
+- **是否待合并主 spec**：**否**（构建/配置修复，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 构建：`npm run build:weapp` → **exit 0**（仅既有 `mini-css-extract-plugin Conflicting order` 告警）；`npx tsc --noEmit` → `src/` 无新增错误（仅 `node_modules/@tarojs/components/*.d.ts` 既有报错）
+  - 产物：`dist/common.js`（`2026/10/16 16:28:16`）`API_BASE = "https://errorlearn.diamondwtech.com"`；`192.168.60.37` **0** 次；`api.example.com` 2 次且均在守卫代码内；`dist/app.json` 仍含 `lazyCodeLoading`
+  - ⚠️ **未通过（阻塞真机验收，需服务器侧处理）**：本机复测 `https://errorlearn.diamondwtech.com` 全程 `curl: (35) Recv failure: Connection was reset`（TLS 握手被 reset）。**已排除本机网络因素**——对 `mp.weixin.qq.com`(200) / `api.weixin.qq.com`(404) / `www.aliyun.com`(403) 的 HTTPS 均正常；且 `curl -sk https://47.96.160.201/`（直连 IP，不带 SNI）返回 **200**、`http://errorlearn.diamondwtech.com/` 返回 **403**（未落到项目模板的 301 跳转，而是兜底站 deny）。判读：该域名在 Nginx 上**尚无（或未生效）80/443 server 块与证书**，与「域名已就绪」前提不符。
+- **上线前置条件（用户侧，阻塞生效）**：
+  1. 服务器侧补齐/修正 `server_name errorlearn.diamondwtech.com;` 的 80（301 跳转）+ 443（证书 + 反代）配置并 `reload nginx`；验收：手机浏览器打开 `https://errorlearn.diamondwtech.com/api/v1/health` 返回 `{"status":"ok"}`
+  2. MP 后台「开发管理 → 开发设置 → 服务器域名」：`request` / `uploadFile` / `downloadFile` 均填 `https://errorlearn.diamondwtech.com`
+  3. 开发者工具：清除缓存 → 重新编译 → **取消勾选**「不校验合法域名…」→ 上传（版本号自增）→ mp 后台**选为体验版** → 真机复测登录
+- **回滚方式**：`git checkout <上一可用提交> -- client/.env.production client/src/constants/index.ts`；产物重新跑 `npm run dev:weapp`（本地联调）或 `npm run build:weapp`（生产）覆盖 `dist/`；本次**未改动任何后端代码与部署文件**。
+
+---
+
+## fix-20261016-体验版登录网络异常（续）：服务器补全 443 + "内网假象"排查沉淀
+
+- **编号**：fix-20261016-体验版登录网络异常（续）
+- **日期**：2026-10-16
+- **背景**：接上一条 `fix-20261016-体验版误用开发构建`。当时把"本机 `curl https://errorlearn.diamondwtech.com` 被 reset、`http://` 返回 403"判定为**服务器未配 443/证书**并列为阻塞项。本轮联机排查后**结论更正**，并完成服务器侧修复与经验沉淀。
+- **根因（更正）**：
+  1. **服务器侧确有一处真问题**：该域名**只有 80 的 server 块，缺 `listen 443` + 证书**（`nginx -t` 仍通过）。带 SNI 的 HTTPS 请求匹配不到本站 → 落到默认 443 站 → `curl: (35) Recv failure: Connection was reset`。已按部署教程 §9.4 补全 80 + 443 两块并 `reload nginx`。
+  2. **"本机不可达"的另一半是假象**：本机（公司内网 `ad-main.intra.twdl.com` / `192.168.60.x`）存在透明代理/上网行为管理，对非白名单域名返回 `403`（响应头 **`Server: Beaver`**）或对 443 直接 reset。判定依据：① `Beaver` 不是 Nginx 的标识（Nginx 只会写 `Server: nginx`）；② 源站 `access.log` 全程**无 403** 且外部 IP 请求 `/` 拿到 301；③ 服务器本机 `-H Host` 测试返回 301；④ **手机 4G 打开 `/api/v1/health` 返回 `{"status":"ok"}`**。
+- **变更摘要（文档为主，无业务代码改动）**：
+  ① 【部署教程】新增 [§13.4 "域名/接口'网络异常'的分层排查（含内网假象）"](file:///d:/Users/weij/ai-error-learn/.trae/documents/部署教程.md)：四层验证矩阵、`Server:` 头判据、`access.log` 佐证法、内网假象识别与正确验证姿势；
+  ② 【部署教程】§8.1 修正"等于没换"的占位 sed（改用 `DOMAIN` 变量）并补 `grep -rn` **防重复 `server_name`**；
+  ③ 【部署教程】§8.4 增补"**只有 80 块、缺 443+证书**"这一隐蔽坑，并强调"语法正确 ≠ 配置生效"（用 `nginx -T | grep -n -A3 域名` 复核）；
+  ④ 【部署教程】§9.4 补"先 `certbot certificates` 查是否已签发、别重复签"；§10 补"体验版真机复测**必须用手机移动数据**、勿用公司内网 WiFi"；
+  ⑤ 【部署教程】§13.1 / §13.3 表格各补若干行（reset / `Server: Beaver` / 内网假象 / 体验版网络异常 / 重复 `server_name`）。
+  ⑥ 【排查文档】[体验版微信登录网络异常修复方案 §8.2](file:///d:/Users/weij/ai-error-learn/.trae/documents/体验版微信登录网络异常修复方案.md) **勘误更正**：由"服务器未配 443、阻塞"改为"内网假象 + 服务器 443 已补全、公网验证通过"。
+  ⑦ 刷新根目录 `todo.md`。
+- **影响模块**：
+  - 文档：`.trae/documents/部署教程.md`（§8.1 / §8.4 / §9.4 / §10 / §13.1 / §13.3 / 新增 §13.4）、`.trae/documents/体验版微信登录网络异常修复方案.md`（§7 注记 + §8.2 勘误）、`.trae/docs/change-log.md`（本条）、`todo.md`
+  - 服务器（运维动作，非代码）：`/etc/nginx/conf.d/error-learn.conf` 补全 443 块（含证书引用）
+  - **未改动**：`client/**`、`server/**`、`deploy/**`、`.trae/specs/**`
+- **关联文档路径**：`.trae/documents/体验版微信登录网络异常修复方案.md`、`.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（文档/运维沉淀，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 服务器：`sudo nginx -t` → `syntax is ok` / `test is successful`；`ss -tlnp | grep :443` → 443 正在监听；`nginx -T | grep -A3 errorlearn` → 可见 `listen 443 ssl http2;` 与 `/etc/letsencrypt/live/errorlearn.diamondwtech.com/{fullchain,privkey}.pem`；`certbot certificates` → 该域名证书已签发（剩余 89 天）
+  - 公网（**手机 4G**）：`https://errorlearn.diamondwtech.com/api/v1/health` → **`{"status":"ok"}`** ✅
+  - 源站本机：`-H "Host: errorlearn.diamondwtech.com" http://127.0.0.1/` → **301**
+- **待办（用户侧，阻塞体验版最终验收）**：mp 后台「服务器域名」配 `request`/`uploadFile`/`downloadFile` → 生产构建上传 → **选为体验版 → 手机 4G 真机复测登录**
+- **回滚方式**：文档改动按 git 回滚即可；服务器侧如需回退，`sudo cp /etc/nginx/conf.d/error-learn.conf.bak /etc/nginx/conf.d/error-learn.conf && sudo nginx -t && sudo systemctl reload nginx`（改动前已备份）。本次**未改动任何业务代码**。
+
+---
