@@ -463,3 +463,95 @@
 - **回滚方式**：`server/.env` 置 `CONTENT_SECURITY_ENABLED=false` → 全链路立即降级放行（无需改代码）；代码级 `git checkout <上一可用提交> -- server/ client/`；新增表 `media_check_record` 为纯追加，无需回滚；微信侧清空「消息推送」配置即断开回调
 
 ---
+
+## fix-20261016-开发环境网络异常修复
+
+- **编号**：fix-20261016-开发环境网络异常修复
+- **日期**：2026-10-16
+- **背景**：开发环境（微信开发者工具 + 本地后端）执行「**微信一键登录**」时提示「网络异常」。排查发现三层问题：
+  ① **微信侧拦截**——`client/project.config.json` 的 `setting.urlCheck: true`（= 开发者工具「校验合法域名」开启），而 dev 后端为 `http://192.168.60.37:8000`（IP + HTTP，非白名单域名）→ 请求在平台层被拒，前端落到 [request.ts L84-87](file:///d:/Users/weij/ai-error-learn/client/src/services/request.ts#L84-L87) 的「网络异常，请检查网络后重试」；
+  ② **后端配置非法且不可达**——`server/.env` 的 `DATABASE_URL` 只填主机名 `rm-bp10q72z75es2z24f.mysql.rds.aliyuncs.com`（缺 `scheme://账号:密码@主机:3306/库`）→ 后端一旦加载即 `Could not parse SQLAlchemy URL` 启动失败；且该主机解析为内网 `172.26.250.233`，本机 TCP 3306 **实测 6s 超时不可达**，登录链路（必经 `find_or_create_user` 写库）会挂到前端 15s 超时，同样表现为「网络异常」；
+  ③ **遗留进程与配置漂移**——8000 端口上遗留 **2026/10/14** 与 **2026/10/15** 两组 uvicorn 实例争用端口，且在跑的是**旧代码**（`/api/v1/security/text-check`、`/api/v1/wechat/callback` 均 404）。
+- **变更摘要**：
+  **仅修复本机开发环境配置与进程，未改动任何业务代码、无 UI 改动、后端/前端源码零改动**：
+  ① `server/.env`：`DATABASE_URL` 改回本地口径 `sqlite:///./app.db`（沿用既有 `server/app.db` 数据，不丢数据）；新增 `CONTENT_SECURITY_ENABLED=false`（开发期消除对微信接口 / IP 白名单的依赖与额外延迟）。改前已备份 `server/.env.bak`；
+  ② 停止 8000 端口上两组遗留 uvicorn 进程（PID 18536 / 17032 / 27020、7296 / 17904），释放端口；
+  ③ 用项目 `.venv` 干净启动**单实例**后端：`uvicorn app.main:app --host 0.0.0.0 --port 8000 --env-file .env`；
+  ④ 输出排查与修复文档 `.trae/documents/开发环境网络异常排查与修复方案.md`，并生成根目录会话任务清单 `todo.md`。
+- **影响模块**：
+  - 本机环境：`server/.env`（不入库，`.gitignore` 已忽略）、`server/.env.bak`（备份）、运行中的 uvicorn 进程
+  - 文档：`.trae/documents/开发环境网络异常排查与修复方案.md`（新增）、`todo.md`（根目录，新增）
+  - 代码：`server/**`、`client/**` **均未改动**
+- **关联文档路径**：`.trae/documents/开发环境网络异常排查与修复方案.md`
+- **是否待合并主 spec**：**否**（环境/配置修复，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 启动日志无 `Could not parse SQLAlchemy URL`、无 `address already in use`，`Application startup complete`
+  - `GET /api/v1/health` → 200 `{"status":"ok"}`
+  - `GET /openapi.json` 已含 `/api/v1/security/text-check` 与 `/api/v1/wechat/callback` → 确认新代码已加载生效
+  - `netstat -ano` 确认 8000 端口仅剩**单实例**（PID 13208）监听
+  - 已排除项：系统代理（`127.0.0.1:7897`，`ProxyOverride` 含 `192.168.*`，实测直连与走代理均 HTTP 200）、VPN 虚拟网卡（`LetsTAP` 未 Up）、本机 IP 与 `client/.env.development` 不一致（两者均为 `192.168.60.37`）
+- **待办（需用户侧操作，阻塞最终验收）**：① 开发者工具 → 详情 → 本地设置 → 勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」并清缓存重编译；② 复现微信一键登录确认恢复；③ 若仍返回 `code=2004`，核对 MP 后台 `WECHAT_APP_SECRET` 是否属于 AppID `wxf7fbaf8d9a6f7296`
+- **回滚方式**：`server/.env` 用 `server/.env.bak` 覆盖还原即可；进程按原命令重启；本次未改动任何入库代码文件（仅新增两份文档与根目录 `todo.md`）
+
+---
+
+## fix-20261016-后端启动端口占用（WinError 10013）修复
+
+- **编号**：fix-20261016-后端启动端口占用（WinError 10013）修复
+- **日期**：2026-10-16
+- **背景**：启动 Python 后端时报 `ERROR:    [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。`（易被误判为权限/防火墙问题）。排查确认根因是**端口占用**：
+  - 8000 端口已被一个**遗留 uvicorn 实例**占用（PID 316 = `server\.venv\Scripts\python.exe` 启动器；PID 13208 = 其子进程 `D:\python3.12\python.exe`，真正 LISTEN 的进程；两者均启动于 `2026/10/16 16:03:57`，为上一次会话为验收而拉起、未随会话回收的实例）。
+  - **为什么报 10013 而非 10048**：uvicorn 0.54.0 在 bind 前对监听 socket 设置了 `SO_REUSEADDR`（`server/.venv/Lib/site-packages/uvicorn/config.py` L600-606 → `bind` 失败即 `logger.error(exc); sys.exit`）。Windows 的 `SO_REUSEADDR` 语义与 Linux 不同：端口已被他人正常绑定时，**带** `SO_REUSEADDR` 的二次 bind 被拒为 `WSAEACCES(10013)`，**不带**才是 `WSAEADDRINUSE(10048)`。已用 `server\.venv` 的 Python 在同机实测复现该差异。
+  - 已排除：Hyper-V/WinNAT 保留端口段（`netsh interface ipv4 show excludedportrange protocol=tcp` 仅 `5357-5357`，`winnat` 服务 `Stopped`）、启动 host/端口写错（与 `server/app/main.py` 注释、`client/package.json` 脚本、`client/.env.development` 的 `192.168.60.37:8000` 一致）、`.env` 配置非法（`DATABASE_URL=sqlite:///./app.db` 上次已修正，且遗留实例能用该 `.env` 正常启动）。
+- **变更摘要**：**仅处置本机进程，未改动任何业务代码、配置与部署文件（零文件改动）**：
+  ① 实测确认 8000 端口占用者及其父进程（PID 13208 / 316）；
+  ② `Stop-Process -Force` 成对停止父/子进程，释放端口；
+  ③ 校验释放：`netstat` 无 `:8000` 输出，且 venv Python 对 `0.0.0.0:8000` bind 探测输出 `8000 FREE`；
+  ④ 用项目既有脚本 `npm run server` 干净启动**单实例**（依赖检查通过 → 加载 `.env` → `--reload` 热重载），后续改后端代码可自动重启。
+- **影响模块**：
+  - 本机运行环境：8000 端口上的进程（遗留实例已停止，改为带 `--reload` 的新单实例）
+  - 代码/配置/部署：**均未改动**（`server/**`、`client/**`、`server/.env`、`deploy/**` 零改动）
+  - 文档：`.trae/documents/后端启动失败WinError10013修复方案.md`（新增）、`todo.md`（根目录，刷新）
+- **关联文档路径**：`.trae/documents/后端启动失败WinError10013修复方案.md`
+- **是否待合并主 spec**：**否**（环境/进程修复，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 启动日志：`后端依赖检查通过` → `Uvicorn running on http://0.0.0.0:8000` → `Application startup complete`，**无** `[WinError 10013]`、**无** `[Errno 10048]`
+  - `GET /api/v1/health` → `200 {"status":"ok"}`
+  - `GET /openapi.json` 含 `/api/v1/security/text-check`、`/api/v1/wechat/callback`
+  - `Get-NetTCPConnection -LocalPort 8000` → 仅 1 条 `0.0.0.0:8000 Listen`（PID 5616，`--reload` reloader），无父子双实例残留
+- **回滚方式**：停掉新实例后按原命令重启即可（本次未改动任何文件，无需文件级回滚）；文档与 change-log 段落可按需删除
+- **备注**：同类「遗留 uvicorn 占用 8000」问题已连续三次出现（10/14、10/15、10/16）。本次按用户决定**未**加入启动前端口占用预检（如需防复发，可在 `client/package.json` 的 `server` 脚本前置一步占用检测）
+
+---
+
+## fix-20261016-开发联调误用生产构建（API_BASE 指向占位域名）
+
+- **编号**：fix-20261016-开发联调误用生产构建（API_BASE 指向占位域名）
+- **日期**：2026-10-16
+- **背景**：微信开发者工具点「微信一键登录」仍报「网络异常」，Console 实为 `POST https://api.example.com/api/v1/auth/login net::ERR_NAME_NOT_RESOLVED`。**前一条 `fix-20261016-开发环境网络异常修复` 的三个假设（微信域名校验 / DB 非法 / 旧实例）均已不再是原因**，本次为**新根因**。
+- **根因（已实测确认）**：`client/dist/` 是**生产模式**构建产物，`API_BASE` 被编译成**占位域名** `https://api.example.com`，该域名不存在 → DNS 解析失败 → `Taro.request` 抛错 → 命中 [request.ts L84-87](file:///d:/Users/weij/ai-error-learn/client/src/services/request.ts#L84-L87) 的「网络异常，请检查网络后重试」。**请求从未到达后端，与后端 / DB / 域名校验无关。**
+  - 证据 1：`client/dist/common.js` 修改时间 **2026/10/16 16:12:06**，其中 `API_BASE = "https://api.example.com"`、`192.168.60.37` 出现 0 次。
+  - 证据 2：[cli.js L66-L68](file:///d:/Users/weij/ai-error-learn/client/node_modules/@tarojs/cli/dist/cli.js#L66-L68) `NODE_ENV = args.watch ? 'development' : 'production'`；[cli.js L77-L79](file:///d:/Users/weij/ai-error-learn/client/node_modules/@tarojs/cli/dist/cli.js#L77-L79) `mode = args.mode || NODE_ENV` → 按 mode 加载 `.env.<mode>`。故 `taro build --type weapp`（**无** `--watch`）= 生产模式 → 加载 `.env.production`（`https://api.example.com`）。
+  - 已排除：后端（`0.0.0.0:8000` 监听、`/api/v1/health` 200、登录探测返回预期 `2004`）、`server/.env`（已是 `sqlite:///./app.db` + `CONTENT_SECURITY_ENABLED=false`）、微信域名校验（[project.private.config.json L6](file:///d:/Users/weij/ai-error-learn/client/project.private.config.json#L6) `urlCheck: false`，私有配置优先于 `project.config.json` 的 `true`）、本机 IP（`192.168.60.37`，与 `.env.development` 一致）。
+- **变更摘要**：
+  ① 以**开发模式**重新构建：`client` 下 `npm run dev:weapp`（= `taro build --type weapp --watch`，watch 常驻），覆盖 `dist/`，使 `API_BASE` 改回 `http://192.168.60.37:8000`；
+  ② 清理 8000 端口上的**两组冗余 uvicorn 实例**（PID 30092/5616、14188/24640 及其 `multiprocessing-fork` 子进程），改用 `npm run server` 启动**单实例**（reloader 27284 / server 10300）；
+  ③ 【防复发·唯一的代码改动】[constants/index.ts](file:///d:/Users/weij/ai-error-learn/client/src/constants/index.ts#L30-L39) 在 `API_BASE` 定义后新增 4 行 `console.error` 守卫：当 `API_BASE` 仍含占位域名 `api.example.com` 时显式告警，提示改用 `npm run dev:weapp`；
+  ④ 输出方案文档 `.trae/documents/微信小程序网络异常修复-生产构建误用.md`，并为上一版排查文档补**勘误更正**，刷新根目录 `todo.md`。
+- **影响模块**：
+  - 前端代码：`client/src/constants/index.ts`（**仅新增 4 行 `console.error` 守卫**，无业务逻辑 / UI / 类型签名变化）
+  - 前端产物：`client/dist/**`（由生产构建产物替换为开发构建产物）
+  - 本机运行环境：8000 端口 uvicorn 实例（两组冗余 → 单实例）
+  - 文档：`.trae/documents/微信小程序网络异常修复-生产构建误用.md`（新增）、`.trae/documents/开发环境网络异常排查与修复方案.md`（补勘误）、`todo.md`（刷新）
+  - 未改动：`server/**`、`client/.env.*`、`client/project*.json`
+- **关联文档路径**：`.trae/documents/微信小程序网络异常修复-生产构建误用.md`
+- **是否待合并主 spec**：**否**（构建/环境修复，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 构建：`npm run dev:weapp` 完成并进入 `Watching...`（无构建失败；仅有既有的 CSS chunk order warning）
+  - 产物：`client/dist/common.js` 抽出 **`API_BASE = "http://192.168.60.37:8000"`**；`http://192.168.60.37:8000` 出现 2 次，`https://api.example.com` 仅剩 1 次且为**注释文本**（非赋值）
+  - 类型：`npx tsc --noEmit` **未新增**任何 `src/` 类型错误（仅全仓既有的 `React` 未使用告警与 `node_modules` 的 `.d.ts` 既有报错）
+  - 后端：`Get-NetTCPConnection -LocalPort 8000` → 单条 `0.0.0.0:8000 Listen`；`http://192.168.60.37:8000/api/v1/health` → `{"status":"ok"}`；`POST /api/v1/auth/login`（假 code）→ `{"code":2004,...}`（预期）
+- **待办（需用户侧操作，阻塞最终验收）**：开发者工具 → **工具 → 清除缓存 → 全部清除** 后**重新编译**；复核 **详情 → 本地设置**「不校验合法域名…」已勾选；复现登录确认请求域名为 `192.168.60.37:8000`（若仍为 `api.example.com` 说明 IDE 仍加载旧产物，需再清缓存重编译）
+- **回滚方式**：`git checkout <上一可用提交> -- client/src/constants/index.ts` 撤销守卫；产物重跑 `npm run dev:weapp` 或 `npm run build:weapp` 覆盖 `dist/`；后端按原命令重启。**未改动任何后端代码与配置文件。**
+
+---

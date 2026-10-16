@@ -30,6 +30,14 @@ export const PAGE_SIZE = 10;
 export const API_BASE =
   process.env.TARO_APP_API_BASE || "http://192.168.60.37:8000";
 
+// 防复发：误用生产构建（npm run build:weapp）做本地联调时，API_BASE 会指向占位域名，
+// 表现为登录/识别报「网络异常」（ERR_NAME_NOT_RESOLVED）。此处显式告警，便于快速定位。
+if (API_BASE.includes("api.example.com")) {
+  console.error(
+    "[config] API_BASE 仍为占位域名 api.example.com：开发联调请用 npm run dev:weapp；生产部署请先在 .env.production 配置真实域名",
+  );
+}
+
 /** 识别代理后端地址（与账号体系共用同一服务，保留旧导出名以兼容既有引用） */
 export const RECOGNIZE_API_BASE = API_BASE;
 
