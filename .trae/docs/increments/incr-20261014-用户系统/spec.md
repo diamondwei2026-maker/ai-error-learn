@@ -326,7 +326,7 @@ server/app/
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `WECHAT_APPID` | `wx683110d829c1f0f9` | 小程序 AppID（非密） |
+| `WECHAT_APPID` | `wxf7fbaf8d9a6f7296` | 小程序 AppID（非密） |
 | `WECHAT_APP_SECRET` | `""` | **密**，`repr=False`；缺失时登录返回 2003 |
 | `JWT_SECRET` | `""` | **密**，`repr=False`；缺失时启动告警 |
 | `JWT_ACCESS_TTL` | `7200` | access 秒 |

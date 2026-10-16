@@ -299,7 +299,7 @@ graph LR
 3. 便捷脚本：`client/package.json` 提供 `npm run server`（校验后端依赖 + 启动 uvicorn，**Windows 专用**，依赖 `server/.venv` 与可选 `server/.env`）。
 4. 编译目标：`build:weapp`（主）/ `build:h5`（预览降级）；另有 swan/alipay/tt/rn 等脚本但未使用。
 5. 密钥注入：后端从环境变量或 `server/.env` 读取（`override=True`）；仓库仅提供 `.env.example`，**无真实 `.env`**。
-6. 微信工程配置 `client/project.config.json`：`appid=wx683110d829c1f0f9`，`urlCheck=true`，声明了 `cloudfunctionRoot: cloudfunctions/`（目录实际不存在）。
+6. 微信工程配置 `client/project.config.json`：`appid=wxf7fbaf8d9a6f7296`，`urlCheck=true`，声明了 `cloudfunctionRoot: cloudfunctions/`（目录实际不存在）。
 
 ---
 

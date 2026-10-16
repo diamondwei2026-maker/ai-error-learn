@@ -58,7 +58,7 @@ def test_vision_key_is_not_exposed_in_repr():
 
 def test_user_system_defaults():
     settings = load_settings(env={})
-    assert settings.wechat_appid == "wx683110d829c1f0f9"
+    assert settings.wechat_appid == "wxf7fbaf8d9a6f7296"
     assert settings.wechat_app_secret == ""
     assert settings.jwt_secret == ""
     assert settings.jwt_access_ttl == 7200

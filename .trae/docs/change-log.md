@@ -232,3 +232,164 @@
   - 小白盲区覆盖：登录服务器 / 粘贴方式 / 建库位置 / `nano` 保存退出 / GitHub 拉不动备选 / 本地先 `push` —— 均已写入
 - **待办（不阻塞，阻塞上线）**：① 本地先 `git push`（当前 `develop` 领先远端，否则云上拉到旧代码）；② 按 §4 勘察并记录结论；③ 建库 + 白名单
 - **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
+
+---
+
+## docs-20261015-部署教程实测排障补充
+
+- **编号**：docs-20261015-部署教程实测排障补充
+- **日期**：2026-10-15
+- **背景**：用户在实际服务器（**Alibaba Cloud Linux 3 / OpenAnolis**）按教程执行时连撞两坑：① 敲 `sudo apt update && ...` 报 `sudo: apt: command not found`；② `git clone` 拉代码失败，报 `error: RPC failed; curl 7 Failed to connect to github.com port 443: Connection timed out` + `fatal: expected flush after ref listing`。经 `curl -sI` 与 `GIT_CURL_VERBOSE=1 GIT_TRACE=1` 逐层诊断，定位为**链路中间设备（DPI）拦截 git 传输**（列 ref 列表可过、`POST git-upload-pack` 被掐断）。
+- **变更摘要**：
+  把上述实测经验沉淀进《部署教程》，**仅文档更新，技术方案不变**（仍是共享 ECS + 独立 RDS + 新开备案子域名）：
+  ① **按发行版分支安装命令**——§4 勘察新增「识别系统发行版」步骤与判断项；§5.2 装 git、§7.2 装 Python、附录 A-2/A-3 均由单一 `apt` 改为「RHEL 系（阿里云 Linux/CentOS）用 `dnf`，Ubuntu/Debian 用 `apt`」二选一，并点明本教程对应服务器为 Alibaba Cloud Linux 3（无 `apt`）。
+  ② **去除 RHEL 系不存在的 `python3-venv`**——§7.2、附录 A-3 不再安装该包，改为说明「venv 内置于 python3，缺 `ensurepip` 时装 `python3-devel`」。
+  ③ **重写 §5.4「下载失败怎么办」**——由原「重试 / 换 Gitee」两句话扩展为实测排障：5.4.1 三步诊断（`getent hosts` / `curl -sI` / `GIT_CURL_VERBOSE=1`）、5.4.2 镜像前缀克隆（ghproxy ×3 + gitclone）、5.4.3 zip 打包下载、5.4.4 SSH（含 `ssh.github.com:443`）、5.4.5 传输参数调优（标注对 DPI 拦截无效），并写明根因结论。
+  ④ **§13.1 排障表**新增 3 条（`apt: command not found`、`No package python3-venv available`、`git clone` 的 `RPC failed`），更新「GitHub 下载慢 / 超时」条。
+  ⑤ **参考来源**补 4 条（Alibaba Cloud Linux 包管理 / Git 排障开关 / GitHub SSH 443 / 第三方克隆加速代理）。
+- **影响模块**：文档 `.trae/documents/部署教程.md`（唯一改动文件）
+- **关联文档路径**：`.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（文档更新，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 全仓检索教程内 `apt` / `python3-venv` 残留，均为**有意保留的分支说明或提示**，无遗留的默认 `apt` 路径
+  - 命令与仓库事实一致：仓库 URL `https://github.com/diamondwei2026-maker/ai-error-learn.git`、`/opt/error-learn`、`/api/v1/health`、`error_learn`、`UPLOADS_DIR` ↔ `/static`
+  - 诊断结论与实测日志一致：`curl -sI https://github.com` → `HTTP/2 200`；verbose 显示 `POST git-upload-pack` 挂起约 30s 后收到 `close notify`，重连同 IP 超时
+- **待办（不阻塞，阻塞上线）**：按修正后的命令重跑 §5.2 / §7.2；`git clone` 优先走 §5.4.2 镜像前缀
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
+
+---
+
+## docs-20261015-部署教程下载通道实测修订
+
+- **编号**：docs-20261015-部署教程下载通道实测修订
+- **日期**：2026-10-15
+- **背景**：承接上条 `docs-20261015-部署教程实测排障补充`，用户在服务器上**实际执行**「下载代码 → 建环境」时又暴露三处需用真实结果修正/落地的地方：① `cd /opt/error-learn/server` 报 `No such file or directory`，实为 clone 从未成功；② 上一版给的镜像域名 `ghproxy.com` 在本机**不可用**，而 `gh-proxy.com` 实测可用；③ zip 打包方式虽已写入，但缺"验证下载成败 + 解压改名"的可照做步骤。
+- **变更摘要**：
+  按实测结果修订《部署教程》的**代码下载章节**（§5.3 / §5.4）及相关交叉引用，**仅文档更新，技术方案不变**：
+  ① §5.3 主命令补 **`-b develop`**（本项目最新代码在 `develop`，避免拉到默认分支的旧代码）；新增「`ls` 报 `No such file or directory` = 代码没下载成功，不是路径写错」的醒目提示。
+  ② §5.4.2 标注**本机实测可用域名 `gh-proxy.com`** 并置于首位，其余域名列为备选；补「本项目实测为公开仓库」结论。
+  ③ §5.4.3 打包下载升级为**可照做的两步法**：下载用 `curl ... -w "HTTP:%{http_code} size:%{size_download}"` 自证成败（实测 `HTTP:200 size:913217`）；解压用 `unzip -d /opt` + `mv ai-error-learn-develop error-learn`；并提示 `\` 续行符不得带尾随空格、zip 快照不含 `.git`。
+  ④ §12 运维补「zip 方式无 `.git`，`git pull` 不可用」的对应处理。
+  ⑤ §13.1 排障表新增 2 条（`cd ... No such file or directory`、`unzip` 找不到 zip）。
+  ⑥ 附录 A-2 命令同步为镜像 + `-b develop`，并附 zip 备选。
+- **影响模块**：文档 `.trae/documents/部署教程.md`（唯一改动文件）
+- **关联文档路径**：`.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（文档更新，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 实测数据入库：`curl -L -o /tmp/error-learn.zip -w ... https://gh-proxy.com/.../develop.zip` → `HTTP:200 size:913217`；解压后目录名为 `ai-error-learn-develop`
+  - 失败数据入库：`ghproxy.com` 域名在本机下载失败；`/opt/error-learn` 不存在导致 `cd` 报错
+  - 交叉引用核对：§5.3 → §5.4、§5.4.2 ↔ §5.4.3、§12 → §5.4.3/§5.4.2、§13.1 → §5.4 锚点均可跳转
+- **待办（不阻塞，阻塞上线）**：本地 `develop` 先 `git push` 后再重新下载，确保服务器为最新代码；继续按 §7.2（`dnf`）建环境
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
+
+---
+
+## docs-20261016-部署教程Python版本排障
+
+- **编号**：docs-20261016-部署教程Python版本排障
+- **日期**：2026-10-16
+- **背景**：用户在服务器执行 `./.venv/bin/python -m pip install --upgrade pip`，只得到 `Requirement already satisfied: pip in ./.venv/lib/python3.6/site-packages (21.3.1)`。定位为**服务器系统 `python3` 过旧（Python 3.6）**：`21.3.1` 是最后一个支持 Python 3.6 的 pip，更高版本均要求 ≥3.7，故“无更新可装”；且本项目要求 Python ≥ 3.8（`fastapi>=0.110` / `sqlalchemy>=2.0` / `pytest>=8.0`），3.6 环境根本装不上依赖。升 pip 无解，须换 Python 重建 venv。
+- **变更摘要**：
+  将经验沉淀进《部署教程》，**仅文档更新，技术方案不变**：
+  ① §7.2 拆为 **7.2.1 先检查 Python 版本**（含“≥3.8 合格 / 3.6、3.7 太旧”判断表）、**7.2.2 正常安装**、**7.2.3 Python 太旧时装新版（python3.11）并 `rm -rf .venv` 重建**；
+  ② §4 现状勘察新增 ⑨「`python3 --version`」及判断项；
+  ③ §13.1 排障表新增 2 条（pip 只回 `already satisfied`、pip 路径含 `python3.6`）；
+  ④ 附录 A-3 补 `python3 --version` 前置检查与 `rm -rf .venv`；
+  ⑤ 提示 `deploy/deploy.sh` 的 `python3 -m venv .venv` 不校验版本，须先按 §7.2.1 检查。
+- **影响模块**：文档 `.trae/documents/部署教程.md`（唯一改动文件）；`deploy/**` 与前后端代码**未改动**
+- **关联文档路径**：`.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（文档更新，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：症状（`python3.6` + `21.3.1`）与结论（pip 21.3.1 = Python 3.6 末代版本）、项目依赖最低 Python 版本（fastapi 0.110 / sqlalchemy 2.0 / pytest 8）一致；新增命令均可在 RHEL 系执行
+- **待办（不阻塞，阻塞上线）**：按 §7.2.1 确认服务器 Python 版本；<3.8 时按 §7.2.3 装 python3.11 并重建 venv
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
+
+---
+
+## ops-20261016-deploy脚本Python版本守卫
+
+- **编号**：ops-20261016-deploy脚本Python版本守卫
+- **日期**：2026-10-16
+- **背景**：接上条——`deploy/deploy.sh` 原为 `[ -d .venv ] || python3 -m venv .venv`，仅“无 venv 才建”、**不校验 Python 版本、也不校验已存 venv 版本**，导致服务器上旧 Python（3.6）建的 venv 被沿用，依赖装不上。
+- **变更摘要**：
+  为 `deploy/deploy.sh` 新增 Python 版本守卫（**仅部署脚本改动，不影响业务代码**）：
+  ① 新增可配置项 `PYTHON_BIN`（默认空，自动探测）；
+  ② 新增 `python_is_ok()`（判是否 >=3.8）与 `detect_python()`（按 python3.12→3.11→3.10→3.9→3.8→python3 顺序取首个合格项）；
+  ③ `check_prereq` 前置拦截——无合格 Python 时直接 `die` 并提示安装命令，不再等装完才失败；
+  ④ `setup_venv` 版本守卫——已存 `.venv` 若由旧 Python 创建，**自动 `rm -rf` 重建**；
+  ⑤ 头部用法注释补 `PYTHON_BIN` 示例与 Python>=3.8 前置说明。
+- **影响模块**：`deploy/deploy.sh`（唯一改动文件）；前端/后端代码、nginx/systemd 模板**未改动**
+- **关联文档路径**：`deploy/deploy.sh`；配套教程 `.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（部署脚本，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：`bash -n deploy/deploy.sh` → 语法通过；`PYTHON_BIN` 空/显式两路分支均可走到 venv 创建；`python_is_ok` 对 3.6 返回非零、对 3.11 返回零（逻辑自洽）
+- **待办（不阻塞，阻塞上线）**：服务器上先确保存在 >=3.8 的解释器（如 `python3.11`），再跑脚本
+- **回滚方式**：`git checkout <上一可用提交> -- deploy/deploy.sh`；本次未改动其它文件
+
+---
+
+## docs-20261016-部署教程后端启动排障补充
+
+- **编号**：docs-20261016-部署教程后端启动排障补充
+- **日期**：2026-10-16
+- **背景**：用户在阿里云 Linux 3 ECS 上按教程 §7.3~§7.4 手工部署后端时，**连续踩了 4 个教程未覆盖的坑**（均为发行版差异 / 环境差异，非代码 bug）：
+  ① `sudo systemctl status` 报 **`status=217/USER`**——模板 `User=www-data` 在本机不存在（RHEL 系应为 `nginx`），进程未启动；
+  ② `nano: command not found`——阿里云 Linux 3 最小化安装默认不带 nano；
+  ③ 启动报 **`sqlalchemy.exc.ArgumentError: Could not parse SQLAlchemy URL`**——`.env` 的 `DATABASE_URL` **只填了主机名**，漏了 `mysql+pymysql://账号:密码@主机:3306/库?charset=utf8mb4` 外壳；
+  ④ 启动报 **`PermissionError: '/opt/error-learn/server/uploads'`**——运行用户 `nginx` 对项目目录无写权限，`create_app` 里 `uploads_dir.mkdir()` 失败。
+  最终服务成功 `active (running)`、`/api/v1/health` 返回 `{"status":"ok"}`。
+- **变更摘要**：
+  将上述实测经验沉淀进《部署教程》，**仅文档更新，技术方案不变**：
+  ① §7.3 新增 `nano: command not found` 处理（装 nano / 改用 vi 键位）；`DATABASE_URL` 行加粗强调"必须是一整条连接串"，并新增 **正 / 误对比**示例与密码特殊字符 URL 编码提示；
+  ② §7.4 新增"先 `ps -o user= -C nginx` 确认运行用户"；sed 命令补 `User=www-data→nginx` / `Group=` 替换并**合成一行**；新增"给运行用户开 uploads 写权限"步骤；解释 `217/USER` 成因；
+  ③ §13.1 排障表新增 4 条（`nano` 缺失、`217/USER`、`Could not parse SQLAlchemy URL`、`PermissionError uploads`）。
+- **影响模块**：文档 `.trae/documents/部署教程.md`（唯一改动文件）；`deploy/**` 与前后端代码**未改动**
+- **关联文档路径**：`.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（文档更新，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 4 个报错关键字与实测日志逐条对应（`status=217/USER`、`nano: command not found`、`Could not parse SQLAlchemy URL`、`PermissionError ... uploads`）
+  - 修复后实测：`systemctl status` → `active (running)`；`curl 127.0.0.1:8000/api/v1/health` → `{"status":"ok"}`；`Python 3.11.13` + `uvicorn 0.54.0`
+  - §7.4 的 `User=nginx` 与 `deploy/systemd/error-learn-api.service` 模板默认 `User=www-data` 对应；`deploy.sh` 的 `RUN_USER` 机制覆盖同一场景
+- **待办（不阻塞，阻塞上线）**：按 §7.4 为运行用户开 uploads 写权限；继续 §8 接入 Nginx
+- **安全提醒**：排查过程中用户曾贴出明文 `WECHAT_APP_SECRET` / `JWT_SECRET`，建议上线稳定后重置这两项
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
+
+---
+
+## docs-20261016-部署教程SSL证书排障沉淀
+
+- **编号**：docs-20261016-部署教程SSL证书排障沉淀
+- **日期**：2026-10-16
+- **背景**：用户在实际服务器（Alibaba Cloud Linux 3 / Nginx 1.24.0，且**已用 certbot 管理 story 站点证书**）为子域名 `errorlearn.diamondwtech.com` 接入 HTTPS 时，连撞教程未覆盖的证书类坑：① `curl -v` 报 `SSL: no alternative certificate subject name matches target host name 'errorlearn...'`（`curl: (51)`）——实为该域名在 Nginx **未配 server 块**，请求落到 `server_name _;` 兜底站、返回了 story 站证书；② `certbot --nginx` 两次报 `Invalid response from ... 403`——80 端口兜底站的 `deny` 正则拦截 `.well-known`；③ `certbot --manual --preferred-challenges dns` 报 `NXDOMAIN`——TXT 未添加即回车，且**每次重跑值都会变**；④ `dig` / `nslookup` 均 `command not found`；⑤ `Another instance of Certbot is already running.`——锁文件残留；⑥ Workbench「新建终端」失败。另有用户两次把 `curl` 网址误写成反引号。原 §9 只给了 acme.sh + DNS-01 一条路，未覆盖 certbot 方案与上述排障。
+- **变更摘要**：
+  将本轮实测经验沉淀进《部署教程》，**仅文档更新，技术方案不变**：
+  ① **§9 证书章节重构为"先选工具、再分方案"**——新增 9.1 工具二选一判断（有 certbot 用 certbot / 有 acme.sh 用 acme.sh / 都没有装 certbot，明确"**别混用**"）；9.2 方案 A「certbot」（9.2.1 DNS-01 手动验证：含 TXT 主机记录写法 `_acme-challenge.<前缀>`、`curl` DoH 查询生效、回车时机与"重跑值会变"告警；9.2.2 `certbot --nginx` 的 403 成因与 `^~` location 绕过；9.2.3 certbot 常见报错表；9.2.4 `certbot-dns-aliyun` 自动续期）；9.3 方案 B「acme.sh」（原内容）；**9.4 让 Nginx 用上证书并验收**——强调"证书先在位、再配 Nginx"，并给出 certbot 证书路径下完整的 80 跳转 + 443 配置块。
+  ② **§8 新增 8.4「常见坑：报证书域名不匹配」**——解释 `SSL: no alternative certificate subject name` / `curl: (51)` 的成因（落到 `server_name _;` 兜底站）与一步定位命令 `nginx -T | grep -nE "server_name|ssl_certificate"`。
+  ③ **§4 现状勘察** 新增 ⑩ `getenforce`（SELinux）及判断项；第 ⑥ 项证书工具改为"二选一"口径。
+  ④ **§12 运维** 证书查看补 certbot（`certbot certificates`）与续期说明（手动 DNS 方式不自动续）；**§14 回滚** 证书项补 certbot（`certbot delete --cert-name`）。
+  ⑤ **§13.1 排障表**新增 8 条、**§13.3 共享服务器专属**新增 3 条；**附录 A-4** 补 certbot 分支提示、**A-5** 拆为 A-5A certbot / A-5B acme.sh；**参考来源**补 4 条（Certbot / Let's Encrypt 挑战类型 / certbot-dns-aliyun / Nginx location 优先级）并将校对日期更新为 2026-10-16。
+- **影响模块**：文档 `.trae/documents/部署教程.md`（唯一改动文件）；`deploy/**` 与前后端代码**未改动**
+- **关联文档路径**：`.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（文档更新，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 报错关键字与实测日志逐条对应（`SSL: no alternative certificate subject name`、`curl: (51)`、`Invalid response ... 403`、`NXDOMAIN looking up TXT`、`command not found`、`Another instance of Certbot is already running.`）
+  - 事实一致：`server_name _;` 兜底站观察、Nginx `1.24.0`（决定必须用 `listen 443 ssl http2;`）、服务器已装 `certbot`、证书路径 `/etc/letsencrypt/live/<domain>/`
+  - 命令可在 RHEL 系执行：`curl -s "https://223.5.5.5/resolve?...&type=TXT"`、`sudo rm -f /var/lib/letsencrypt/.certbot.lock`、`sudo certbot certificates`、`sudo dnf install -y bind-utils`
+  - 新增锚点（§8.4 / §9.2 / §9.2.1~9.2.4 / §9.4）与文内交叉链接一一对应
+- **待办（不阻塞，阻塞上线）**：按 §9.2.1 完成证书签发 → 按 §9.4 写 443 配置 → `curl` 复测 `{"status":"ok"}`
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
+
+---
+
+## cfg-20261016-微信AppID切换
+
+- **编号**：cfg-20261016-微信AppID切换
+- **日期**：2026-10-16
+- **变更摘要**：将微信小程序 AppID 由 `wx683110d829c1f0f9` 切换为 `wxf7fbaf8d9a6f7296`。同步后端默认值、示例配置、测试断言与相关文档；`server/.env`（不入库）此前已由用户改为新值，配置来源与代码默认值现已一致。
+- **影响模块**：
+  - 前端：`client/project.config.json`
+  - 后端：`server/app/config.py`、`server/.env.example`、`server/tests/test_config.py`
+  - 部署：`deploy/env.production.example`
+  - 文档：`.trae/documents/部署教程.md`、`.trae/specs/mvp-reverse-docs/spec.md`、`.trae/docs/increments/incr-20261014-用户系统/spec.md`
+- **关联文档路径**：无新增文档；见上述改动文件
+- **是否待合并主 spec**：**否**（仅配置值替换，未改结构；主 spec 中该值为事实描述，已同步）
+- **验证结果**：全仓检索确认除本 change-log 历史记录外无旧 AppID 残留；`server/tests/test_config.py::test_user_system_defaults` 断言与新默认值一致
+- **回滚方式**：`git checkout <上一可用提交> -- client/project.config.json server/app/config.py server/.env.example deploy/env.production.example server/tests/test_config.py .trae/documents/部署教程.md .trae/specs/mvp-reverse-docs/spec.md .trae/docs/increments/incr-20261014-用户系统/spec.md`
