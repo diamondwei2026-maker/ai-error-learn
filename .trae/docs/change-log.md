@@ -393,3 +393,33 @@
 - **是否待合并主 spec**：**否**（仅配置值替换，未改结构；主 spec 中该值为事实描述，已同步）
 - **验证结果**：全仓检索确认除本 change-log 历史记录外无旧 AppID 残留；`server/tests/test_config.py::test_user_system_defaults` 断言与新默认值一致
 - **回滚方式**：`git checkout <上一可用提交> -- client/project.config.json server/app/config.py server/.env.example deploy/env.production.example server/tests/test_config.py .trae/documents/部署教程.md .trae/specs/mvp-reverse-docs/spec.md .trae/docs/increments/incr-20261014-用户系统/spec.md`
+
+---
+
+## cfg-20261016-启用组件按需注入
+
+- **编号**：cfg-20261016-启用组件按需注入
+- **日期**：2026-10-16
+- **背景**：小程序代码上传微信后「代码质量」扫描提示 **「启用组件按需注入：未通过」**。该扫描项对应官方《小程序性能优化指南》第 12 条【必须】——须在 `app.json` 配置 `"lazyCodeLoading": "requiredComponents"` 开启组件按需注入。本仓库此前全局检索无任何 `lazyCodeLoading` 配置，故命中。
+- **变更摘要**：在 Taro 全局应用配置 `client/src/app.config.ts` 顶层新增 `lazyCodeLoading: 'requiredComponents'`（构建后注入 `dist/app.json`），开启小程序组件按需注入特性。**无业务逻辑改动、无 UI 改动、后端零改动。**
+- **影响模块**：
+  - 前端（`client/`）：修改 `src/app.config.ts`（新增 `lazyCodeLoading: 'requiredComponents'`）
+- **关联文档路径**：无新增文档；官方依据《小程序性能优化指南》第 12 条，`https://developers.weixin.qq.com/miniprogram/dev/framework/ability/lazyload.html`
+- **是否待合并主 spec**：**否**（配置项修复，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：`npm run build:weapp` → **构建成功**（31.15s）；产物 `client/dist/app.json` 已含 `"lazyCodeLoading":"requiredComponents"`。构建输出中的 `mini-css-extract-plugin Conflicting order` 为既有告警，不影响构建（exit 0）
+- **注意事项**：若后续引入插件组件或使用分包异步化/动态组件，可能需额外配置 `componentPlaceholder`；该配置仅对微信端（weapp）生效
+- **回滚方式**：移除 `client/src/app.config.ts` 中的 `lazyCodeLoading` 一行即可恢复
+
+---
+
+## docs-20261016-部署教程隐私指引入口更新
+
+- **编号**：docs-20261016-部署教程隐私指引入口更新
+- **日期**：2026-10-16
+- **背景**：微信小程序管理后台改版，旧入口「设置 → 功能设置 → 用户隐私保护指引」已**移除**，教程 §11.2 原路径失效，读者按旧路径找不到入口。
+- **变更摘要**：仅文档更新，技术方案不变。将 §11.2 路径更新为新版后台路径「登录微信公众平台 → 左下角头像 → 账号设置 → 服务内容声明 → 用户隐私保护指引」，并补充：① 旧入口已移除；② 该入口仅对已发布上线的小程序可见，未上线可在**提交代码审核**页面的「用户隐私保护指引设置」处填写。
+- **影响模块**：文档 `.trae/documents/部署教程.md`（唯一改动文件）；前后端代码与 `deploy/**` 未改动
+- **关联文档路径**：`.trae/documents/部署教程.md`
+- **是否待合并主 spec**：**否**（文档更新，未修改 `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：联网核实（微信官方知识库 + 开发者社区帖，均一致）——现网版入口为「账号设置 → 服务内容声明 → 用户隐私保护指引」；提审版入口为「版本管理 → 提交代码审核 → 用户隐私保护指引设置」
+- **回滚方式**：`git checkout <上一可用提交> -- .trae/documents/部署教程.md`；本次未改动其它文件
