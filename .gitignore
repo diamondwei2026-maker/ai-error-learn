@@ -32,3 +32,10 @@ Thumbs.db
 # ===== 本机私有配置 / 会话临时文件 =====
 client/project.private.config.json
 todo.md
+.tmp-*
+
+# ===== 证书与私钥（严禁提交）=====
+*.key
+*.pem
+.env.bak
+*.env.bak

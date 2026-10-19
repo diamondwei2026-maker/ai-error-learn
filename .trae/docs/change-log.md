@@ -619,3 +619,31 @@
 - **回滚方式**：文档改动按 git 回滚即可；服务器侧如需回退，`sudo cp /etc/nginx/conf.d/error-learn.conf.bak /etc/nginx/conf.d/error-learn.conf && sudo nginx -t && sudo systemctl reload nginx`（改动前已备份）。本次**未改动任何业务代码**。
 
 ---
+
+## fix-20261019-体验版登录 -101：改用 DigiCert 证书，规避 LE Gen-Y 链兼容性
+
+- **编号**：fix-20261019-体验版登录-cronet证书链
+- **日期**：2026-10-19
+- **背景**：体验版真机（安卓 + iPhone）点「微信一键登录」报 `request:fail errcode:-101 cronet_error_code:-101 net::ERR_CONNECTION_RESET`。此前生产域名、白名单、nginx 443 均已修复，问题仍在。
+- **排查过程（逐层排除）**：
+  1. **构建产物正常**：`client/dist/common.js` 含 `https://errorlearn.diamondwtech.com`，局域网 IP `192.168.60.37` 出现 0 次。
+  2. **服务端 TLS 正常**：`ssl_protocols TLSv1.2 TLSv1.3`、ECDHE-RSA GCM 套件齐全；本机 `openssl s_client -tls1_2` → `TLSv1.2` + `Verify return code: 0 (ok)`。
+  3. **请求确实到达**：`error.log` 记录 `recv() failed (104) while SSL handshaking`（client 为手机 4G IP）；`access.log` 无记录，因握手未完成、HTTP 请求从未开始，属预期现象。
+  4. **网络与中间盒排除**：同一手机、同一 IP，微信内置浏览器打开 `https://errorlearn.diamondwtech.com/api/v1/health` → `HTTP/2.0 200`；同一时刻小程序 cronet 握手被 RST。
+  5. **证书链定位**：Let's Encrypt 于 2026-10-16 续期后落到 Gen-Y 链 `叶 → YR2 → Root YR（交叉签名）→ ISRG Root X1`。`Root YR` 生成于 2025-09-03，官方标注尚未进入各类信任库；微信文档要求「证书必须被系统信任，即根证书已被系统内置」。
+- **根因**：小程序 `wx.request` 在 Android 7.0.10+ / iOS 8.0.3+ 统一使用 cronet（自带根证书库），不接受该 Gen-Y 链，在 TLS 握手阶段直接断开；微信内置浏览器走 WKWebView + 系统信任库，可经 ISRG Root X1 交叉签名路径验证，故同一时间访问正常。
+- **变更摘要**：
+  ① 服务器换发 DigiCert DV 证书（叶 → `Encryption Everywhere DV TLS CA - G2` → `DigiCert Global Root G2`），存放 `/etc/nginx/certs/errorlearn/{fullchain.pem,privkey.pem}`，权限 644/600；
+  ② `/etc/nginx/conf.d/error-learn.conf` 第 15-16 行证书指向由 `/etc/letsencrypt/live/errorlearn.diamondwtech.com/` 改为上述新目录；
+  ③ `.gitignore` 增加 `*.key`、`*.pem`、`.env.bak`、`*.env.bak`、`.tmp-*`，防止私钥与临时文件入库。
+- **影响模块**：服务器 nginx（运维动作）、`.gitignore`、`todo.md`。`story.diamondwtech.com` 的证书与 certbot 续期**未改动**；小程序代码与 `dist` 未改动，域名未变，**无需重新构建或重新上传**。
+- **关联文档路径**：`.trae/docs/change-log.md`（本条）、`todo.md`
+- **是否待合并主 spec**：**否**
+- **验证结果**：
+  - `nginx -t` 通过，`systemctl reload nginx` 成功，服务 `active`；
+  - 服务端 `openssl s_client`：TLS1.3 `TLS_AES_256_GCM_SHA384`、TLS1.2 `ECDHE-RSA-AES256-GCM-SHA384`，均 `Verify return code: 0 (ok)`，issuer 为 `DigiCert Encryption Everywhere DV TLS CA - G2`；
+  - 证书有效期 `2026-10-19 → 2027-01-16`（**仅 90 天，需在到期前续期**）。
+- **回滚方式**：`sudo cp /root/error-learn.conf.bak-2026-10-19-111059 /etc/nginx/conf.d/error-learn.conf && sudo nginx -t && sudo systemctl reload nginx`。
+- **待办**：手机杀掉微信进程后用 4G 复测体验版登录；稳定运行后 `certbot delete --cert-name errorlearn.diamondwtech.com`（勿动 story）；2027-01-02 前完成新证书续期。
+
+---
