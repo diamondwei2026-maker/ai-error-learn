@@ -55,6 +55,38 @@ function buildHeader(auth: boolean): Record<string, string> {
   return header;
 }
 
+/** 临时调试日志：需要脱敏的字段（小写比较） */
+const SENSITIVE_KEYS = new Set([
+  "authorization",
+  "accesstoken",
+  "refreshtoken",
+  "token",
+  "openid",
+  "unionid",
+]);
+
+function maskValue(value: unknown): unknown {
+  if (typeof value !== "string") return "***";
+  if (value.length <= 8) return "***";
+  return `${value.slice(0, 4)}***${value.slice(-4)}`;
+}
+
+/** 递归脱敏，限制深度与数组长度，避免同步接口日志过大 */
+function sanitizeForLog(value: unknown, depth = 0): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (depth >= 3) return "[Object]";
+  if (Array.isArray(value)) {
+    return value.slice(0, 20).map((item) => sanitizeForLog(item, depth + 1));
+  }
+  const result: Record<string, unknown> = {};
+  Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+    result[key] = SENSITIVE_KEYS.has(key.toLowerCase())
+      ? maskValue(item)
+      : sanitizeForLog(item, depth + 1);
+  });
+  return result;
+}
+
 function messageFor(code: number, fallback?: string): string {
   return (
     AUTH_ERROR_MESSAGES[code] ||
@@ -77,12 +109,26 @@ async function send(
       header: buildHeader(options.auth !== false),
       timeout: REQUEST_TIMEOUT,
     });
+    // TODO(debug-request): 临时调试日志，排查结束后删除
+    console.log("【请求成功】", {
+      url: `${API_BASE}${path}`,
+      method: options.method || "GET",
+      statusCode: res.statusCode,
+      data: sanitizeForLog(res.data),
+    });
     return {
       statusCode: res.statusCode,
       body: (res.data || {}) as ApiEnvelope<unknown>,
     };
   } catch (error) {
-    console.error("[request] network failed", path, error);
+    // TODO(debug-request): 临时调试日志，排查结束后删除
+    console.error("【请求详情/报错】", {
+      url: `${API_BASE}${path}`,
+      method: options.method || "GET",
+      data: sanitizeForLog(options.data),
+      status: undefined, // 网络层失败时没有 statusCode
+      err: error,
+    });
     throw new ApiRequestError(0, "网络异常，请检查网络后重试");
   }
 }
@@ -111,6 +157,13 @@ async function doRefresh(): Promise<boolean> {
       header: { "Content-Type": "application/json" },
       timeout: REQUEST_TIMEOUT,
     });
+    // TODO(debug-request): 临时调试日志，排查结束后删除
+    console.log("【请求成功】", {
+      url: `${API_BASE}/api/v1/auth/refresh`,
+      method: "POST",
+      statusCode: res.statusCode,
+      data: sanitizeForLog(res.data),
+    });
     const body = (res.data || {}) as ApiEnvelope<SessionData>;
     if (res.statusCode === 200 && body.code === 0 && body.data) {
       const next: AuthSession = {
@@ -123,7 +176,14 @@ async function doRefresh(): Promise<boolean> {
       return true;
     }
   } catch (error) {
-    console.error("[request] refresh failed", error);
+    // TODO(debug-request): 临时调试日志，排查结束后删除
+    console.error("【请求详情/报错】", {
+      url: `${API_BASE}/api/v1/auth/refresh`,
+      method: "POST",
+      data: sanitizeForLog({ refreshToken: session.refreshToken }),
+      status: undefined,
+      err: error,
+    });
   }
   authRepo.clearSession();
   return false;
