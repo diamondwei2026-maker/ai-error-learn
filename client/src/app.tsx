@@ -1,5 +1,5 @@
 import React, { useEffect, type PropsWithChildren } from "react";
-import Taro, { useDidShow, useDidHide } from "@tarojs/taro";
+import { useDidShow, useDidHide } from "@tarojs/taro";
 // 全局样式
 import "./app.scss";
 import { fileRepo } from "./services/repo/fileRepo";
@@ -42,55 +42,6 @@ function App(props: PropsWithChildren<Record<string, never>>) {
     } catch (error) {
       console.error("[App] privacy init failed", error);
     }
-
-    // TODO(debug-netprobe): 临时网络探针，排查结束后删除
-    const probeTargets = [
-      "https://example.com/",
-      "https://errorlearn.diamondwtech.com/api/v1/health",
-    ];
-    const probe = (url: string) =>
-      new Promise<Record<string, unknown>>((resolve) => {
-        const startedAt = Date.now();
-        Taro.request({
-          url,
-          method: "GET",
-          timeout: 8000,
-          success: (res) =>
-            resolve({
-              url,
-              ok: true,
-              status: res.statusCode,
-              cost: Date.now() - startedAt,
-            }),
-          fail: (err) => {
-            const failure = err as { errMsg?: string; errno?: number };
-            resolve({
-              url,
-              ok: false,
-              errMsg: failure.errMsg,
-              errno: failure.errno,
-              cost: Date.now() - startedAt,
-            });
-          },
-        });
-      });
-    probeTargets
-      .reduce<Promise<void>>(
-        (chain, url) =>
-          chain
-            .then(() => probe(url))
-            .then((result) =>
-              console.warn("[netprobe]", JSON.stringify(result)),
-            ),
-        Promise.resolve(),
-      )
-      .then(() => {
-        Taro.getNetworkType()
-          .then((res) =>
-            console.warn("[netprobe] network", JSON.stringify(res)),
-          )
-          .catch((error) => console.warn("[netprobe] network failed", error));
-      });
   }, []);
 
   // 对应 onShow

@@ -27,7 +27,7 @@ def test_reads_env_values():
             "VISION_ENABLED": "true",
             "VISION_API_KEY": "key-123",
             "VISION_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-            "VISION_MODEL": "qwen-vl-flash",
+            "VISION_MODEL": "qwen3-vl-flash",
             "VISION_TIMEOUT": "25",
             "VISION_MAX_IMAGE_BYTES": "123",
             "AI_ENABLED": "true",
@@ -36,7 +36,7 @@ def test_reads_env_values():
     assert settings.vision_enabled is True
     assert settings.vision_api_key == "key-123"
     assert settings.vision_base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    assert settings.vision_model == "qwen-vl-flash"
+    assert settings.vision_model == "qwen3-vl-flash"
     assert settings.vision_timeout == 25
     assert settings.vision_configured is True
     assert settings.max_image_bytes == 123

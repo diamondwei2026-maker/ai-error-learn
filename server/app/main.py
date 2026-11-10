@@ -48,6 +48,17 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         logging.getLogger(__name__).warning(
             "PUBLIC_BASE_URL 未配置，头像图片将不做内容安全送检"
         )
+    if settings.vision_enabled and not settings.vision_configured:
+        logging.getLogger(__name__).warning(
+            "视觉模型已开启但未配置 VISION_API_KEY / VISION_BASE_URL，识别将返回 1002"
+        )
+    elif settings.vision_configured:
+        logging.getLogger(__name__).info(
+            "视觉模型：base=%s model=%s timeout=%ss",
+            settings.vision_base_url,
+            settings.vision_model,
+            settings.vision_timeout,
+        )
 
     app = FastAPI(
         title="错题本识别代理",

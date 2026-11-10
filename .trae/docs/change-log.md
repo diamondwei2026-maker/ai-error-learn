@@ -647,3 +647,80 @@
 - **待办**：手机杀掉微信进程后用 4G 复测体验版登录；稳定运行后 `certbot delete --cert-name errorlearn.diamondwtech.com`（勿动 story）；2027-01-02 前完成新证书续期。
 
 ---
+
+## fix-20261110-移除临时网络探针（开发者工具 example.com 域名报错）
+
+- **编号**：fix-20261110-移除临时网络探针
+- **日期**：2026-11-10
+- **背景**：微信开发者工具控制台报 `https://example.com 不在以下 request 合法域名列表中`。该 URL 来自上一轮 `-101` 排查时在 [app.tsx L46-L93](file:///d:/Users/weij/ai-error-learn/client/src/app.tsx) 添加的 `TODO(debug-netprobe)` 临时网络探针，并非业务请求。
+- **根因**：`example.com` 无法加入微信服务器域名白名单，凡开启合法域名校验（`urlCheck: true`）的环境（开发者工具 / 体验版 / 正式版）该探针都只会得到 `url not in domain list`，无法作为有效对照；且 `-101` 根因已由 curl 与备案拦截页证据链定位为阿里云备案拦截（见根目录 `todo.md`），探针已无诊断价值。
+- **变更摘要**：
+  ① 删除 `client/src/app.tsx` 中 `TODO(debug-netprobe)` 整段探针代码，并移除仅被探针使用的 `Taro` 默认导入（改为 `import { useDidShow, useDidHide } from "@tarojs/taro";`）；
+  ② 以生产模式重建 `client/dist`（`npm run build:weapp`，不带 `--watch`）。
+- **影响模块**：`client/src/app.tsx`、`client/dist/**`、`todo.md`、`.trae/todolist/微信开发者工具合法域名报错-移除临时网络探针.md`。**未改动**：`server/**`、`client/src/services/request.ts`（调试日志保留）、`client/project.config.json`、`client/project.private.config.json`、`.trae/specs/**`。
+- **关联文档路径**：`.trae/documents/移除临时网络探针-修复开发者工具合法域名报错.md`
+- **是否待合并主 spec**：**否**
+- **验证结果**：
+  - `npx tsc --noEmit`：`src/` 下无新增错误（仅既有 `React` 未使用告警）；
+  - `npm run build:weapp` → 编译成功（仅既有 `mini-css-extract-plugin Conflicting order` 告警）；
+  - 产物校验（2026-11-10 16:49）：`dist/app.js` 中 `example.com` 0 次、`netprobe` 0 次；`dist/common.js` 中 `192.168.60.37` 0 次，`API_BASE` 仍为 `https://errorlearn.diamondwtech.com`（`api.example.com` 仅出现在构建期守卫代码内）。
+- **回滚方式**：`git checkout -- client/src/app.tsx` 后重新执行 `npm run build:weapp` 覆盖 `dist/`。
+- **待办**：开发者工具「清除缓存 → 重新编译」后确认该报错消失；真机 `-101` 复测仍依赖阿里云备案接入完成，属既有阻塞项。
+
+---
+
+## fix-20261110-识别失败报错修复（recognize 错误映射与模型配置）
+
+- **编号**：fix-20261110-识别失败报错修复
+- **日期**：2026-11-10
+- **背景**：拍照识别固定提示「识别失败，请重试或手动输入」。该文案在全仓库仅来源于后端 `vision_recognize._map_to_error` 的兜底分支，说明请求已到达后端但上游多模态模型调用失败且未被现有规则识别。
+- **排查结论**：
+  1. 本地 `server/.env` 的 GLM-4V-Flash 配置实测可用：直连 `open.bigmodel.cn` 的 `/chat/completions` 返回 200（1×1 PNG、215KB 照片、5MB 带填充图片均成功，约 3–4 秒）；`VisionClient.recognize()` 直调同样正常。
+  2. 生产部署模板与部署教程把模型写成百炼 `VISION_MODEL=qwen-vl-flash`，但百炼当前多模态模型 ID 为 `qwen3-vl-flash` / `qwen-vl-plus` / `qwen-vl-max` 等，**不存在 `qwen-vl-flash`**；上游返回 400 后被兜底成 1002，导致每次必现。
+  3. 本地排查时 8000 端口未监听（后端未启动），本地联调未先 `npm run server` 也会表现为识别失败。
+- **变更摘要**：
+  ① 后端错误映射细分：400/404/422 → 1005「识别模型不可用，请检查 VISION_MODEL 配置」；5xx → 1002「识别服务暂时不可用，请稍后重试」；`httpx.TimeoutException` → 1002「识别超时，请重试」；`httpx.TransportError` → 1002「识别服务连接失败，请检查网络」；429/401/403 映射保持不变。
+  ② 后端新增上游日志：非 200 记录 `status` 与响应体前 300 字符，异常记录类型与消息（不打印 API Key）。
+  ③ 启动期新增视觉模型配置校验日志：已开启但缺 Key/Base 时 warning，已配置时 info 打印 base/model/timeout。
+  ④ 前端 `recognitionService` 增加失败日志（statusCode + 响应体），网络层失败文案改为「识别服务连接失败，请检查网络或稍后重试」。
+  ⑤ 配置与文档统一把无效模型 ID `qwen-vl-flash` 修正为 `qwen3-vl-flash`。
+- **影响模块**：
+  - 后端（`server/`）：`app/services/vision_recognize.py`、`app/main.py`、`tests/test_vision_recognize.py`、`tests/test_config.py`、`.env.example`
+  - 前端（`client/`）：`src/services/recognitionService.ts`
+  - 配置/文档：`deploy/env.production.example`、`.trae/documents/部署教程.md`、`.trae/documents/上线物料缺口清单.md`、`.trae/specs/mvp-reverse-docs/spec.md`
+- **关联文档路径**：`.trae/documents/识别失败报错修复方案.md`、`.trae/todolist/recognize服务报错-识别失败修复.md`
+- **是否待合并主 spec**：**否**（仅修正 spec 中错误的模型名示例）
+- **验证结果**：
+  - `server\.venv\Scripts\python.exe -m pytest -q` → **108 passed**（新增 3 个映射用例：400 模型不存在、503、超时）；
+  - `npx tsc --noEmit`：`src/` 下无新增错误（仅既有 `React` 未使用与 `node_modules` 类型声明告警）。
+- **回滚方式**：`git checkout -- server/app/services/vision_recognize.py server/app/main.py client/src/services/recognitionService.ts` 后重启后端。
+- **待办（需在服务器执行）**：将 `/opt/error-learn/server/.env` 的 `VISION_MODEL` 改为 `qwen3-vl-flash`（或换回有效 GLM 配置），`sudo systemctl restart error-learn-api`，并用 `journalctl -u error-learn-api -n 50 --no-pager` 确认上游调用正常。
+
+---
+
+## fix-20261110-生产识别失败根因（模型名在第三方代理不存在）
+
+- **编号**：fix-20261110-生产识别失败根因
+- **日期**：2026-11-10
+- **背景**：上一轮错误映射修复后，用户反馈**体验版与真机仍固定报「识别失败，请重试或手动输入」**，并怀疑 `AI_ENABLED=false` 或模型欠费。
+- **排查结论（均在生产服务器 `47.96.160.201` 只读实测）**：
+  1. `AI_ENABLED` 与识别无关：仅被 [config.py](file:///d:/Users/weij/ai-error-learn/server/app/config.py#L44) 解析为 `ai_enabled`，全仓库无任何引用。
+  2. **不是欠费**：用生产 Key 调 `qwen3-vl-plus` 返回 200（0.6s），调智谱 `glm-4v-flash` 返回 200（0.6s）。
+  3. 生产 `.env` 实际为 `VISION_BASE_URL=https://maas.qianwenaiapi.com/compatible-mode/v1` + `VISION_MODEL=qwen-vl-flash`；实测返回 **HTTP 404 `{"message":"Model not exist.","code":"model_not_found"}`**。该代理 `GET /models` 共 182 个模型，视觉类仅 `qwen3-vl-plus`、`qwen-vl-ocr`、`qwen-vl-ocr-2025-11-20`，**不存在 `qwen-vl-flash`**。
+  4. 生产代码为 2026-10-15 版本（`/opt/error-learn` 非 git 仓库），缺少上一轮的错误细分与上游日志，因此失败原因一直被兜底成 1002。
+  5. 本地 `8000` 端口排查时未监听，真机 dev 预览因此失败；本地 `glm-4v-flash` 直调与 `VisionClient` 均正常（约 2.7s）。
+- **变更摘要**：
+  ① 生产 `.env` 切换为智谱免费模型：`VISION_BASE_URL=https://open.bigmodel.cn/api/paas/v4`、`VISION_MODEL=glm-4v-flash`，原文件备份为 `.env.bak-20261110`；
+  ② 同步 `vision_recognize.py`（错误细分 + 上游 status/body 日志）与 `main.py`（启动视觉配置告警）到生产，远端备份 `*.bak-20261110`，重启 `error-learn-api`；
+  ③ 更新 `deploy/env.production.example` 与 `.trae/documents/部署教程.md`：补充三种模型方案、代理模型目录核对命令与 `journalctl | grep vision` 排查指引。
+- **影响模块**：生产 `server/.env`、`app/main.py`、`app/services/vision_recognize.py`；仓库 `deploy/env.production.example`、`.trae/documents/部署教程.md`。
+- **关联文档路径**：`.trae/documents/生产识别失败修复-GLM模型切换.md`、`.trae/todolist/生产识别失败修复-GLM模型切换.md`
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - `systemctl is-active error-learn-api` → `active`；`/api/v1/health` → `{"status":"ok"}`；
+  - 端到端验证：用库中真实用户签发临时 token，`POST /api/v1/recognize` → **HTTP 200** `{"code":0,"text":"","answer":"","splitMethod":"none","wordsCount":0}`（纯白测试图，空文本符合预期）；
+  - `journalctl` 中 `POST /api/v1/recognize` 200，无 `vision upstream` warning。
+- **回滚方式**：还原 `/opt/error-learn/server/.env.bak-20261110`、`app/main.py.bak-20261110`、`app/services/vision_recognize.py.bak-20261110` 后 `systemctl restart error-learn-api`。
+- **待办**：用户用**体验版真机**拍照复测；本地真机预览前先 `npm run server` 并确认同 WiFi + 关闭域名校验。
+
+---

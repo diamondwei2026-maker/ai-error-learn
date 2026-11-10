@@ -61,6 +61,10 @@ export const recognitionService = {
       }
       // 2001/2002：识别接口要求登录后使用
       const needLogin = body.code === 2001 || body.code === 2002
+      console.warn('[recognitionService] business failure', {
+        statusCode: res.statusCode,
+        body,
+      })
       return {
         ok: false,
         text: '',
@@ -72,8 +76,15 @@ export const recognitionService = {
           : body.message || RECOGNIZE_ERROR_MESSAGES[body.code] || '识别失败，请手动输入',
       }
     } catch (error) {
-      console.error('[recognitionService] recognize failed', error)
-      return { ok: false, text: '', answer: '', splitMethod: 'none', wordsCount: 0, message: '识别失败，请手动输入' }
+      console.error('[recognitionService] upload failed', error)
+      return {
+        ok: false,
+        text: '',
+        answer: '',
+        splitMethod: 'none',
+        wordsCount: 0,
+        message: '识别服务连接失败，请检查网络或稍后重试',
+      }
     }
   },
 }

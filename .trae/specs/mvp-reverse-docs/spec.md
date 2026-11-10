@@ -559,7 +559,7 @@ storageRepo.saveMeta(meta: AppMeta): void
 | `VISION_ENABLED` | `false` | 是否启用识别（`is_configured` 需 enabled + key + base_url） |
 | `VISION_API_KEY` | `""` | 视觉模型密钥（`repr=False`，不入日志） |
 | `VISION_BASE_URL` | `https://open.bigmodel.cn/api/paas/v4` | OpenAI 兼容端点 |
-| `VISION_MODEL` | `glm-4v-flash` | 模型名（上线可切 `qwen-vl-flash`） |
+| `VISION_MODEL` | `glm-4v-flash` | 模型名（上线可切 `qwen3-vl-flash`） |
 | `VISION_TIMEOUT` | `20` | 请求超时（秒） |
 | `VISION_MAX_IMAGE_BYTES` | `10485760`（10MB） | 单图二进制上限 |
 | `AI_ENABLED` | `false` | AI 开关（解析后当前未使用） |

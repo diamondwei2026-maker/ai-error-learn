@@ -6,6 +6,7 @@
 import base64
 import json
 
+import httpx
 import pytest
 
 from app.services.vision_recognize import (
@@ -186,6 +187,40 @@ def test_server_error_500_maps_to_1002(monkeypatch):
     with pytest.raises(RecognizeError) as excinfo:
         _client().recognize(b"img", "image/jpeg")
     assert excinfo.value.code == CODE_RECOGNIZE_FAILED
+
+
+def test_invalid_model_400_maps_to_1005(monkeypatch):
+    # 复刻百炼/智谱对「模型名不存在」的返回：400 + error.message
+    body = '{"error": {"message": "model qwen-vl-flash not found"}}'
+    monkeypatch.setattr(
+        "httpx.post",
+        lambda *a, **k: _FakeResponse(
+            400, {"error": {"message": "model not found"}}, body
+        ),
+    )
+    with pytest.raises(RecognizeError) as excinfo:
+        _client().recognize(b"img", "image/jpeg")
+    assert excinfo.value.code == CODE_SERVICE_UNAVAILABLE
+    assert "VISION_MODEL" in excinfo.value.message
+
+
+def test_server_error_503_message_is_explicit(monkeypatch):
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(503, {}, "busy"))
+    with pytest.raises(RecognizeError) as excinfo:
+        _client().recognize(b"img", "image/jpeg")
+    assert excinfo.value.code == CODE_RECOGNIZE_FAILED
+    assert excinfo.value.message == "识别服务暂时不可用，请稍后重试"
+
+
+def test_timeout_maps_to_1002_with_explicit_message(monkeypatch):
+    def boom(*a, **k):
+        raise httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr("httpx.post", boom)
+    with pytest.raises(RecognizeError) as excinfo:
+        _client().recognize(b"img", "image/jpeg")
+    assert excinfo.value.code == CODE_RECOGNIZE_FAILED
+    assert excinfo.value.message == "识别超时，请重试"
 
 
 def test_network_exception_maps_to_1002(monkeypatch):

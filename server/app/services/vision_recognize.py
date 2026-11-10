@@ -11,11 +11,16 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple
 
+import httpx
+
 from app.utils.text_clean import clean_text
+
+logger = logging.getLogger(__name__)
 
 # 业务错误码（沿用原数值，前端文案无需改码）
 CODE_RECOGNIZE_FAILED = 1002
@@ -108,6 +113,18 @@ def _map_to_error(exc: Any) -> RecognizeError:
         return RecognizeError(
             CODE_SERVICE_UNAVAILABLE, "识别服务未开通或无权限，请检查密钥配置"
         )
+    if status in (400, 404, 422):
+        # 模型名不存在 / 请求参数不被上游接受：属配置类错误，明确指向 VISION_MODEL
+        return RecognizeError(
+            CODE_SERVICE_UNAVAILABLE, "识别模型不可用，请检查 VISION_MODEL 配置"
+        )
+    if isinstance(status, int) and 500 <= status < 600:
+        return RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务暂时不可用，请稍后重试")
+
+    if isinstance(exc, httpx.TimeoutException):
+        return RecognizeError(CODE_RECOGNIZE_FAILED, "识别超时，请重试")
+    if isinstance(exc, httpx.TransportError):
+        return RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务连接失败，请检查网络")
 
     message = str(getattr(exc, "message", "") or getattr(exc, "text", "") or exc)
     haystack = message.lower()
@@ -150,8 +167,6 @@ class VisionClient:
         if not image_bytes:
             raise RecognizeError(CODE_RECOGNIZE_FAILED, "图片为空，请重新拍摄或选择")
 
-        import httpx
-
         mime = mime_type if mime_type.startswith("image/") else _DEFAULT_MIME
         data_url = f"data:{mime};base64,{base64.b64encode(image_bytes).decode('ascii')}"
         url = f"{self._base_url}/chat/completions"
@@ -177,9 +192,17 @@ class VisionClient:
                 url, json=payload, headers=headers, timeout=self._timeout
             )
         except Exception as exc:  # noqa: BLE001 - 网络异常统一映射
+            logger.warning(
+                "vision upstream exception: %s: %s", type(exc).__name__, exc
+            )
             raise _map_to_error(exc) from exc
 
         if response.status_code != 200:
+            logger.warning(
+                "vision upstream non-200: status=%s body=%s",
+                response.status_code,
+                (getattr(response, "text", "") or "")[:300],
+            )
             raise _map_to_error(response)
 
         try:
