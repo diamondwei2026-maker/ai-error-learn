@@ -22,6 +22,7 @@ class QuestionSync(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     item_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    content_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     answer: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[int] = mapped_column(BigInteger, nullable=False)

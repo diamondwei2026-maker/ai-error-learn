@@ -6,6 +6,7 @@ import classnames from "classnames";
 import ActionSheet from "@/components/ActionSheet";
 import AppButton from "@/components/AppButton";
 import Chip from "@/components/Chip";
+import DuplicateWarning from "@/components/DuplicateWarning";
 import Icon from "@/components/Icon";
 import Mascot from "@/components/Mascot";
 import NavBar from "@/components/NavBar";
@@ -24,7 +25,9 @@ import { fileRepo } from "@/services/repo/fileRepo";
 import { securityService } from "@/services/securityService";
 import { useQuestionStore } from "@/store/questionStore";
 import { useUserStore } from "@/store/userStore";
+import type { Question } from "@/types/question";
 import { getPageMinHeight } from "@/utils/layout";
+import { computeContentHash } from "@/utils/textHash";
 
 import styles from "./index.module.scss";
 
@@ -52,6 +55,10 @@ const EditPage = () => {
   const [saved, setSaved] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [contentFocused, setContentFocused] = useState(false);
+  const [duplicates, setDuplicates] = useState<Question[]>([]);
+  const [duplicateVisible, setDuplicateVisible] = useState(false);
+  /** 命中重复后是否跳过检查直接保存 */
+  const [saveAnyway, setSaveAnyway] = useState(false);
 
   const startedRef = useRef("");
   const refreshStore = useQuestionStore((state) => state.refresh);
@@ -112,6 +119,23 @@ const EditPage = () => {
     if (!trimmed || saved) return;
     setSaved(true);
 
+    // 前置：题目去重检测（用户未选"仍然保存"时才检查）
+    if (!saveAnyway) {
+      try {
+        const hash = await computeContentHash(trimmed);
+        const found = questionService.findDuplicates(hash);
+        if (found.length > 0) {
+          setDuplicates(found);
+          setDuplicateVisible(true);
+          setSaved(false);
+          return; // 等用户在弹窗中选择
+        }
+      } catch (error) {
+        console.warn("[edit] content hash check skipped", error);
+        // 哈希计算失败 → 降级放行，不阻塞保存
+      }
+    }
+
     // 保存前内容安全预检（仅登录态；未登录时内容不会上云，跳过）
     if (isLoggedIn) {
       try {
@@ -137,6 +161,8 @@ const EditPage = () => {
         tempImagePath: tempPath || undefined,
       });
       refreshStore();
+      // 重置 saveAnyway 标记
+      setSaveAnyway(false);
       console.info("[edit] question saved");
       setTimeout(() => {
         Taro.switchTab({ url: "/pages/library/index" });
@@ -146,6 +172,28 @@ const EditPage = () => {
       setSaved(false);
       Taro.showToast({ title: "保存失败，请重试", icon: "none" });
     }
+  };
+
+  /** 去重弹窗三按钮回调 */
+  const handleDuplicateView = (_question: Question) => {
+    setDuplicateVisible(false);
+    // 跳转到题库列表页（小程序端暂无详情页定位能力）
+    setSaveAnyway(false);
+    void Taro.switchTab({ url: "/pages/library/index" });
+  };
+
+  const handleDuplicateSaveAnyway = () => {
+    setDuplicateVisible(false);
+    setSaveAnyway(true);
+    // 重新触发保存（这次跳过去重检查）
+    void handleSave();
+  };
+
+  const handleDuplicateCancel = () => {
+    setDuplicateVisible(false);
+    setDuplicates([]);
+    setSaved(false);
+    setSaveAnyway(false);
   };
 
   useEffect(() => {
@@ -344,6 +392,14 @@ const EditPage = () => {
         ]}
         onSelect={(key) => handleRetake(key === "camera" ? "camera" : "album")}
         onCancel={() => setSheetVisible(false)}
+      />
+
+      <DuplicateWarning
+        visible={duplicateVisible}
+        duplicates={duplicates}
+        onView={handleDuplicateView}
+        onSaveAnyway={handleDuplicateSaveAnyway}
+        onCancel={handleDuplicateCancel}
       />
 
       <PrivacySheet />

@@ -26,6 +26,8 @@ export interface SyncItem {
   updatedAt: number
   /** 逻辑删除标记（墓碑） */
   deleted: boolean
+  /** 标准化题干的 SHA-256（可选，兼容旧客户端） */
+  contentHash?: string
   /** 复习轮次（可选，兼容旧客户端） */
   reviewStage?: number
   /** 下次复习到期日 00:00（可选，兼容旧客户端） */

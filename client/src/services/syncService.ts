@@ -33,6 +33,7 @@ function questionToItem(question: Question): SyncItem {
     createdAt: question.createdAt,
     updatedAt: question.updatedAt,
     deleted: false,
+    contentHash: question.contentHash,
     reviewStage: question.reviewStage,
     nextReviewAt: question.nextReviewAt,
     lastReviewedAt: question.lastReviewedAt,
@@ -105,6 +106,7 @@ function mergeRemoteItems(items: SyncItem[]): void {
         answer: remote.answer,
         createdAt: remote.createdAt,
         updatedAt: remote.updatedAt,
+        contentHash: remote.contentHash,
         ...pickSchedule(remote),
       });
       changed = true;
@@ -116,6 +118,7 @@ function mergeRemoteItems(items: SyncItem[]): void {
         ...local,
         content: remote.content,
         answer: remote.answer,
+        contentHash: remote.contentHash ?? local.contentHash,
         updatedAt: remote.updatedAt,
         ...pickSchedule(remote),
       });

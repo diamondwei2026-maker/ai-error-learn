@@ -21,6 +21,18 @@ function App(props: PropsWithChildren<Record<string, never>>) {
       console.error("[App] backfill schedule failed", error);
     }
 
+    // 存量题目回填 contentHash（去重用）
+    void (async () => {
+      try {
+        const backfilled = await questionService.backfillContentHash();
+        if (backfilled > 0) {
+          console.info("[App] content hash backfilled =", backfilled);
+        }
+      } catch (error) {
+        console.error("[App] backfill content hash failed", error);
+      }
+    })();
+
     // 启动时清理无主图片文件（对比 q:list 中的 imagePath 与文件系统实际文件）
     try {
       const validPaths = storageRepo

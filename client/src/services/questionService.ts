@@ -1,5 +1,6 @@
 import { PAGE_SIZE, SCHEMA_VERSION } from '@/constants'
 import { createId } from '@/utils/id'
+import { computeContentHash } from '@/utils/textHash'
 import {
   calcNextReview,
   initSchedule,
@@ -44,7 +45,7 @@ function fisherYates<T>(input: T[]): T[] {
  * 仅通过 repo 层访问存储，页面不直接操作 Storage。
  */
 export const questionService = {
-  /** 新建错题：先落图片，再写列表与元数据 */
+  /** 新建错题：先落图片，再写列表与元数据（含 contentHash） */
   async create(input: CreateQuestionInput): Promise<Question> {
     const id = createId()
     let imagePath: string | undefined
@@ -57,10 +58,13 @@ export const questionService = {
     }
 
     const now = Date.now()
+    const content = input.content.trim()
+    const contentHash = await computeContentHash(content)
     const question: Question = {
       id,
-      content: input.content.trim(),
+      content,
       answer: (input.answer || '').trim(),
+      contentHash: contentHash || undefined,
       imagePath,
       imageSize: imageSize || undefined,
       createdAt: now,
@@ -159,6 +163,38 @@ export const questionService = {
 
   count(): number {
     return storageRepo.listQuestions().length
+  },
+
+  /** 查找 contentHash 匹配的所有已有题目（排除自身 hash 为空的情况） */
+  findDuplicates(contentHash: string): Question[] {
+    if (!contentHash) return []
+    return storageRepo
+      .listQuestions()
+      .filter((q) => q.contentHash === contentHash)
+  },
+
+  /** 存量题目批量回填 contentHash（仅对缺失的题计算，返回回填数量） */
+  async backfillContentHash(): Promise<number> {
+    const list = storageRepo.listQuestions()
+    let changed = 0
+    const nextList: Question[] = []
+
+    for (const item of list) {
+      if (item.contentHash) {
+        nextList.push(item)
+      } else {
+        const hash = await computeContentHash(item.content)
+        if (hash) {
+          nextList.push({ ...item, contentHash: hash })
+          changed += 1
+        } else {
+          nextList.push(item)
+        }
+      }
+    }
+
+    if (changed > 0) storageRepo.saveQuestions(nextList)
+    return changed
   },
 
   /** 今日到期（含逾期）题数 */

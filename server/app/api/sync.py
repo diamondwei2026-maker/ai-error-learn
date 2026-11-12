@@ -25,6 +25,8 @@ from app.utils.response import ok
 _REQUIRED_KEYS = ("id", "content", "answer", "createdAt", "updatedAt", "deleted")
 # 复习排期为可选字段：旧客户端不带，服务端保留库内值
 _OPTIONAL_INT_KEYS = ("reviewStage", "nextReviewAt", "lastReviewedAt")
+# 内容哈希为可选字段：旧客户端不带，服务端保留库内值
+_OPTIONAL_STR_KEYS = ("contentHash",)
 
 
 def _is_int(value: Any) -> bool:
@@ -64,6 +66,9 @@ def _validate_item(raw: Any) -> Dict[str, Any]:
     for key in _OPTIONAL_INT_KEYS:
         if key in raw and raw[key] is not None and not _is_int(raw[key]):
             raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
+    for key in _OPTIONAL_STR_KEYS:
+        if key in raw and raw[key] is not None and not isinstance(raw[key], str):
+            raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
     return raw
 
 
@@ -75,10 +80,17 @@ def _serialize(row: QuestionSync) -> Dict[str, Any]:
         "createdAt": row.created_at,
         "updatedAt": row.updated_at,
         "deleted": bool(row.deleted),
+        "contentHash": row.content_hash,
         "reviewStage": row.review_stage,
         "nextReviewAt": row.next_review_at,
         "lastReviewedAt": row.last_reviewed_at,
     }
+
+
+def _apply_content_hash(row: QuestionSync, raw: Dict[str, Any]) -> None:
+    """仅在请求显式携带 contentHash 时覆盖。"""
+    if "contentHash" in raw:
+        row.content_hash = raw["contentHash"] or None
 
 
 def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
@@ -132,6 +144,7 @@ def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
                     synced_at=server_time,
                 )
                 _apply_schedule(row, item)
+                _apply_content_hash(row, item)
                 db.add(row)
             else:
                 if newer:
@@ -144,7 +157,8 @@ def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
                 # 排期字段独立合并：显式携带即覆盖，缺失则保留库内值
                 if _has_schedule(item):
                     _apply_schedule(row, item)
-                if newer or _has_schedule(item):
+                _apply_content_hash(row, item)
+                if newer or _has_schedule(item) or "contentHash" in item:
                     row.synced_at = server_time
             accepted.append(item["id"])
 

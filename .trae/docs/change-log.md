@@ -796,3 +796,26 @@
 
 ---
 
+## incr-20261112-识题去重（题目精确哈希匹配 + 温和提醒）
+
+- **编号**：incr-20261112-识题去重
+- **日期**：2026-11-12
+- **背景**：识题→入库链路完全没有去重能力，用户对同一道题拍两次照会得到两条独立错题记录。经深度调研（讯飞专利、刷刷题、MinHash/SimHash/Embedding 技术选型），决定 MVP 阶段采用"精确哈希匹配 + 温和提醒"方案。
+- **变更摘要**：
+  ① **客户端去重基座**：`Question` / `SyncItem` 新增可选 `contentHash` 字段；`SCHEMA_VERSION` 升为 3；新增 `utils/textHash.ts`（NFKC 标准化 → 合并空白/换行 → Web Crypto SHA-256）；`questionService.create()` 自动计算并写入哈希，新增 `findDuplicates()` 精确匹配与 `backfillContentHash()` 存量回填；App 启动时自动回填存量题目哈希。
+  ② **同步协议扩展**：`syncService.questionToItem` 与 `mergeRemoteItems` 传播 `contentHash`；服务端 `sync.py` 新增可选字符串字段校验 + `_apply_content_hash` 独立合并（显式携带即覆盖，缺失则保留库内值）。
+  ③ **服务端表结构**：`question_sync` 幂等补 `content_hash VARCHAR(64) NULL` 列 + `(user_id, content_hash)` 复合索引；迁移复用既有 `ensure_*` 函数模式。
+  ④ **交互提醒**：新增三按钮 `DuplicateWarning` 弹窗（查看已录入 / 仍然保存 / 取消），展示已录入题干预览 + 创建时间 + 重复条数；编辑页保存前先算哈希→查本地→命中弹提醒→三路分支（跳过仍存=不再检查）；保存/编辑/识别/同步回归无阻断。
+- **影响模块**：
+  - 客户端（`client/src/`）：`types/question.ts`、`types/user.ts`、`constants/index.ts`、`utils/textHash.ts`（新）、`services/questionService.ts`、`services/syncService.ts`、`pages/edit/index.tsx`、`app.tsx`、`components/DuplicateWarning/*`（新）
+  - 服务端（`server/`）：`models/question_sync.py`、`db/migrations.py`、`db/session.py`、`api/sync.py`
+- **关联文档路径**：`.trae/docs/increments/incr-20261112-识题去重/`（方案.md、tasks.md）、`.trae/todolist/识题模块-题目去重与多解法研究.md`
+- **是否待合并主 spec**：**否**（普通轻量增量，**未修改** `.trae/specs/mvp-reverse-docs/`）
+- **验证结果**：
+  - 后端：`server/.venv/Scripts/python.exe -m pytest -q` → **138 passed**（无回归）；
+  - 前端：`npm run build:weapp` → **exit 0 / 构建成功**（仅既有 `mini-css-extract-plugin Conflicting order` 告警）；
+  - 构建修复过程：初版 `computeContentHashSync` 含 `require('crypto')` 导致 webpack error-level 告警，移除后仅保留 Web Crypto API 异步版本即通过。
+- **回滚方式**：客户端还原新增组件 + 4 处修改文件（`types/*`、`constants/*`、`services/*`、`app.tsx`、`pages/edit/*`、`utils/textHash.ts`）并重建；服务端 `question_sync` 新增列为可空列 + `content_hash` 字段为可选校验——**不回滚不影响既有同步**，重建服务即可恢复旧行为；无需回滚数据库（新列可空不影响旧数据）。
+- **演进路径**：① 题库 > 500 题或精确哈希漏查率 > 10% → 升级为 embedding + 向量索引双路检查（仍温和提醒）；② 用户明确反馈"一题多解"需求 → 新增 `problem_core` 表做题目关联 + `solutionNote` 自定义解法标签；③ 事后清理 → 题库页加"按 contentHash 分组批量删除"入口。
+
+---

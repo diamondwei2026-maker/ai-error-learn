@@ -16,7 +16,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 /** 当前数据结构版本 */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** 题库列表分页大小 */
 export const PAGE_SIZE = 10;
