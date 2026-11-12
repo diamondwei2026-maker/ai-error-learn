@@ -11,13 +11,22 @@ export const STORAGE_KEYS = {
   syncCursor: "q:syncCursor",
   /** 是否已引导过「首次登录完善资料」 */
   nickPrompted: "u:nickPrompted",
+  /** 复习提醒开关本地镜像 */
+  reminderOn: "u:reminderOn",
 } as const;
 
 /** 当前数据结构版本 */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** 题库列表分页大小 */
 export const PAGE_SIZE = 10;
+
+/**
+ * 学习提醒（复习提醒）总开关。
+ * 当前阶段关闭：隐藏首页待复习卡片、刷题 tab 角标与微信订阅提醒入口；
+ * 复习排期与刷题流程不受影响。恢复时改为 true。
+ */
+export const REVIEW_REMINDER_ENABLED = false;
 
 /**
  * 后端服务基地址（识别与账号体系共用同一服务）。

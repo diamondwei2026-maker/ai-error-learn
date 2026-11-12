@@ -25,6 +25,13 @@ DEFAULT_DATABASE_URL = "sqlite:///./app.db"
 DEFAULT_AVATAR_MAX_BYTES = 2 * 1024 * 1024
 # 微信内容安全
 DEFAULT_CONTENT_SECURITY_TIMEOUT = 10
+# 复习提醒（一次性订阅消息）
+DEFAULT_REMINDER_HOUR = 20
+DEFAULT_REMINDER_TIMEZONE = "Asia/Shanghai"
+DEFAULT_REMINDER_MAX_QUOTA = 5
+DEFAULT_REMINDER_QUIET_START = 21
+DEFAULT_REMINDER_QUIET_END = 8
+DEFAULT_REMINDER_PAGE = "pages/quiz/index"
 
 
 @dataclass(frozen=True)
@@ -68,6 +75,16 @@ class Settings:
     # 消息推送验签 Token（与 MP 后台「消息推送」配置一致）
     wechat_callback_token: str = field(default="", repr=False)
 
+    # 复习提醒（微信一次性订阅消息）：模板 ID 缺失时整体关闭，客户端降级为站内提醒
+    reminder_enabled: bool = False
+    reminder_template_id: str = ""
+    reminder_page: str = DEFAULT_REMINDER_PAGE
+    reminder_hour: int = DEFAULT_REMINDER_HOUR
+    reminder_timezone: str = DEFAULT_REMINDER_TIMEZONE
+    reminder_max_quota: int = DEFAULT_REMINDER_MAX_QUOTA
+    reminder_quiet_start: int = DEFAULT_REMINDER_QUIET_START
+    reminder_quiet_end: int = DEFAULT_REMINDER_QUIET_END
+
     # 静态资源根目录；为空时使用 server/uploads（测试可覆盖）
     uploads_root: str = ""
 
@@ -90,6 +107,13 @@ class Settings:
     def media_check_ready(self) -> bool:
         """图片异步送检是否可用（需内容安全可用且有公网基地址）。"""
         return bool(self.content_security_ready and self.public_base_url)
+
+    @property
+    def reminder_ready(self) -> bool:
+        """复习提醒是否可用（开关打开 + 模板 ID + 微信密钥齐全）。"""
+        return bool(
+            self.reminder_enabled and self.reminder_template_id and self.wechat_configured
+        )
 
     @property
     def cors_origin_list(self) -> List[str]:
@@ -174,6 +198,21 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
         ),
         public_base_url=(source.get("PUBLIC_BASE_URL", "") or "").rstrip("/"),
         wechat_callback_token=source.get("WECHAT_CALLBACK_TOKEN", "") or "",
+        reminder_enabled=_parse_bool(source.get("REMINDER_ENABLED"), False),
+        reminder_template_id=source.get("REMINDER_TEMPLATE_ID", "") or "",
+        reminder_page=source.get("REMINDER_PAGE", DEFAULT_REMINDER_PAGE) or DEFAULT_REMINDER_PAGE,
+        reminder_hour=_parse_int(source.get("REMINDER_HOUR"), DEFAULT_REMINDER_HOUR),
+        reminder_timezone=source.get("REMINDER_TIMEZONE", DEFAULT_REMINDER_TIMEZONE)
+        or DEFAULT_REMINDER_TIMEZONE,
+        reminder_max_quota=_parse_int(
+            source.get("REMINDER_MAX_QUOTA"), DEFAULT_REMINDER_MAX_QUOTA
+        ),
+        reminder_quiet_start=_parse_int(
+            source.get("REMINDER_QUIET_START"), DEFAULT_REMINDER_QUIET_START
+        ),
+        reminder_quiet_end=_parse_int(
+            source.get("REMINDER_QUIET_END"), DEFAULT_REMINDER_QUIET_END
+        ),
         uploads_root=source.get("UPLOADS_DIR", "") or "",
     )
 

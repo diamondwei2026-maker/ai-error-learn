@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from sqlalchemy import BigInteger, Boolean, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,3 +28,7 @@ class QuestionSync(Base):
     updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
     deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     synced_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # 复习排期（可空：旧客户端上行不带这些字段时保留库内值）
+    review_stage: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    next_review_at: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    last_reviewed_at: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)

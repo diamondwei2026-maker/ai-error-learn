@@ -1,0 +1,1814 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>复习提醒 · 视觉原型</title>
+    <style>
+      /* ============================================================
+        增量原型 · 阶段二：视觉（High-fidelity）
+        结构来源：prototype/skeleton/复习提醒-骨架.html（DOM 结构与嵌套保持一致）
+        视觉来源：client/src/styles/theme.scss + variables.scss + 现有页面 SCSS
+        · 主色 #07C160 / 深绿文字 #056B36 / 页面底色 #FAFBFD
+        · 卡片 16px 圆角 + 1rpx 描边 rgba(17,24,39,.07) + 柔浮起阴影
+        · 按钮全圆角胶囊，主按钮 50px 高（此处按 375 宽等比呈现）
+        · 本文件仅表达视觉细节，不改动骨架已确认的信息架构
+        ============================================================ */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        /* 品牌色 */
+        --green: #07c160;
+        --green-deep: #06ad56;
+        --green-ink: #056b36;
+        --green-soft: #f0fbf5;
+        --green-strong: #e4f8ee;
+        /* 功能色 */
+        --blue: #12a8f0;
+        --blue-ink: #0a6ba8;
+        --blue-soft: #eff8fe;
+        --orange: #f5943c;
+        --orange-ink: #96530e;
+        --orange-soft: #fff7ee;
+        --red: #f5514e;
+        --red-ink: #be322f;
+        --red-soft: #fff1f0;
+        /* 文本 / 线条 / 底色 */
+        --ink: #1f2937;
+        --ink-2: #4b5563;
+        --ink-3: #6b7280;
+        --line: rgba(17, 24, 39, 0.07);
+        --line-2: rgba(17, 24, 39, 0.04);
+        --page: #fafbfd;
+        --card: #ffffff;
+        /* 圆角 / 阴影 */
+        --r-s: 8px;
+        --r-m: 12px;
+        --r-l: 16px;
+        --r-pill: 999px;
+        --elev: 0 1px 2px rgba(17, 24, 39, 0.03),
+          0 10px 24px -16px rgba(17, 24, 39, 0.12);
+        --elev-strong: 0 10px 30px -12px rgba(17, 24, 39, 0.16);
+        --font: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Source Han Sans SC",
+          "Noto Sans SC", "Microsoft YaHei UI", "Microsoft YaHei", system-ui,
+          -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      body {
+        font-family: var(--font);
+        color: var(--ink);
+        background: #f5f7fa;
+        background-image: radial-gradient(
+          rgba(15, 23, 42, 0.045) 1.2px,
+          transparent 1.2px
+        );
+        background-size: 28px 28px;
+        -webkit-font-smoothing: antialiased;
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ============ 原型外壳 ============ */
+      .shell-header {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 48px 44px 8px;
+      }
+      .shell-title {
+        font-size: 27px;
+        font-weight: 600;
+      }
+      .shell-sub {
+        margin-top: 8px;
+        max-width: 980px;
+        font-size: 13.5px;
+        line-height: 1.85;
+        color: var(--ink-2);
+      }
+      .shell-tabs {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+      }
+      .shell-tabs a {
+        font-size: 12.5px;
+        padding: 6px 12px;
+        border-radius: var(--r-pill);
+        background: #fff;
+        border: 1px solid var(--line);
+        color: var(--ink-2);
+        text-decoration: none;
+        transition: color 0.16s ease, border-color 0.16s ease;
+      }
+      .shell-tabs a:hover {
+        color: var(--green-ink);
+        border-color: rgba(7, 193, 96, 0.3);
+      }
+      .shell-tabs a.cur {
+        border-color: rgba(7, 193, 96, 0.35);
+        background: var(--green-soft);
+        color: var(--green-ink);
+        font-weight: 600;
+      }
+
+      .proto-grid {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 44px 44px 90px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(375px, 1fr));
+        gap: 84px 60px;
+        justify-items: center;
+      }
+      .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+      }
+      .cell-head {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .cell-no {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: var(--green-ink);
+        background: var(--green-soft);
+        border: 1px solid rgba(7, 193, 96, 0.22);
+        border-radius: var(--r-pill);
+        padding: 4px 11px;
+      }
+      .cell-name {
+        font-size: 17px;
+        font-weight: 600;
+        color: #111827;
+      }
+      .cell-route {
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+
+      /* ============ 手机框 ============ */
+      .phone {
+        position: relative;
+        width: 375px;
+        height: 812px;
+        border-radius: 46px;
+        background: var(--page);
+        overflow: hidden;
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 0 0 10px #fff, 0 0 0 11.5px #e6eaef,
+          0 30px 60px -24px rgba(15, 23, 42, 0.18);
+      }
+      .statusbar {
+        flex: none;
+        height: 44px;
+        padding: 0 22px 0 26px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .statusbar-right {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: var(--ink);
+      }
+      .statusbar-right svg {
+        display: block;
+      }
+      .nav {
+        flex: none;
+        height: 44px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .nav-act {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 14px;
+        line-height: 1;
+        font-weight: 400;
+        color: var(--ink-3);
+      }
+      .body {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 16px 16px;
+        overflow: hidden;
+      }
+      .body--tab {
+        padding-bottom: 8px;
+      }
+
+      /* ============ 字号体系（对齐原型令牌） ============ */
+      .t-h1 {
+        font-size: 24px;
+        line-height: 34px;
+        font-weight: 600;
+      }
+      .t-title {
+        font-size: 17px;
+        line-height: 26px;
+        font-weight: 600;
+      }
+      .t-body {
+        font-size: 16px;
+        line-height: 27px;
+      }
+      .t-text {
+        font-size: 15px;
+        line-height: 23px;
+      }
+      .t-cap {
+        font-size: 13px;
+        line-height: 20px;
+      }
+      .muted {
+        color: var(--ink-2);
+      }
+      .faint {
+        color: var(--ink-3);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+      }
+      .between {
+        justify-content: space-between;
+      }
+
+      /* ============ 通用组件 ============ */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 22px;
+        padding: 0 9px;
+        border-radius: var(--r-pill);
+        font-size: 12px;
+        line-height: 16px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .chip--green {
+        color: var(--green-ink);
+        background: var(--green-soft);
+      }
+      .chip--blue {
+        color: var(--blue-ink);
+        background: var(--blue-soft);
+      }
+      .chip--orange {
+        color: var(--orange-ink);
+        background: var(--orange-soft);
+      }
+      .chip--neutral {
+        color: var(--ink-2);
+        background: rgba(17, 24, 39, 0.045);
+      }
+
+      .btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        height: 50px;
+        border-radius: var(--r-pill);
+        font-family: var(--font);
+        font-size: 17px;
+        font-weight: 600;
+        border: 0;
+        cursor: pointer;
+        transition: opacity 0.15s ease, background-color 0.15s ease;
+      }
+      .btn:active {
+        opacity: 0.9;
+      }
+      .btn--primary {
+        background: var(--green);
+        color: #fff;
+        box-shadow: 0 10px 24px -12px rgba(7, 193, 96, 0.55);
+      }
+      .btn--ghost {
+        background: var(--card);
+        color: var(--ink);
+        border: 1px solid var(--line);
+      }
+      .btn--text {
+        height: 44px;
+        background: none;
+        color: var(--ink-2);
+        font-size: 15px;
+        font-weight: 400;
+      }
+      .btn--warn {
+        background: var(--orange-soft);
+        color: var(--orange-ink);
+        border: 1px solid rgba(245, 148, 60, 0.28);
+      }
+      .btn--sm {
+        height: 42px;
+        font-size: 15px;
+      }
+
+      /* ============ 首页 ============ */
+      .hero {
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 2px 14px;
+      }
+      .hero-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .slogan {
+        display: block;
+        font-size: 22px;
+        line-height: 30px;
+        font-weight: 600;
+      }
+      .slogan-accent {
+        color: var(--green-ink);
+      }
+      .hero-mascot {
+        flex: none;
+        width: 88px;
+        height: 88px;
+        margin-left: 8px;
+      }
+
+      .card {
+        flex: none;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--r-l);
+        box-shadow: var(--elev);
+      }
+      .due-card {
+        padding: 14px;
+      }
+      .due-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .due-round {
+        font-size: 12px;
+        color: var(--ink-3);
+      }
+      .due-count {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .due-count b {
+        font-size: 34px;
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .due-count span {
+        font-size: 15px;
+        color: var(--ink-2);
+      }
+      .due-meta {
+        margin-top: 6px;
+        font-size: 12.5px;
+        line-height: 18px;
+        color: var(--ink-3);
+      }
+      .due-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .due-actions .btn {
+        flex: 1;
+        height: 40px;
+        font-size: 15px;
+      }
+      .due-actions .btn--ghost {
+        flex: none;
+        width: 88px;
+      }
+      .switch-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line-2);
+      }
+      .switch-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .switch-label svg {
+        color: var(--green-ink);
+      }
+      .switch {
+        position: relative;
+        width: 42px;
+        height: 24px;
+        border-radius: var(--r-pill);
+        background: rgba(17, 24, 39, 0.12);
+        transition: background-color 0.2s ease;
+      }
+      .switch::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
+        transition: transform 0.2s ease;
+      }
+      .switch.on {
+        background: var(--green);
+      }
+      .switch.on::after {
+        transform: translateX(18px);
+      }
+
+      .stat-card {
+        margin-top: 10px;
+        padding: 14px;
+      }
+      .stat-label {
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .stat-value {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        margin-top: 4px;
+      }
+      .stat-number {
+        font-size: 32px;
+        line-height: 1;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .stat-unit {
+        font-size: 15px;
+        color: var(--ink-2);
+      }
+
+      .spacer {
+        flex: 1;
+        min-height: 16px;
+      }
+
+      .entry {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 14px;
+        border-radius: var(--r-l);
+        background: var(--card);
+        border: 1px solid var(--line);
+        box-shadow: var(--elev);
+        cursor: pointer;
+      }
+      .entry + .entry {
+        margin-top: 10px;
+      }
+      .entry--primary {
+        background: var(--green-strong);
+        border-color: rgba(7, 193, 96, 0.3);
+      }
+      .entry-ico {
+        flex: none;
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .entry-ico--green {
+        background: var(--green);
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(7, 193, 96, 0.3);
+      }
+      .entry-ico--blue {
+        background: var(--blue-soft);
+        color: var(--blue-ink);
+      }
+      .entry-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .entry-title {
+        display: block;
+        font-size: 17px;
+        line-height: 26px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .entry-title--accent {
+        color: var(--green-ink);
+      }
+      .entry-sub {
+        display: block;
+        margin-top: 2px;
+        font-size: 13px;
+        line-height: 20px;
+        color: var(--ink-2);
+      }
+      .entry-sub--accent {
+        color: var(--green-ink);
+        opacity: 0.86;
+      }
+      .entry-arrow {
+        flex: none;
+        color: var(--ink-3);
+        opacity: 0.7;
+      }
+      .entry-arrow--ink {
+        color: var(--green-ink);
+        opacity: 0.65;
+      }
+
+      /* ============ 刷题 ============ */
+      .progress-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .progress-text {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+      }
+      .progress-label,
+      .progress-total {
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .progress-index {
+        font-size: 22px;
+        line-height: 1;
+        font-weight: 600;
+        color: var(--green-ink);
+      }
+      .bar {
+        flex: none;
+        height: 7px;
+        margin-top: 12px;
+        border-radius: var(--r-pill);
+        background: rgba(17, 24, 39, 0.07);
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        width: 12.5%;
+        border-radius: var(--r-pill);
+        background: var(--green);
+      }
+      .flip-card {
+        flex: none;
+        margin-top: 16px;
+        height: 396px;
+        padding: 18px;
+        border-radius: var(--r-l);
+        background: var(--card);
+        border: 1px solid var(--line);
+        box-shadow: var(--elev);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .stem {
+        flex: 1;
+        min-height: 0;
+        margin-top: 14px;
+        font-size: 16px;
+        line-height: 27px;
+        color: var(--ink);
+      }
+      .masked {
+        flex: none;
+        height: 132px;
+        margin-top: 20px;
+        border: 1px dashed rgba(17, 24, 39, 0.14);
+        border-radius: var(--r-s);
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(17, 24, 39, 0.02) 0 8px,
+          transparent 8px 16px
+        );
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+      .masked-primary {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .masked-hint {
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+      .flip-hint {
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 16px;
+        font-size: 13px;
+        color: var(--ink-3);
+      }
+      .actions {
+        flex: none;
+        margin-top: auto;
+        padding-top: 10px;
+      }
+      .actions .btn + .btn {
+        margin-top: 4px;
+      }
+
+      .back-stem {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        margin-top: 10px;
+        font-size: 13px;
+        line-height: 20px;
+        color: var(--ink-2);
+      }
+      .divider {
+        flex: none;
+        height: 1px;
+        background: var(--line);
+        margin: 14px 0;
+      }
+      .answer-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--green-ink);
+      }
+      .answer-box {
+        flex: 1;
+        min-height: 0;
+        margin-top: 8px;
+        padding: 12px;
+        border-radius: var(--r-s);
+        background: var(--green-soft);
+        overflow: hidden;
+        font-size: 16px;
+        line-height: 27px;
+        color: var(--ink);
+      }
+      .image-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+      }
+      .image-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink-3);
+      }
+      .image-link {
+        font-size: 13px;
+        color: var(--blue-ink);
+      }
+      .image-box {
+        flex: none;
+        height: 96px;
+        margin-top: 8px;
+        border-radius: var(--r-s);
+        overflow: hidden;
+        background: #eef1f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #9aa3af;
+      }
+
+      /* 自评区 */
+      .rate {
+        flex: none;
+        margin-top: 12px;
+      }
+      .rate-q {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 15px;
+        line-height: 22px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .rate-q svg {
+        color: var(--green-ink);
+      }
+      .rate-btns {
+        display: flex;
+        gap: 10px;
+        margin-top: 10px;
+      }
+      .rate-btns .btn {
+        flex: 1;
+        height: 40px;
+        font-size: 15px;
+      }
+
+      /* ============ 完成页 ============ */
+      .done-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 16px 16px;
+      }
+      .done-main {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 4px 0 0;
+      }
+      .done-mascot {
+        width: 186px;
+        height: 152px;
+      }
+      .done-title {
+        margin-top: 10px;
+        font-size: 24px;
+        line-height: 34px;
+        font-weight: 600;
+      }
+      .done-sub {
+        margin-top: 6px;
+        font-size: 16px;
+        line-height: 26px;
+        color: var(--ink-2);
+      }
+      .stat-grid {
+        display: flex;
+        width: 100%;
+        margin-top: 18px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--r-l);
+        box-shadow: var(--elev);
+      }
+      .stat-cell {
+        flex: 1;
+        padding: 14px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .stat-cell b {
+        font-size: 26px;
+        line-height: 1;
+        font-weight: 600;
+      }
+      .stat-cell span {
+        font-size: 13px;
+        color: var(--ink-2);
+      }
+      .stat-cell + .stat-cell {
+        border-left: 1px solid var(--line);
+      }
+      .sub-card {
+        flex: none;
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: var(--r-l);
+        background: linear-gradient(180deg, var(--green-soft), #fff 88%);
+        border: 1px solid rgba(7, 193, 96, 0.2);
+        box-shadow: var(--elev);
+      }
+      .sub-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sub-ico {
+        flex: none;
+        width: 38px;
+        height: 38px;
+        border-radius: var(--r-m);
+        background: var(--green);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 16px -8px rgba(7, 193, 96, 0.5);
+      }
+      .sub-title {
+        font-size: 17px;
+        line-height: 26px;
+        font-weight: 600;
+      }
+      .sub-desc {
+        margin-top: 10px;
+        font-size: 13px;
+        line-height: 20px;
+        color: var(--ink-2);
+      }
+      .sub-card .btn {
+        margin-top: 14px;
+      }
+      .sub-note {
+        margin-top: 8px;
+        text-align: center;
+        font-size: 11px;
+        line-height: 17px;
+        color: var(--ink-3);
+      }
+      .done-actions {
+        flex: none;
+        margin-top: 10px;
+      }
+
+      /* ============ 空态 ============ */
+      .empty-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding-bottom: 40px;
+      }
+      .empty-mascot {
+        width: 204px;
+        height: 158px;
+      }
+      .empty-title {
+        margin-top: 20px;
+        font-size: 19px;
+        line-height: 28px;
+        font-weight: 600;
+      }
+      .empty-desc {
+        margin-top: 8px;
+        max-width: 230px;
+        font-size: 15px;
+        line-height: 23px;
+        color: var(--ink-2);
+      }
+      .empty-action {
+        margin-top: 24px;
+        width: 220px;
+      }
+
+      /* ============ TabBar ============ */
+      .tabbar {
+        flex: none;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.92);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        backdrop-filter: blur(20px) saturate(180%);
+        border-top: 1px solid var(--line);
+      }
+      .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        font-size: 10.5px;
+        line-height: 14px;
+        color: var(--ink-3);
+        cursor: pointer;
+      }
+      .tab.on {
+        color: var(--green-ink);
+        font-weight: 600;
+      }
+      .tab-ico {
+        position: relative;
+        width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .badge {
+        position: absolute;
+        top: -4px;
+        right: -10px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: var(--r-pill);
+        background: var(--red);
+        color: #fff;
+        font-size: 10px;
+        line-height: 16px;
+        text-align: center;
+        font-weight: 600;
+        box-shadow: 0 0 0 2px #fff;
+      }
+      .home-indicator {
+        flex: none;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+      }
+      .home-indicator i {
+        width: 120px;
+        height: 4px;
+        border-radius: var(--r-pill);
+        background: #d5dae0;
+      }
+
+      /* ============ 页面内说明（每屏下方短注） ============ */
+      .notes {
+        margin-top: 26px;
+        width: 375px;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .note {
+        display: flex;
+        gap: 8px;
+        font-size: 12.5px;
+        line-height: 1.8;
+        color: var(--ink-2);
+      }
+      .tag {
+        flex: none;
+        margin-top: 3px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 0 7px;
+        border-radius: 5px;
+        background: rgba(17, 24, 39, 0.05);
+        color: var(--ink-2);
+      }
+
+      /* ============ 底部设计说明 ============ */
+      .doc {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 0 44px 70px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 22px;
+      }
+      .doc section {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 20px;
+        box-shadow: var(--elev);
+      }
+      .doc h3 {
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      .doc p,
+      .doc li {
+        font-size: 12.5px;
+        line-height: 1.95;
+        color: var(--ink-2);
+      }
+      .doc ul,
+      .doc ol {
+        padding-left: 18px;
+      }
+      .doc a {
+        color: var(--blue-ink);
+      }
+      .token-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+        color: var(--ink-2);
+      }
+      .token-table th,
+      .token-table td {
+        text-align: left;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line-2);
+      }
+      .token-table th {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .swatch {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        border: 1px solid var(--line);
+        vertical-align: -2px;
+        margin-right: 5px;
+      }
+
+      @media (max-width: 520px) {
+        .shell-header,
+        .proto-grid,
+        .doc {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .proto-grid {
+          gap: 64px 22px;
+        }
+        .notes {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="shell-header">
+      <h1 class="shell-title">复习提醒 · 视觉原型（视觉确认用）</h1>
+      <p class="shell-sub">
+        增量：incr-20261111-复习提醒 ｜ 结构沿用已确认的骨架（首页双态卡片 / 到期队列 / 自评 / 订阅引导 / 空态），
+        视觉完全对齐现有客户端设计令牌（微信绿 #07C160、冷灰中性色、16px 圆角卡片、柔浮起阴影、胶囊按钮），
+        未引入新的品牌色或新组件形态。
+      </p>
+      <nav class="shell-tabs">
+        <a class="cur" href="#s1">01 首页 · 有到期</a>
+        <a href="#s2">02 首页 · 已完成</a>
+        <a href="#s3">03 刷题 · 到期队列</a>
+        <a href="#s4">04 刷题 · 自评</a>
+        <a href="#s5">05 本轮完成 · 订阅引导</a>
+        <a href="#s6">06 刷题 · 无到期空态</a>
+      </nav>
+    </header>
+
+    <main class="proto-grid">
+      <!-- ================= 01 首页 · 有到期题 ================= -->
+      <section class="cell" id="s1">
+        <div class="cell-head">
+          <span class="cell-no">01</span>
+          <span class="cell-name">首页 · 今日有到期</span>
+          <span class="cell-route">pages/index/index</span>
+        </div>
+        <div class="phone">
+          <div class="statusbar">
+            <span class="num">9:41</span>
+            <span class="statusbar-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true"><path d="M8 2.2c2.6 0 5 1 6.8 2.8l-1.2 1.2A8.1 8.1 0 0 0 8 3.9c-2.1 0-4.1.8-5.6 2.3L1.2 5A9.6 9.6 0 0 1 8 2.2Zm0 3.2c1.5 0 2.9.6 4 1.6l-1.2 1.2A4.3 4.3 0 0 0 8 7.2c-1.1 0-2.1.4-2.8 1.1L4 7A5.9 5.9 0 0 1 8 5.4Zm0 3.2c.5 0 1 .2 1.3.5L8 10.4 6.7 9.1c.4-.3.8-.5 1.3-.5Z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor"/><path d="M23 4v4c1-.3 1.6-.9 1.6-2S24 4.3 23 4Z" fill="currentColor" opacity="0.5"/></svg>
+            </span>
+          </div>
+          <div class="nav"><span>错题本</span></div>
+
+          <div class="body body--tab">
+            <div class="hero">
+              <div class="hero-text">
+                <span class="slogan">把每一道错题，<br />变成一次<span class="slogan-accent">进步</span></span>
+              </div>
+              <svg class="hero-mascot" viewBox="0 0 120 120" aria-hidden="true">
+                <ellipse cx="60" cy="111" rx="30" ry="5" fill="#0f172a" fill-opacity="0.07" />
+                <rect x="44" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                <rect x="65" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                <path d="M31 60c-9 2-14 7-15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                <path d="M89 60c9 2 14 7 15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                <rect x="26" y="18" width="68" height="80" rx="18" fill="#FFFFFF" stroke="#0E8F52" stroke-width="4" />
+                <rect x="34" y="34" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <rect x="34" y="50" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <rect x="34" y="66" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <rect x="34" y="82" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <path d="M74 18h15v21l-7.5-6.5L74 39z" fill="#FFC078" />
+                <circle cx="57" cy="50" r="4" fill="#22403A" />
+                <circle cx="78" cy="50" r="4" fill="#22403A" />
+                <circle cx="47" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                <circle cx="89" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                <path d="M61 63q7 6 14 0" fill="none" stroke="#22403A" stroke-width="3.2" stroke-linecap="round" />
+              </svg>
+            </div>
+
+            <!-- 新增：今日待复习卡片 -->
+            <div class="card due-card">
+              <div class="due-head">
+                <span class="chip chip--green">今日待复习</span>
+                <span class="due-round">第 1–2 轮到期</span>
+              </div>
+              <div class="due-count">
+                <b class="num">8</b>
+                <span>道错题</span>
+              </div>
+              <div class="due-meta">最早 1 天前到期 · 预计 4 分钟</div>
+              <div class="due-actions">
+                <button class="btn btn--primary btn--sm">开始复习</button>
+                <button class="btn btn--ghost btn--sm">稍后</button>
+              </div>
+              <div class="switch-line">
+                <span class="switch-label">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                  每日 20:00 微信提醒
+                </span>
+                <span class="switch on"></span>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <span class="stat-label">错题总数</span>
+              <div class="stat-value">
+                <b class="stat-number num">36</b>
+                <span class="stat-unit">道</span>
+              </div>
+            </div>
+
+            <div class="spacer"></div>
+
+            <div class="entry entry--primary">
+              <span class="entry-ico entry-ico--green">
+                <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h3l1.6-2.4A1 1 0 0 1 9.4 4h5.2a1 1 0 0 1 .8.6L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/></svg>
+              </span>
+              <span class="entry-text">
+                <span class="entry-title entry-title--accent">拍照录入</span>
+                <span class="entry-sub entry-sub--accent">拍下题目，自动识别文字</span>
+              </span>
+              <svg class="entry-arrow entry-arrow--ink" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+            <div class="entry">
+              <span class="entry-ico entry-ico--blue">
+                <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="15" rx="2.5"/><path d="M8 3h9.5A2.5 2.5 0 0 1 20 5.5V15"/><path d="M7 11h5M7 15h5"/></svg>
+              </span>
+              <span class="entry-text">
+                <span class="entry-title">开始刷题</span>
+                <span class="entry-sub">按到期顺序 · 翻面看答案</span>
+              </span>
+              <svg class="entry-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <span class="tab on">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></svg>
+              </span>
+              首页
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5"/></svg>
+              </span>
+              题库
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="13" height="17" rx="2.5"/><path d="M8 1.5h9.5A3.5 3.5 0 0 1 21 5v12"/></svg>
+                <em class="badge num">8</em>
+              </span>
+              刷题
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+              </span>
+              我的
+            </span>
+          </div>
+          <div class="home-indicator"><i></i></div>
+        </div>
+        <div class="notes">
+          <div class="note"><span class="tag">层级</span><span>到期卡片是首页唯一带主按钮的模块，视觉权重高于「错题总数」，但低于底部拍照录入主入口。</span></div>
+          <div class="note"><span class="tag">配色</span><span>主按钮用品牌绿实心；「稍后」用白底描边，避免与主行动争夺注意力。</span></div>
+        </div>
+      </section>
+
+      <!-- ================= 02 首页 · 今日已完成 ================= -->
+      <section class="cell" id="s2">
+        <div class="cell-head">
+          <span class="cell-no">02</span>
+          <span class="cell-name">首页 · 今日已完成</span>
+          <span class="cell-route">pages/index/index</span>
+        </div>
+        <div class="phone">
+          <div class="statusbar">
+            <span class="num">9:41</span>
+            <span class="statusbar-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true"><path d="M8 2.2c2.6 0 5 1 6.8 2.8l-1.2 1.2A8.1 8.1 0 0 0 8 3.9c-2.1 0-4.1.8-5.6 2.3L1.2 5A9.6 9.6 0 0 1 8 2.2Zm0 3.2c1.5 0 2.9.6 4 1.6l-1.2 1.2A4.3 4.3 0 0 0 8 7.2c-1.1 0-2.1.4-2.8 1.1L4 7A5.9 5.9 0 0 1 8 5.4Zm0 3.2c.5 0 1 .2 1.3.5L8 10.4 6.7 9.1c.4-.3.8-.5 1.3-.5Z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor"/><path d="M23 4v4c1-.3 1.6-.9 1.6-2S24 4.3 23 4Z" fill="currentColor" opacity="0.5"/></svg>
+            </span>
+          </div>
+          <div class="nav"><span>错题本</span></div>
+
+          <div class="body body--tab">
+            <div class="hero">
+              <div class="hero-text">
+                <span class="slogan">把每一道错题，<br />变成一次<span class="slogan-accent">进步</span></span>
+              </div>
+              <svg class="hero-mascot" viewBox="0 0 120 120" aria-hidden="true">
+                <ellipse cx="60" cy="111" rx="30" ry="5" fill="#0f172a" fill-opacity="0.07" />
+                <rect x="44" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                <rect x="65" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                <path d="M31 60c-9 2-14 7-15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                <path d="M89 60c9 2 14 7 15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                <rect x="26" y="18" width="68" height="80" rx="18" fill="#FFFFFF" stroke="#0E8F52" stroke-width="4" />
+                <rect x="34" y="34" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <rect x="34" y="50" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <rect x="34" y="66" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <rect x="34" y="82" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                <path d="M74 18h15v21l-7.5-6.5L74 39z" fill="#FFC078" />
+                <circle cx="57" cy="50" r="4" fill="#22403A" />
+                <circle cx="78" cy="50" r="4" fill="#22403A" />
+                <circle cx="47" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                <circle cx="89" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                <path d="M61 63q7 6 14 0" fill="none" stroke="#22403A" stroke-width="3.2" stroke-linecap="round" />
+              </svg>
+            </div>
+
+            <!-- 完成态卡片：同位置替换，不新增第二个模块 -->
+            <div class="card due-card">
+              <div class="due-head">
+                <span class="chip chip--neutral">今日复习</span>
+                <span class="due-round">已完成</span>
+              </div>
+              <div class="due-count">
+                <b class="num">8</b>
+                <span>道已复习完</span>
+              </div>
+              <div class="due-meta">下次到期：明天 · 共 5 道</div>
+              <div class="switch-line">
+                <span class="switch-label">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                  每日 20:00 微信提醒
+                </span>
+                <span class="switch"></span>
+              </div>
+            </div>
+
+            <div class="card stat-card">
+              <span class="stat-label">错题总数</span>
+              <div class="stat-value">
+                <b class="stat-number num">36</b>
+                <span class="stat-unit">道</span>
+              </div>
+            </div>
+
+            <div class="spacer"></div>
+
+            <div class="entry entry--primary">
+              <span class="entry-ico entry-ico--green">
+                <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h3l1.6-2.4A1 1 0 0 1 9.4 4h5.2a1 1 0 0 1 .8.6L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/></svg>
+              </span>
+              <span class="entry-text">
+                <span class="entry-title entry-title--accent">拍照录入</span>
+                <span class="entry-sub entry-sub--accent">拍下题目，自动识别文字</span>
+              </span>
+              <svg class="entry-arrow entry-arrow--ink" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+            <div class="entry">
+              <span class="entry-ico entry-ico--blue">
+                <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="15" rx="2.5"/><path d="M8 3h9.5A2.5 2.5 0 0 1 20 5.5V15"/><path d="M7 11h5M7 15h5"/></svg>
+              </span>
+              <span class="entry-text">
+                <span class="entry-title">开始刷题</span>
+                <span class="entry-sub">按到期顺序 · 翻面看答案</span>
+              </span>
+              <svg class="entry-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <span class="tab on">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></svg>
+              </span>
+              首页
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5"/></svg>
+              </span>
+              题库
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="13" height="17" rx="2.5"/><path d="M8 1.5h9.5A3.5 3.5 0 0 1 21 5v12"/></svg>
+              </span>
+              刷题
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+              </span>
+              我的
+            </span>
+          </div>
+          <div class="home-indicator"><i></i></div>
+        </div>
+        <div class="notes">
+          <div class="note"><span class="tag">降级</span><span>完成后卡片降为中性灰标签，不再出现主按钮与红点，视觉上主动「安静下来」。</span></div>
+          <div class="note"><span class="tag">开关</span><span>完成态仍保留提醒开关（此刻关闭表示「今天不用再提醒我」），位置不变避免布局跳动。</span></div>
+        </div>
+      </section>
+
+      <!-- ================= 03 刷题 · 到期队列 ================= -->
+      <section class="cell" id="s3">
+        <div class="cell-head">
+          <span class="cell-no">03</span>
+          <span class="cell-name">刷题 · 到期队列（正面）</span>
+          <span class="cell-route">pages/quiz/index</span>
+        </div>
+        <div class="phone">
+          <div class="statusbar">
+            <span class="num">9:41</span>
+            <span class="statusbar-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true"><path d="M8 2.2c2.6 0 5 1 6.8 2.8l-1.2 1.2A8.1 8.1 0 0 0 8 3.9c-2.1 0-4.1.8-5.6 2.3L1.2 5A9.6 9.6 0 0 1 8 2.2Zm0 3.2c1.5 0 2.9.6 4 1.6l-1.2 1.2A4.3 4.3 0 0 0 8 7.2c-1.1 0-2.1.4-2.8 1.1L4 7A5.9 5.9 0 0 1 8 5.4Zm0 3.2c.5 0 1 .2 1.3.5L8 10.4 6.7 9.1c.4-.3.8-.5 1.3-.5Z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor"/><path d="M23 4v4c1-.3 1.6-.9 1.6-2S24 4.3 23 4Z" fill="currentColor" opacity="0.5"/></svg>
+            </span>
+          </div>
+          <div class="nav">
+            <span>刷题</span>
+            <span class="nav-act num">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+              1:24
+            </span>
+          </div>
+
+          <div class="body body--tab">
+            <div class="progress-row">
+              <div class="progress-text">
+                <span class="progress-label">第</span>
+                <b class="num progress-index">1</b>
+                <span class="progress-total num">/ 8</span>
+                <span class="progress-label">题</span>
+              </div>
+              <span class="chip chip--green">第 1 轮复习</span>
+            </div>
+            <div class="bar"><i></i></div>
+
+            <div class="flip-card">
+              <span class="chip chip--green">第 1 轮复习</span>
+              <div class="stem">
+                已知二次函数 f(x)=x²-4x+3，求它在区间 [0,3] 上的最大值与最小值，并写出取得最值时对应的 x 值。
+              </div>
+              <div class="masked">
+                <span class="masked-primary">答案已遮挡</span>
+                <span class="masked-hint">点击卡片翻面查看答案与原图</span>
+              </div>
+            </div>
+
+            <div class="flip-hint">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18"/><path d="m6 11 6 6 6-6"/></svg>
+              点击卡片或按「显示答案」翻面
+            </div>
+
+            <div class="actions">
+              <button class="btn btn--primary">显示答案</button>
+              <button class="btn btn--text">本轮跳过</button>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></svg>
+              </span>
+              首页
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5"/></svg>
+              </span>
+              题库
+            </span>
+            <span class="tab on">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="13" height="17" rx="2.5"/><path d="M8 1.5h9.5A3.5 3.5 0 0 1 21 5v12"/></svg>
+                <em class="badge num">8</em>
+              </span>
+              刷题
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+              </span>
+              我的
+            </span>
+          </div>
+          <div class="home-indicator"><i></i></div>
+        </div>
+        <div class="notes">
+          <div class="note"><span class="tag">保留</span><span>进度条、计时、翻面卡与按钮位置全部沿用现有刷题页，只把「随机」换成「第 N 轮复习」标签。</span></div>
+          <div class="note"><span class="tag">顺序</span><span>队列按到期时间升序，卡片右上角不额外加序号，进度条已能表达节奏。</span></div>
+        </div>
+      </section>
+
+      <!-- ================= 04 刷题 · 背面 + 自评 ================= -->
+      <section class="cell" id="s4">
+        <div class="cell-head">
+          <span class="cell-no">04</span>
+          <span class="cell-name">刷题 · 背面 + 自评</span>
+          <span class="cell-route">pages/quiz/index</span>
+        </div>
+        <div class="phone">
+          <div class="statusbar">
+            <span class="num">9:41</span>
+            <span class="statusbar-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true"><path d="M8 2.2c2.6 0 5 1 6.8 2.8l-1.2 1.2A8.1 8.1 0 0 0 8 3.9c-2.1 0-4.1.8-5.6 2.3L1.2 5A9.6 9.6 0 0 1 8 2.2Zm0 3.2c1.5 0 2.9.6 4 1.6l-1.2 1.2A4.3 4.3 0 0 0 8 7.2c-1.1 0-2.1.4-2.8 1.1L4 7A5.9 5.9 0 0 1 8 5.4Zm0 3.2c.5 0 1 .2 1.3.5L8 10.4 6.7 9.1c.4-.3.8-.5 1.3-.5Z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor"/><path d="M23 4v4c1-.3 1.6-.9 1.6-2S24 4.3 23 4Z" fill="currentColor" opacity="0.5"/></svg>
+            </span>
+          </div>
+          <div class="nav">
+            <span>刷题</span>
+            <span class="nav-act num">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+              2:06
+            </span>
+          </div>
+
+          <div class="body body--tab">
+            <div class="progress-row">
+              <div class="progress-text">
+                <span class="progress-label">第</span>
+                <b class="num progress-index">1</b>
+                <span class="progress-total num">/ 8</span>
+                <span class="progress-label">题</span>
+              </div>
+              <span class="chip chip--blue">已翻面</span>
+            </div>
+            <div class="bar"><i></i></div>
+
+            <div class="flip-card">
+              <div class="back-stem">已知二次函数 f(x)=x²-4x+3，求它在区间 [0,3] 上的最大值与最小值。</div>
+              <div class="divider"></div>
+              <div class="answer-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>
+                答案
+              </div>
+              <div class="answer-box">
+                f(x)=(x-2)²-1，对称轴 x=2 在区间内。<br />
+                最小值 f(2)=-1；端点比较 f(0)=3、f(3)=0，<br />
+                所以最大值 f(0)=3。
+              </div>
+              <div class="image-head">
+                <span class="image-label">原图</span>
+                <span class="image-link">点击放大</span>
+              </div>
+              <div class="image-box">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="m21 15-5-5L5 20"/></svg>
+              </div>
+            </div>
+
+            <!-- 新增：轻量自评区 -->
+            <div class="rate">
+              <div class="rate-q">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.1 9a3 3 0 1 1 4.6 2.5c-.9.6-1.7 1.2-1.7 2.5"/><circle cx="12" cy="17.5" r="0.6" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg>
+                这道题现在有把握了吗？
+              </div>
+              <div class="rate-btns">
+                <button class="btn btn--warn btn--sm">没记住</button>
+                <button class="btn btn--primary btn--sm">记住了</button>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="btn btn--text">下一题</button>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></svg>
+              </span>
+              首页
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5"/></svg>
+              </span>
+              题库
+            </span>
+            <span class="tab on">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="13" height="17" rx="2.5"/><path d="M8 1.5h9.5A3.5 3.5 0 0 1 21 5v12"/></svg>
+                <em class="badge num">7</em>
+              </span>
+              刷题
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+              </span>
+              我的
+            </span>
+          </div>
+          <div class="home-indicator"><i></i></div>
+        </div>
+        <div class="notes">
+          <div class="note"><span class="tag">配色</span><span>「记住了」用品牌绿实心承接原「下一题」位置；「没记住」用橙色弱底，语义与现有 warning 令牌一致。</span></div>
+          <div class="note"><span class="tag">节奏</span><span>自评区不套卡片外框，仅用留白与分割承接，避免刷题页出现第二张「卡片」抢视觉焦点。</span></div>
+        </div>
+      </section>
+
+      <!-- ================= 05 本轮完成 · 订阅引导 ================= -->
+      <section class="cell" id="s5">
+        <div class="cell-head">
+          <span class="cell-no">05</span>
+          <span class="cell-name">本轮完成 · 订阅引导</span>
+          <span class="cell-route">pages/quiz/index</span>
+        </div>
+        <div class="phone">
+          <div class="statusbar">
+            <span class="num">9:41</span>
+            <span class="statusbar-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true"><path d="M8 2.2c2.6 0 5 1 6.8 2.8l-1.2 1.2A8.1 8.1 0 0 0 8 3.9c-2.1 0-4.1.8-5.6 2.3L1.2 5A9.6 9.6 0 0 1 8 2.2Zm0 3.2c1.5 0 2.9.6 4 1.6l-1.2 1.2A4.3 4.3 0 0 0 8 7.2c-1.1 0-2.1.4-2.8 1.1L4 7A5.9 5.9 0 0 1 8 5.4Zm0 3.2c.5 0 1 .2 1.3.5L8 10.4 6.7 9.1c.4-.3.8-.5 1.3-.5Z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor"/><path d="M23 4v4c1-.3 1.6-.9 1.6-2S24 4.3 23 4Z" fill="currentColor" opacity="0.5"/></svg>
+            </span>
+          </div>
+          <div class="nav"><span>刷题</span></div>
+
+          <div class="done-body">
+            <div class="done-main">
+              <svg class="done-mascot" viewBox="0 0 220 180" aria-hidden="true">
+                <ellipse cx="110" cy="152" rx="66" ry="9" fill="#183224" fill-opacity="0.08" />
+                <circle cx="38" cy="58" r="5" fill="#FFC078" />
+                <circle cx="186" cy="52" r="6" fill="#07C160" />
+                <circle cx="30" cy="112" r="4" fill="#12A8F0" />
+                <circle cx="198" cy="116" r="4.5" fill="#FFC078" />
+                <circle cx="70" cy="24" r="3.5" fill="#12A8F0" />
+                <circle cx="164" cy="30" r="4" fill="#FFC078" />
+                <path d="M40 16l3.1 6.3 6.9 1-5 4.9 1.2 6.9-6.2-3.3-6.2 3.3 1.2-6.9-5-4.9 6.9-1z" fill="#FFC078" />
+                <path d="M178 12l3.1 6.3 6.9 1-5 4.9 1.2 6.9-6.2-3.3-6.2 3.3 1.2-6.9-5-4.9 6.9-1z" fill="#07C160" />
+                <g transform="translate(56 40) scale(0.9)">
+                  <ellipse cx="60" cy="111" rx="30" ry="5" fill="#0f172a" fill-opacity="0.07" />
+                  <rect x="44" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                  <rect x="65" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                  <path d="M31 60c-9 2-14 7-15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                  <path d="M89 60c9 2 14 7 15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                  <rect x="26" y="18" width="68" height="80" rx="18" fill="#FFFFFF" stroke="#0E8F52" stroke-width="4" />
+                  <rect x="34" y="34" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <rect x="34" y="50" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <rect x="34" y="66" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <rect x="34" y="82" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <path d="M74 18h15v21l-7.5-6.5L74 39z" fill="#FFC078" />
+                  <circle cx="57" cy="50" r="4" fill="#22403A" />
+                  <circle cx="78" cy="50" r="4" fill="#22403A" />
+                  <circle cx="47" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                  <circle cx="89" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                  <path d="M61 63q7 6 14 0" fill="none" stroke="#22403A" stroke-width="3.2" stroke-linecap="round" />
+                </g>
+              </svg>
+              <div class="done-title">本轮完成！</div>
+              <div class="done-sub">今天到期的 8 道题都复习完了</div>
+
+              <div class="stat-grid">
+                <div class="stat-cell"><b class="num">8</b><span>复习题数</span></div>
+                <div class="stat-cell"><b class="num">6</b><span>记住了</span></div>
+                <div class="stat-cell"><b class="num">2</b><span>待巩固</span></div>
+              </div>
+            </div>
+
+            <!-- 新增：订阅提醒引导卡片 -->
+            <div class="sub-card">
+              <div class="sub-head">
+                <span class="sub-ico">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                </span>
+                <span class="sub-title">别错过下次复习</span>
+              </div>
+              <div class="sub-desc">明天有 5 道题到期，20:00 提醒你回来复习。</div>
+              <button class="btn btn--primary btn--sm">开启微信提醒</button>
+              <div class="sub-note">提醒通过微信服务通知发送，仅在你授权后送达</div>
+            </div>
+
+            <div class="done-actions">
+              <button class="btn btn--text">返回题库</button>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></svg>
+              </span>
+              首页
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5"/></svg>
+              </span>
+              题库
+            </span>
+            <span class="tab on">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="13" height="17" rx="2.5"/><path d="M8 1.5h9.5A3.5 3.5 0 0 1 21 5v12"/></svg>
+              </span>
+              刷题
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+              </span>
+              我的
+            </span>
+          </div>
+          <div class="home-indicator"><i></i></div>
+        </div>
+        <div class="notes">
+          <div class="note"><span class="tag">权重</span><span>订阅卡用绿色渐变底 + 实心按钮，是全页唯一的彩色卡片；完成插画与统计保持中性，避免双主视觉。</span></div>
+          <div class="note"><span class="tag">文案</span><span>标题说收益（别错过），说明说清时间与数量，按钮只写动作，授权边界放在最底部小字。</span></div>
+        </div>
+      </section>
+
+      <!-- ================= 06 刷题 · 无到期空态 ================= -->
+      <section class="cell" id="s6">
+        <div class="cell-head">
+          <span class="cell-no">06</span>
+          <span class="cell-name">刷题 · 无到期空态</span>
+          <span class="cell-route">pages/quiz/index</span>
+        </div>
+        <div class="phone">
+          <div class="statusbar">
+            <span class="num">9:41</span>
+            <span class="statusbar-right">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true"><path d="M8 2.2c2.6 0 5 1 6.8 2.8l-1.2 1.2A8.1 8.1 0 0 0 8 3.9c-2.1 0-4.1.8-5.6 2.3L1.2 5A9.6 9.6 0 0 1 8 2.2Zm0 3.2c1.5 0 2.9.6 4 1.6l-1.2 1.2A4.3 4.3 0 0 0 8 7.2c-1.1 0-2.1.4-2.8 1.1L4 7A5.9 5.9 0 0 1 8 5.4Zm0 3.2c.5 0 1 .2 1.3.5L8 10.4 6.7 9.1c.4-.3.8-.5 1.3-.5Z"/></svg>
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="21" height="11" rx="3" stroke="currentColor" opacity="0.4"/><rect x="2" y="2" width="15" height="8" rx="1.6" fill="currentColor"/><path d="M23 4v4c1-.3 1.6-.9 1.6-2S24 4.3 23 4Z" fill="currentColor" opacity="0.5"/></svg>
+            </span>
+          </div>
+          <div class="nav"><span>刷题</span></div>
+
+          <div class="body body--tab">
+            <div class="empty-body">
+              <svg class="empty-mascot" viewBox="0 0 220 170" aria-hidden="true">
+                <rect x="10" y="30" width="92" height="110" rx="14" fill="#FFFFFF" stroke="#C3CCD6" stroke-width="2.5" stroke-dasharray="8 7" />
+                <text x="56" y="102" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="46" font-weight="700" fill="#BCC5D0">?</text>
+                <g transform="translate(108 30) scale(0.85)">
+                  <ellipse cx="60" cy="111" rx="30" ry="5" fill="#0f172a" fill-opacity="0.07" />
+                  <rect x="44" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                  <rect x="65" y="92" width="11" height="16" rx="5.5" fill="#0E8F52" />
+                  <path d="M31 60c-9 2-14 7-15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                  <path d="M89 60c9 2 14 7 15 13" fill="none" stroke="#0E8F52" stroke-width="7" stroke-linecap="round" />
+                  <rect x="26" y="18" width="68" height="80" rx="18" fill="#FFFFFF" stroke="#0E8F52" stroke-width="4" />
+                  <rect x="34" y="34" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <rect x="34" y="50" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <rect x="34" y="66" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <rect x="34" y="82" width="10" height="5" rx="2.5" fill="#C6EBD8" />
+                  <path d="M74 18h15v21l-7.5-6.5L74 39z" fill="#FFC078" />
+                  <circle cx="57" cy="50" r="4" fill="#22403A" />
+                  <circle cx="78" cy="50" r="4" fill="#22403A" />
+                  <circle cx="47" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                  <circle cx="89" cy="62" r="5.5" fill="#FFC7A6" fill-opacity="0.9" />
+                  <path d="M61 63q7 6 14 0" fill="none" stroke="#22403A" stroke-width="3.2" stroke-linecap="round" />
+                </g>
+              </svg>
+              <div class="empty-title">今天没有要复习的题</div>
+              <div class="empty-desc">下次到期：明天 · 共 5 道</div>
+              <button class="btn btn--ghost empty-action">去拍照录入</button>
+            </div>
+          </div>
+
+          <div class="tabbar">
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/></svg>
+              </span>
+              首页
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5"/></svg>
+              </span>
+              题库
+            </span>
+            <span class="tab on">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="13" height="17" rx="2.5"/><path d="M8 1.5h9.5A3.5 3.5 0 0 1 21 5v12"/></svg>
+              </span>
+              刷题
+            </span>
+            <span class="tab">
+              <span class="tab-ico">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>
+              </span>
+              我的
+            </span>
+          </div>
+          <div class="home-indicator"><i></i></div>
+        </div>
+        <div class="notes">
+          <div class="note"><span class="tag">空态</span><span>沿用现有 Empty 组件规范（插画 204×158、标题 19px、描述 15px），动作按钮用白底描边，不制造第二个主行动。</span></div>
+          <div class="note"><span class="tag">信息</span><span>「下次到期」放在描述里而非独立卡片，空态只回答「为什么没题」和「接下来做什么」。</span></div>
+        </div>
+      </section>
+    </main>
+
+    <div class="doc">
+      <section>
+        <h3>设计令牌映射（来自客户端现有主题）</h3>
+        <table class="token-table">
+          <tr><th>用途</th><th>取值</th><th>来源</th></tr>
+          <tr><td>主按钮 / 进度</td><td><span class="swatch" style="background:#07c160"></span>#07C160</td><td>theme.scss $color-primary</td></tr>
+          <tr><td>绿色文字 / 强调</td><td><span class="swatch" style="background:#056b36"></span>#056B36</td><td>$color-primary-ink</td></tr>
+          <tr><td>页面底色</td><td><span class="swatch" style="background:#fafbfd"></span>#FAFBFD</td><td>$color-bg-page</td></tr>
+          <tr><td>正文 / 次要 / 弱化</td><td>#1F2937 / #4B5563 / #6B7280</td><td>文本三级色</td></tr>
+          <tr><td>卡片描边</td><td>rgba(17,24,39,.07)</td><td>$color-border</td></tr>
+          <tr><td>卡片圆角 / 阴影</td><td>16px / $shadow-elev</td><td>card-surface mixin</td></tr>
+          <tr><td>按钮圆角 / 高度</td><td>999px / 50px</td><td>AppButton 规范</td></tr>
+          <tr><td>语义色</td><td>蓝 #12A8F0 · 橙 #F5943C · 红 #F5514E</td><td>info / warning / error</td></tr>
+        </table>
+      </section>
+
+      <section>
+        <h3>调研参考（视觉层，3 个同类产品）</h3>
+        <ul>
+          <li><b>Anki / AnkiMobile</b>：复习界面极简，进度与翻面操作占据全部注意力，自评按钮成组出现且高度一致 → 本次自评两键等宽、等高。</li>
+          <li><b>Mochi</b>：白底 + 单一强调色，卡片靠留白与字号层级区分，不使用多重边框 → 本次刷题页只用一张白卡 + 分割线。</li>
+          <li><b>Knowt</b>：卡片大、字号大、列表干净，长时间学习不刺眼 → 本次题干 16/27、答案 16/27，辅助文字维持 13px 起。</li>
+          <li><b>微信订阅消息</b>：授权必须由用户点击触发，文案需说明「发什么、什么时候发」→ 引导卡固定说明 20:00 与到期数量。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>视觉层增改点</h3>
+        <ol>
+          <li>首页：品牌区移除「MVP 核心闭环」标签与副标语，主标语与插画垂直居中，降低首屏信息密度。</li>
+          <li>首页：到期卡片建立「绿色主按钮 + 白色次按钮 + 底部提醒开关」三级结构；完成态切换为中性灰标签并移除主按钮。</li>
+          <li>首页：TabBar 刷题项加红色数字角标（<b>需改用自定义 tabBar</b>，原生 tabBar 不支持角标）。</li>
+          <li>刷题页：轮次标签替代原「随机」语义，其余进度、计时、翻面卡视觉完全复用。</li>
+          <li>刷题页：自评区用橙色弱底 / 绿色实心区分「没记住 / 记住了」，不加外框。</li>
+          <li>完成页：统计由两列扩为三列；订阅引导卡使用绿色渐变弱底，是全页唯一彩色模块。</li>
+          <li>空态：复用现有 Empty 组件视觉，按钮降为白底描边。</li>
+        </ol>
+      </section>
+
+      <section>
+        <h3>刻意保持不变</h3>
+        <p>
+          品牌区仅保留主标语与插画（本次移除「MVP 核心闭环」标签与副标语）、错题总数卡、拍照录入主入口、底部 TabBar 结构、导航栏、翻面卡尺寸与翻面交互、
+          全部沿用现有页面；未新增品牌色、未更换字体、未引入新组件库。
+        </p>
+      </section>
+
+      <section>
+        <h3>视觉阶段待确认</h3>
+        <ul>
+          <li>首页到期卡片用绿色主按钮 + 橙色提醒开关，是否与底部「拍照录入」主入口争夺注意力。</li>
+          <li>「没记住」用橙色弱底是否合适，或统一为白底描边、靠文字区分。</li>
+          <li>订阅引导卡用绿色渐变底，是否比纯白卡更符合「鼓励但不强推」的语气。</li>
+          <li>TabBar 红点是否保留数字（需自定义 tabBar），或只保留圆点。</li>
+        </ul>
+      </section>
+    </div>
+  </body>
+</html>

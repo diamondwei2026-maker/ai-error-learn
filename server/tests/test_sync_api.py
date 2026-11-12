@@ -7,8 +7,16 @@ import time
 from tests.conftest import login_headers
 
 
-def make_item(item_id="q1", content="题干", answer="答案", created=1, updated=1, deleted=False):
-    return {
+def make_item(
+    item_id="q1",
+    content="题干",
+    answer="答案",
+    created=1,
+    updated=1,
+    deleted=False,
+    schedule=None,
+):
+    item = {
         "id": item_id,
         "content": content,
         "answer": answer,
@@ -16,6 +24,9 @@ def make_item(item_id="q1", content="题干", answer="答案", created=1, update
         "updatedAt": updated,
         "deleted": deleted,
     }
+    if schedule:
+        item.update(schedule)
+    return item
 
 
 def push(client, headers, items):
@@ -94,6 +105,61 @@ def test_invalid_item_type_returns_3001(client, auth_headers):
     resp = client.post(
         "/api/v1/sync/push",
         json={"items": [make_item(updated="not-int")]},
+        headers=auth_headers,
+    )
+    assert resp.json()["code"] == 3001
+
+
+def test_schedule_round_trip(client, auth_headers):
+    schedule = {"reviewStage": 2, "nextReviewAt": 1700000000000, "lastReviewedAt": 1690000000000}
+    resp = push(client, auth_headers, [make_item(schedule=schedule)])
+    assert resp.json()["code"] == 0
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["reviewStage"] == 2
+    assert items[0]["nextReviewAt"] == 1700000000000
+    assert items[0]["lastReviewedAt"] == 1690000000000
+
+
+def test_old_format_push_keeps_schedule(client, auth_headers):
+    push(client, auth_headers, [make_item(updated=1, schedule={"reviewStage": 3, "nextReviewAt": 111})])
+    # 旧客户端不带排期字段，仅内容更新
+    push(client, auth_headers, [make_item(updated=2, content="新题干")])
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["content"] == "新题干"
+    assert items[0]["reviewStage"] == 3
+    assert items[0]["nextReviewAt"] == 111
+
+
+def test_schedule_only_change_skips_content_check(client, auth_headers, stub_content_security):
+    push(client, auth_headers, [make_item(updated=1, schedule={"reviewStage": 1})])
+    calls_after_insert = len(stub_content_security["calls"])
+
+    # 仅排期变化（内容未变），不应重复送检
+    push(
+        client,
+        auth_headers,
+        [make_item(updated=2, schedule={"reviewStage": 2, "lastReviewedAt": 222})],
+    )
+
+    assert len(stub_content_security["calls"]) == calls_after_insert
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["reviewStage"] == 2
+    assert items[0]["lastReviewedAt"] == 222
+
+
+def test_mastered_schedule_null_round_trip(client, auth_headers):
+    push(client, auth_headers, [make_item(updated=1, schedule={"reviewStage": 7, "nextReviewAt": None})])
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["reviewStage"] == 7
+    assert items[0]["nextReviewAt"] is None
+
+
+def test_invalid_schedule_type_returns_3001(client, auth_headers):
+    resp = client.post(
+        "/api/v1/sync/push",
+        json={"items": [make_item(schedule={"nextReviewAt": "tomorrow"})]},
         headers=auth_headers,
     )
     assert resp.json()["code"] == 3001

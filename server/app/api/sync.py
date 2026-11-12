@@ -23,6 +23,27 @@ from app.services.content_security import (
 from app.utils.response import ok
 
 _REQUIRED_KEYS = ("id", "content", "answer", "createdAt", "updatedAt", "deleted")
+# 复习排期为可选字段：旧客户端不带，服务端保留库内值
+_OPTIONAL_INT_KEYS = ("reviewStage", "nextReviewAt", "lastReviewedAt")
+
+
+def _is_int(value: Any) -> bool:
+    """排除 bool（Python 中 bool 是 int 子类）。"""
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _has_schedule(raw: Dict[str, Any]) -> bool:
+    return any(key in raw for key in _OPTIONAL_INT_KEYS)
+
+
+def _apply_schedule(row: QuestionSync, raw: Dict[str, Any]) -> None:
+    """仅在请求显式携带排期字段时覆盖，避免旧客户端清空排期。"""
+    if "reviewStage" in raw:
+        row.review_stage = raw["reviewStage"]
+    if "nextReviewAt" in raw:
+        row.next_review_at = raw["nextReviewAt"]
+    if "lastReviewedAt" in raw:
+        row.last_reviewed_at = raw["lastReviewedAt"]
 
 
 def _validate_item(raw: Any) -> Dict[str, Any]:
@@ -36,10 +57,13 @@ def _validate_item(raw: Any) -> Dict[str, Any]:
         raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
     if not isinstance(raw["content"], str) or not isinstance(raw["answer"], str):
         raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
-    if not isinstance(raw["createdAt"], int) or not isinstance(raw["updatedAt"], int):
+    if not _is_int(raw["createdAt"]) or not _is_int(raw["updatedAt"]):
         raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
     if not isinstance(raw["deleted"], bool):
         raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
+    for key in _OPTIONAL_INT_KEYS:
+        if key in raw and raw[key] is not None and not _is_int(raw[key]):
+            raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
     return raw
 
 
@@ -51,6 +75,9 @@ def _serialize(row: QuestionSync) -> Dict[str, Any]:
         "createdAt": row.created_at,
         "updatedAt": row.updated_at,
         "deleted": bool(row.deleted),
+        "reviewStage": row.review_stage,
+        "nextReviewAt": row.next_review_at,
+        "lastReviewedAt": row.last_reviewed_at,
     }
 
 
@@ -78,9 +105,14 @@ def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
                 )
                 .one_or_none()
             )
-            # 仅对新增/内容更新且非删除墓碑的项做内容安全兜底（控制送检量）
-            is_new_or_changed = row is None or item["updatedAt"] > row.updated_at
-            if is_new_or_changed and not item["deleted"]:
+            # 仅对新增/内容实际变化的项做内容安全兜底（排期变化不重复送检）
+            newer = row is None or item["updatedAt"] > row.updated_at
+            content_changed = (
+                row is None
+                or item["content"] != row.content
+                or item["answer"] != row.answer
+            )
+            if newer and content_changed and not item["deleted"]:
                 text = merge_check_text(item["content"], item["answer"])
                 if text and content_security.check_text(
                     text, user.openid, SCENE_FORUM
@@ -89,26 +121,31 @@ def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
                     continue  # 不落库、不计入 accepted
 
             if row is None:
-                db.add(
-                    QuestionSync(
-                        user_id=user.id,
-                        item_id=item["id"],
-                        content=item["content"],
-                        answer=item["answer"],
-                        created_at=item["createdAt"],
-                        updated_at=item["updatedAt"],
-                        deleted=item["deleted"],
-                        synced_at=server_time,
-                    )
+                row = QuestionSync(
+                    user_id=user.id,
+                    item_id=item["id"],
+                    content=item["content"],
+                    answer=item["answer"],
+                    created_at=item["createdAt"],
+                    updated_at=item["updatedAt"],
+                    deleted=item["deleted"],
+                    synced_at=server_time,
                 )
-            elif item["updatedAt"] > row.updated_at:
-                # 新者优先：仅当上行更新时才覆盖
-                row.content = item["content"]
-                row.answer = item["answer"]
-                row.created_at = item["createdAt"]
-                row.updated_at = item["updatedAt"]
-                row.deleted = item["deleted"]
-                row.synced_at = server_time
+                _apply_schedule(row, item)
+                db.add(row)
+            else:
+                if newer:
+                    # 新者优先：仅当上行更新时才覆盖内容
+                    row.content = item["content"]
+                    row.answer = item["answer"]
+                    row.created_at = item["createdAt"]
+                    row.updated_at = item["updatedAt"]
+                    row.deleted = item["deleted"]
+                # 排期字段独立合并：显式携带即覆盖，缺失则保留库内值
+                if _has_schedule(item):
+                    _apply_schedule(row, item)
+                if newer or _has_schedule(item):
+                    row.synced_at = server_time
             accepted.append(item["id"])
 
         db.commit()

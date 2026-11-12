@@ -5,11 +5,22 @@ import "./app.scss";
 import { fileRepo } from "./services/repo/fileRepo";
 import { storageRepo } from "./services/repo/storageRepo";
 import { privacyService } from "./services/privacyService";
+import { questionService } from "./services/questionService";
 import { syncService } from "./services/syncService";
 import { useUserStore } from "./store/userStore";
 
 function App(props: PropsWithChildren<Record<string, never>>) {
   useEffect(() => {
+    // 存量题目回填复习排期（一次性，已排期的题目不受影响）
+    try {
+      const backfilled = questionService.backfillSchedule();
+      if (backfilled > 0) {
+        console.info("[App] review schedule backfilled =", backfilled);
+      }
+    } catch (error) {
+      console.error("[App] backfill schedule failed", error);
+    }
+
     // 启动时清理无主图片文件（对比 q:list 中的 imagePath 与文件系统实际文件）
     try {
       const validPaths = storageRepo

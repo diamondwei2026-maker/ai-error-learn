@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from contextlib import asynccontextmanager
+from typing import AsyncIterator, Dict, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.ai import create_ai_router
 from app.api.auth import create_auth_router
 from app.api.recognize import create_recognize_router
+from app.api.reminder import create_reminder_router
 from app.api.security import create_security_router
 from app.api.sync import create_sync_router
 from app.api.user import create_user_router
@@ -25,6 +27,7 @@ from app.db import configure_database, init_db
 from app.deps.auth import get_current_user
 from app.errors import ApiError
 from app.services.content_security import ContentSecurityService
+from app.services.reminder_scheduler import ReminderScheduler
 from app.services.vision_recognize import VisionClient, VisionRecognizeService
 from app.services.wechat_service import WechatService
 
@@ -59,26 +62,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             settings.vision_model,
             settings.vision_timeout,
         )
-
-    app = FastAPI(
-        title="错题本识别代理",
-        version="0.2.0",
-        description="多模态识别密钥代理 + 用户账号（微信登录 / 资料 / 文本同步）。",
-    )
-    # 开发期放开跨域，便于 H5 预览与真机调试；生产通过 CORS_ORIGINS 收敛为白名单
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    @app.exception_handler(ApiError)
-    async def _api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
-        return JSONResponse(
-            status_code=exc.http_status,
-            content={"code": exc.code, "message": exc.message},
+    if settings.reminder_enabled and not settings.reminder_ready:
+        logging.getLogger(__name__).warning(
+            "复习提醒已开启但缺少模板 ID / 微信密钥，调度器不会启动"
         )
 
     vision_client = VisionClient(
@@ -96,6 +82,37 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         settings.content_security_enabled,
         settings.content_security_timeout,
     )
+    reminder_scheduler = ReminderScheduler(settings, wechat_service)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        reminder_scheduler.start()
+        try:
+            yield
+        finally:
+            reminder_scheduler.shutdown()
+
+    app = FastAPI(
+        title="错题本识别代理",
+        version="0.2.0",
+        description="多模态识别密钥代理 + 用户账号（微信登录 / 资料 / 文本同步 / 复习提醒）。",
+        lifespan=lifespan,
+    )
+    # 开发期放开跨域，便于 H5 预览与真机调试；生产通过 CORS_ORIGINS 收敛为白名单
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.exception_handler(ApiError)
+    async def _api_error_handler(_request: Request, exc: ApiError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.http_status,
+            content={"code": exc.code, "message": exc.message},
+        )
 
     app.include_router(
         create_recognize_router(
@@ -115,6 +132,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     )
     app.include_router(
         create_sync_router(content_security), prefix="/api/v1", tags=["sync"]
+    )
+    app.include_router(
+        create_reminder_router(settings), prefix="/api/v1", tags=["reminder"]
     )
     app.include_router(
         create_security_router(content_security), prefix="/api/v1", tags=["security"]

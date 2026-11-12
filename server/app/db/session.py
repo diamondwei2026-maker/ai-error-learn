@@ -43,12 +43,16 @@ def get_session_factory() -> sessionmaker[Session]:
 
 
 def init_db() -> None:
-    """建表（幂等）。导入模型以确保元数据已注册。"""
+    """建表 + 存量表幂等补列（幂等）。导入模型以确保元数据已注册。"""
+    from app.db.migrations import ensure_review_columns
     from app.models import media_check as _media_check  # noqa: F401
     from app.models import question_sync as _question_sync  # noqa: F401
+    from app.models import reminder_subscription as _reminder_subscription  # noqa: F401
     from app.models import user as _user  # noqa: F401
 
-    Base.metadata.create_all(bind=get_engine())
+    engine = get_engine()
+    Base.metadata.create_all(bind=engine)
+    ensure_review_columns(engine)
 
 
 def get_db() -> Generator[Session, None, None]:

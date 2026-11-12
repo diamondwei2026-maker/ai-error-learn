@@ -29,7 +29,6 @@
 
 .slogan {
   display: block;
-  margin-top: 24rpx; // 12px
   font-size: 48rpx; // 24px
   line-height: 68rpx; // 34px
   font-weight: $font-weight-semibold;
@@ -40,16 +39,124 @@
   color: $color-primary-ink;
 }
 
-.sloganSub {
-  display: block;
+.heroMascot {
+  margin-left: 8rpx;
+}
+
+.num {
+  @include tabular-nums;
+}
+
+/* ===== 今日待复习 / 今日已完成 ===== */
+.dueCard {
+  @include card-surface;
+
+  margin-top: 24rpx; // 12px
+  border-radius: 32rpx; // 16px
+  padding: 32rpx;
+}
+
+.dueHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.dueRound {
+  font-size: 24rpx; // 12px
+  line-height: 32rpx;
+  color: $color-text-tertiary;
+}
+
+.dueCount {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx; // 6px
   margin-top: 20rpx; // 10px
+}
+
+.dueNumber {
+  font-size: 68rpx; // 34px
+  line-height: 1;
+  font-weight: $font-weight-semibold;
+  letter-spacing: -0.02em;
+  color: $color-text-primary;
+}
+
+.dueUnit {
+  font-size: 30rpx; // 15px
+  line-height: 46rpx;
+  color: $color-text-secondary;
+}
+
+.dueMeta {
+  display: block;
+  margin-top: 12rpx; // 6px
+  font-size: 26rpx; // 13px
+  line-height: 40rpx;
+  color: $color-text-tertiary;
+}
+
+.dueActions {
+  display: flex;
+  gap: 20rpx; // 10px
+  margin-top: 28rpx; // 14px
+}
+
+.dueActions .dueBtn {
+  flex: 1;
+  height: 88rpx; // 44px
+  font-size: 32rpx; // 16px
+}
+
+.switchLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 28rpx; // 14px
+  padding-top: 24rpx; // 12px
+  border-top: 1rpx solid $color-divider;
   font-size: 26rpx; // 13px
   line-height: 40rpx;
   color: $color-text-secondary;
 }
 
-.heroMascot {
-  margin-left: 8rpx;
+.switchLabel {
+  display: flex;
+  align-items: center;
+  gap: 12rpx; // 6px
+}
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 76rpx; // 38px
+  height: 44rpx; // 22px
+  border-radius: $radius-round;
+  background: rgba(17, 24, 39, 0.16);
+  transition: background $transition-fast;
+}
+
+.switchKnob {
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2rpx 4rpx rgba(17, 24, 39, 0.2);
+  transition: left $transition-fast;
+}
+
+.switchOn {
+  background: $color-primary;
+}
+
+.switchOn .switchKnob {
+  left: 36rpx;
 }
 
 /* ===== 数据概览（仅错题总数） ===== */
@@ -58,6 +165,10 @@
 
   border-radius: 32rpx; // 16px
   padding: 32rpx;
+}
+
+.statCardWithDue {
+  margin-top: 24rpx; // 12px
 }
 
 .statLabel {

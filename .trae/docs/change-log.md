@@ -724,3 +724,75 @@
 - **待办**：用户用**体验版真机**拍照复测；本地真机预览前先 `npm run server` 并确认同 WiFi + 关闭域名校验。
 
 ---
+
+## incr-20261111-复习提醒（艾宾浩斯到期队列 + 微信订阅消息触达）
+
+- **编号**：incr-20261111-复习提醒
+- **日期**：2026-11-11
+- **背景**：刷题原为随机抽题，缺少复习节奏与召回手段。本次引入艾宾浩斯间隔排期（1/2/4/7/15/30 天）、到期队列与每日 20:00 微信订阅消息提醒。
+- **变更摘要**：
+  ① 客户端排期基座：`Question` / `SyncItem` 增加 `reviewStage` / `nextReviewAt` / `lastReviewedAt`，`SCHEMA_VERSION` 升为 2；新增排期纯函数与 `questionService` 编排（`dueCount` / `listDue` / `markReviewed` / `backfillSchedule`）；同步协议携带排期字段，远端缺失时保留本地。
+  ② 服务端兼容与触达：`question_sync` 幂等补 3 列并新增 `reminder_subscription` 表；同步接口可选字段校验/序列化、仅内容变化送检；新增 `GET /reminder/config`、`POST /reminder/subscription`；APScheduler 每 5 分钟 tick、20:00 窗口、静默/降频/额度/抢占幂等发送。
+  ③ UI 还原：首页今日待复习双态卡片 + 提醒开关 + tab 角标 + 「稍后」；刷题页到期队列、轮次标签、翻面自评、完成页三列统计与订阅引导、两种空态。
+  ④ M4 接线：新增 `reminderService`（配置拉取 / 订阅授权 / 额度上报 / 本地镜像 / 全链路降级），首页开关与完成页引导卡接入，游客拦截。
+- **影响模块**：
+  - 客户端（`client/src/`）：`types/question.ts`、`types/user.ts`、`constants/index.ts`、`utils/reviewSchedule.ts`、`utils/tabBadge.ts`、`services/questionService.ts`、`services/syncService.ts`、`services/reminderService.ts`、`app.tsx`、`pages/index/*`、`pages/quiz/*`
+  - 服务端（`server/`）：`models/question_sync.py`、`models/reminder_subscription.py`、`db/migrations.py`、`db/session.py`、`api/sync.py`、`api/reminder.py`、`services/wechat_service.py`、`services/reminder_scheduler.py`、`config.py`、`errors.py`、`main.py`、`requirements.txt`、`tests/*`
+  - 配置：`server/.env.example`、`deploy/env.production.example`
+- **关联文档路径**：`.trae/docs/increments/incr-20261111-复习提醒/`（研讨记录、tasks.md、主基线固化更新报告、增量交付报告）、`.trae/todolist/M4-联调与交付.md`
+- **是否待合并主 spec**：**是**（排期数据口径与提醒接口契约待合并主 spec；本次未改动主 spec 文件）
+- **验证结果**：
+  - `server/.venv/Scripts/python.exe -m pytest -q` → **138 passed**；
+  - `npx tsc --noEmit` → `src/` 无新增错误（仅存量 `React` 未使用与 `node_modules` 类型声明告警）；
+  - `npm run build:weapp` → **Compiled successfully in 37.46s**（仅既有 CSS 顺序警告）。
+- **回滚方式**：客户端还原 `reminderService.ts`、`pages/index/index.tsx`、`pages/quiz/index.tsx` 后重建；服务端置 `REMINDER_ENABLED=false` 重启即可停止推送（表结构为增量可空列，无需回滚）。
+- **待办**：模板已就绪（见下一条「订阅模板字段对齐」）；按交付报告第六节完成 I03 真机联调。
+
+---
+
+## fix-20261111-订阅模板字段对齐（真实模板 ID 与字段映射）
+
+- **编号**：fix-20261111-订阅模板字段对齐
+- **日期**：2026-11-11
+- **背景**：一次性订阅模板已通过申请，模板 ID `vxId8Kyj6pIlWCYJZik9sF65MmIMmzCQXGn0TULuaSw`，字段为 事项主题 `thing1` / 事项数目 `number16` / 提醒时间 `time23` / 备注消息 `thing12`；原实现使用占位映射 `thing1/date2/thing3`，直接发送会因字段不匹配失败。
+- **变更摘要**：
+  ① `reminder_scheduler.build_message_data` 映射改为 `thing1`=「错题复习提醒」、`number16`=到期题数（number 类型）、`time23`=`HH:mm`（发送窗口时刻）、`thing12`=「点击进入按到期顺序复习」；
+  ② 单测同步断言四个字段与取值；
+  ③ `server/.env` 写入模板 ID 并置 `REMINDER_ENABLED=true`（本地联调）；`server/.env.example`、`deploy/env.production.example` 填入真实模板 ID。
+- **影响模块**：`server/app/services/reminder_scheduler.py`、`server/tests/test_reminder_scheduler.py`、`server/.env`、`server/.env.example`、`deploy/env.production.example`
+- **关联文档路径**：`.trae/docs/increments/incr-20261111-复习提醒/tasks.md`、`增量交付报告.md`
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - `pytest -q` → **138 passed**；
+  - `load_settings().reminder_ready` → **True**；`build_message_data(3, 2026-11-11 20:00)` → `{thing1: 错题复习提醒, number16: 3, time23: 20:00, thing12: 点击进入按到期顺序复习}`。
+- **回滚方式**：还原 `reminder_scheduler.py` 字段常量与 `build_message_data`，并将 `REMINDER_ENABLED=false` 重启。
+- **待办**：生产 `.env` 同步模板 ID 后重启 `error-learn-api`；按交付报告第六节完成 I03 真机联调。
+
+---
+
+## fix-20261112-屏蔽复习提醒入口（当前阶段不做学习提醒）
+
+- **编号**：fix-20261112-屏蔽复习提醒入口
+- **日期**：2026-11-12
+- **背景**：当前阶段不进行学习提醒。需屏蔽微信订阅提醒入口与站内待复习提醒，并停止服务端定时推送，同时保留既有能力便于后续恢复。
+- **变更摘要**：
+  ① 客户端新增集中开关 `REVIEW_REMINDER_ENABLED=false`（`client/src/constants/index.ts`）；
+  ② 首页 `showDueCard` 增加开关前置条件，屏蔽「今日待复习 / 今日已完成」卡片（含「每日 20:00 微信提醒」开关）；
+  ③ 刷题完成页「别错过下次复习 / 开启微信提醒」引导卡改为条件渲染；
+  ④ `syncQuizBadge` 在开关关闭时目标数量恒为 0，主动清除历史残留的刷题 tab 角标；
+  ⑤ 服务端 `server/.env` 与 `deploy/env.production.example` 的 `REMINDER_ENABLED` 置 `false`，调度器不启动、`/reminder/config` 返回 `enabled=false`；
+  ⑥ 保留 `reminderService`、`/reminder/*` 接口、调度器、数据表与单测，恢复时改前端开关与服务端开关即可。
+- **影响模块**：
+  - 客户端：`client/src/constants/index.ts`、`client/src/utils/tabBadge.ts`、`client/src/pages/index/index.tsx`、`client/src/pages/quiz/index.tsx`
+  - 配置：`server/.env`、`deploy/env.production.example`
+- **关联文档路径**：`.trae/documents/屏蔽复习提醒相关入口_plan.md`、`.trae/todolist/屏蔽复习提醒相关入口.md`
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - `npx tsc --noEmit` → 无新增类型错误；
+  - `npm run build:weapp` → 构建通过；
+  - `pytest -q` → 既有提醒单测全部通过（未改服务端代码）。
+- **回滚方式**：`REVIEW_REMINDER_ENABLED` 改回 `true` 并重建客户端；`REMINDER_ENABLED` 改回 `true` 并重启 `error-learn-api`；无需回滚数据库结构。
+- **待办**：生产 `server/.env` 已按关闭口径同步；后续如需恢复提醒，前后端开关同时打开并重新走 I03 真机联调。
+
+---
+

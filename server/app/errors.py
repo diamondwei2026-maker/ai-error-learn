@@ -22,6 +22,10 @@ CODE_NICKNAME_RISK = 2007  # 昵称含违规内容（微信内容安全）
 CODE_SYNC_PAYLOAD_INVALID = 3001  # 同步数据格式错误
 CODE_SYNC_CONTENT_RISK = 3002  # 错题题干/答案含违规内容（微信内容安全）
 
+# 提醒域 4xxx
+CODE_REMINDER_NOT_READY = 4001  # 提醒功能未配置 / 未开启
+CODE_REMINDER_PARAM_INVALID = 4002  # 提醒参数非法
+
 
 class ApiError(Exception):
     """业务异常：由全局异常处理器转换为统一信封响应。"""

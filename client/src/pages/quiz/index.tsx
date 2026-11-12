@@ -11,47 +11,72 @@ import Icon from '@/components/Icon';
 import Mascot from '@/components/Mascot';
 import NavBar from '@/components/NavBar';
 import PrivacySheet from '@/components/PrivacySheet';
+import { REVIEW_REMINDER_ENABLED } from '@/constants';
 import { questionService } from '@/services/questionService';
 import { fileRepo } from '@/services/repo/fileRepo';
+import { reminderService } from '@/services/reminderService';
+import { useUserStore } from '@/store/userStore';
 import type { Question } from '@/types/question';
 import { formatDuration } from '@/utils/format';
 import { getPageMinHeight } from '@/utils/layout';
+import { nextDueInfo, type NextDueInfo, type ReviewRating } from '@/utils/reviewSchedule';
+import { syncQuizBadge } from '@/utils/tabBadge';
 
 import styles from './index.module.scss';
 
-type Phase = 'loading' | 'card' | 'empty' | 'done';
+type Phase = 'loading' | 'card' | 'emptyAll' | 'emptyDue' | 'done';
+
+const EMPTY_NEXT_DUE: NextDueInfo = { at: null, count: 0, daysUntil: 0 };
+
+const dueDayText = (info: NextDueInfo) =>
+  info.daysUntil === 1 ? '明天' : `${info.daysUntil} 天后`;
 
 const QuizPage = () => {
   const [phase, setPhase] = useState<Phase>('loading');
+  const [queue, setQueue] = useState<Question[]>([]);
   const [current, setCurrent] = useState<Question | null>(null);
   const [flipped, setFlipped] = useState(false);
-  const [roundTotal, setRoundTotal] = useState(0);
   const [index, setIndex] = useState(1);
   const [seconds, setSeconds] = useState(0);
+  const [remembered, setRemembered] = useState(0);
+  const [forgot, setForgot] = useState(0);
+  const [nextDue, setNextDue] = useState<NextDueInfo>(EMPTY_NEXT_DUE);
+  const [reminderOn, setReminderOn] = useState(false);
+  const isLoggedIn = useUserStore((state) => state.isLoggedIn);
 
   const startRound = () => {
-    const count = questionService.count();
-    if (count === 0) {
+    const all = questionService.all();
+    if (all.length === 0) {
+      setQueue([]);
       setCurrent(null);
-      setPhase('empty');
+      setPhase('emptyAll');
+      syncQuizBadge(0);
       return;
     }
-    questionService.resetRound();
-    const first = questionService.pickRandom();
-    if (!first) {
+
+    const due = questionService.listDue();
+    if (due.length === 0) {
+      setQueue([]);
       setCurrent(null);
-      setPhase('empty');
+      setNextDue(nextDueInfo(all));
+      setPhase('emptyDue');
+      syncQuizBadge(0);
       return;
     }
-    setRoundTotal(count);
+
+    setQueue(due);
+    setCurrent(due[0]);
     setIndex(1);
     setSeconds(0);
     setFlipped(false);
-    setCurrent(first);
+    setRemembered(0);
+    setForgot(0);
     setPhase('card');
+    syncQuizBadge(due.length);
   };
 
   useDidShow(() => {
+    setReminderOn(reminderService.isOn());
     startRound();
   });
 
@@ -62,20 +87,35 @@ const QuizPage = () => {
     return () => clearInterval(timer);
   }, [phase]);
 
-  const goNext = () => {
-    if (!current) return;
-    if (index >= roundTotal) {
-      setPhase('done');
-      return;
-    }
-    const nextQuestion = questionService.pickRandom([current.id]);
-    setIndex(index + 1);
-    setFlipped(false);
-    setCurrent(nextQuestion || null);
+  const finishRound = () => {
+    setPhase('done');
+    setNextDue(nextDueInfo(questionService.all()));
+    syncQuizBadge(questionService.dueCount());
   };
 
-  const progress = roundTotal > 0 ? Math.round((index / roundTotal) * 100) : 0;
+  const goNext = () => {
+    if (index >= queue.length) {
+      finishRound();
+      return;
+    }
+    setIndex(index + 1);
+    setCurrent(queue[index]);
+    setFlipped(false);
+    syncQuizBadge(questionService.dueCount());
+  };
+
+  /** 自评：推进轮次并落库，随后进入下一题 */
+  const handleRating = (rating: ReviewRating) => {
+    if (!current) return;
+    questionService.markReviewed(current.id, rating);
+    if (rating === 'remembered') setRemembered((value) => value + 1);
+    else setForgot((value) => value + 1);
+    goNext();
+  };
+
+  const progress = queue.length > 0 ? Math.round((index / queue.length) * 100) : 0;
   const imageSrc = current ? fileRepo.resolveImageSrc(current.imagePath) : '';
+  const roundStage = current?.reviewStage ?? 1;
 
   const previewImage = () => {
     if (!imageSrc) return;
@@ -90,15 +130,52 @@ const QuizPage = () => {
     Taro.switchTab({ url: '/pages/library/index' });
   };
 
-  if (phase === 'empty') {
+  /** 完成页订阅引导：游客先登录，已开启则直接提示 */
+  const handleSubscribe = async () => {
+    if (!isLoggedIn) {
+      Taro.showToast({ title: '请先登录后再开启提醒', icon: 'none' });
+      return;
+    }
+    if (reminderOn) {
+      Taro.showToast({ title: '提醒已开启', icon: 'none' });
+      return;
+    }
+    const result = await reminderService.enable();
+    setReminderOn(result.on);
+    Taro.showToast({ title: result.message, icon: 'none' });
+  };
+
+  if (phase === 'emptyAll') {
     return (
       <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
         <NavBar title="刷题" />
         <View className={styles.body}>
           <Empty
             title="还没有错题"
-            description="先录入几道错题，再回来随机抽题复习吧。"
-            actionText="去录入错题"
+            description="先录入几道错题，再回来按到期顺序复习吧。"
+            actionText="去拍照录入"
+            onAction={gotoIndex}
+          />
+        </View>
+
+        <PrivacySheet />
+      </View>
+    );
+  }
+
+  if (phase === 'emptyDue') {
+    return (
+      <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
+        <NavBar title="刷题" />
+        <View className={styles.body}>
+          <Empty
+            title="今天没有要复习的题"
+            description={
+              nextDue.at
+                ? `下次到期：${dueDayText(nextDue)} · 共 ${nextDue.count} 道`
+                : '暂无后续复习安排'
+            }
+            actionText="去拍照录入"
             onAction={gotoIndex}
           />
         </View>
@@ -109,6 +186,7 @@ const QuizPage = () => {
   }
 
   if (phase === 'done') {
+    const reviewed = remembered + forgot;
     return (
       <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
         <NavBar title="刷题" />
@@ -116,29 +194,50 @@ const QuizPage = () => {
           <View className={styles.doneMain}>
             <Mascot variant="done" width={220} height={180} />
             <Text className={styles.doneTitle}>本轮完成！</Text>
-            <Text className={styles.doneSub}>你复习了本轮全部 {roundTotal} 道错题</Text>
+            <Text className={styles.doneSub}>
+              {reviewed >= queue.length
+                ? `今天到期的 ${queue.length} 道题都复习完了`
+                : `本轮复习 ${reviewed} 道，还有 ${queue.length - reviewed} 道留到下次`}
+            </Text>
 
-            <View className={styles.statCard}>
+            <View className={styles.statGrid}>
               <View className={styles.statCell}>
-                <Text className={styles.statNumber}>{roundTotal}</Text>
-                <Text className={styles.statLabel}>本轮题数（道）</Text>
+                <Text className={styles.statNumber}>{reviewed}</Text>
+                <Text className={styles.statLabel}>复习题数</Text>
               </View>
-              <View className={styles.statDivider} />
               <View className={styles.statCell}>
-                <Text className={styles.statNumber}>{formatDuration(seconds)}</Text>
-                <Text className={styles.statLabel}>本轮用时</Text>
+                <Text className={styles.statNumber}>{remembered}</Text>
+                <Text className={styles.statLabel}>记住了</Text>
               </View>
-            </View>
-
-            <View className={styles.doneHint}>
-              <Icon name="clockMuted" size={14} />
-              <Text className={styles.doneHintText}>坚持复习，进步会累积成看得见的曲线</Text>
+              <View className={styles.statCell}>
+                <Text className={styles.statNumber}>{forgot}</Text>
+                <Text className={styles.statLabel}>待巩固</Text>
+              </View>
             </View>
           </View>
 
+          {REVIEW_REMINDER_ENABLED ? (
+            <View className={styles.subCard}>
+              <View className={styles.subHead}>
+                <View className={styles.subIcon}>
+                  <Icon name="bellMuted" size={20} />
+                </View>
+                <Text className={styles.subTitle}>别错过下次复习</Text>
+              </View>
+              <Text className={styles.subDesc}>
+                {nextDue.at
+                  ? `${dueDayText(nextDue)}有 ${nextDue.count} 道题到期，20:00 提醒你回来复习。`
+                  : '暂无后续到期安排，可继续拍照录入新错题。'}
+              </Text>
+              <AppButton className={styles.subBtn} onClick={handleSubscribe}>
+                开启微信提醒
+              </AppButton>
+              <Text className={styles.subNote}>提醒通过微信服务通知发送，仅在你授权后送达</Text>
+            </View>
+          ) : null}
+
           <View className={styles.doneActions}>
-            <AppButton onClick={startRound}>再来一轮</AppButton>
-            <AppButton variant="ghost" className={styles.doneActionsSecond} onClick={gotoLibrary}>
+            <AppButton variant="text" onClick={gotoLibrary}>
               返回题库
             </AppButton>
           </View>
@@ -164,7 +263,7 @@ const QuizPage = () => {
     <View className={styles.faceCard}>
       <Text className={styles.watermark}>{String(index).padStart(2, '0')}</Text>
       <View className={styles.chipRow}>
-        <Chip type="blue">复习模式</Chip>
+        <Chip type="green">第 {roundStage} 轮复习</Chip>
       </View>
       <View className={styles.frontStem}>{current.content}</View>
       <View className={styles.masked}>
@@ -178,7 +277,7 @@ const QuizPage = () => {
   const back = (
     <View className={classnames(styles.faceCard, styles.faceCardBack)}>
       <View className={styles.chipRow}>
-        <Chip type="blue">复习模式</Chip>
+        <Chip type="green">第 {roundStage} 轮复习</Chip>
       </View>
       <View className={styles.backStem}>{current.content}</View>
       <View className={styles.backDivider} />
@@ -219,17 +318,10 @@ const QuizPage = () => {
           <View className={styles.progressText}>
             <Text className={styles.progressLabel}>第</Text>
             <Text className={classnames(styles.progressIndex, styles.num)}>{index}</Text>
-            <Text className={classnames(styles.progressTotal, styles.num)}>/ {roundTotal}</Text>
+            <Text className={classnames(styles.progressTotal, styles.num)}>/ {queue.length}</Text>
             <Text className={styles.progressLabel}>题</Text>
           </View>
-          {flipped ? (
-            <Chip type="green">
-              <Icon name="checkInk" size={11} className={styles.chipIcon} />
-              已翻面
-            </Chip>
-          ) : (
-            <Chip type="blue">复习模式</Chip>
-          )}
+          <Chip type="green">第 {roundStage} 轮复习</Chip>
         </View>
 
         <View className={styles.bar}>
@@ -251,27 +343,32 @@ const QuizPage = () => {
           </Text>
         </View>
 
-        <View className={styles.actions}>
-          {flipped ? (
-            <>
-              <AppButton onClick={goNext}>下一题</AppButton>
+        {flipped ? (
+          <View className={styles.rate}>
+            <View className={styles.rateQuestion}>
+              <Icon name="helpMuted" size={15} />
+              <Text>这道题现在有把握了吗？</Text>
+            </View>
+            <View className={styles.rateButtons}>
               <AppButton
-                variant="text"
-                className={styles.actionsSecond}
-                onClick={() => setFlipped(false)}
+                className={classnames(styles.rateBtn, styles.rateBtnWarn)}
+                onClick={() => handleRating('forgot')}
               >
-                收起答案
+                没记住
               </AppButton>
-            </>
-          ) : (
-            <>
-              <AppButton onClick={() => setFlipped(true)}>显示答案</AppButton>
-              <AppButton variant="text" className={styles.actionsSecond} onClick={goNext}>
-                下一题
+              <AppButton className={styles.rateBtn} onClick={() => handleRating('remembered')}>
+                记住了
               </AppButton>
-            </>
-          )}
-        </View>
+            </View>
+          </View>
+        ) : (
+          <View className={styles.actions}>
+            <AppButton onClick={() => setFlipped(true)}>显示答案</AppButton>
+            <AppButton variant="text" className={styles.actionsSecond} onClick={goNext}>
+              本轮跳过
+            </AppButton>
+          </View>
+        )}
       </View>
 
       <PrivacySheet />
