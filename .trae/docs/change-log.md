@@ -819,3 +819,24 @@
 - **演进路径**：① 题库 > 500 题或精确哈希漏查率 > 10% → 升级为 embedding + 向量索引双路检查（仍温和提醒）；② 用户明确反馈"一题多解"需求 → 新增 `problem_core` 表做题目关联 + `solutionNote` 自定义解法标签；③ 事后清理 → 题库页加"按 contentHash 分组批量删除"入口。
 
 ---
+
+## fix-20261112-真机保存失败（TextEncoder/WebCrypto 缺失导致入库中断）
+
+- **编号**：fix-20261112-真机保存失败
+- **日期**：2026-11-12
+- **问题现象**：真机调试「拍照 → 识别成功 → 保存入库」提示「保存失败，请重试」，题目未入库；开发者工具模拟器正常。
+- **根因**：`incr-20261112-识题去重` 的 `utils/textHash.ts` 使用 Web 平台 API（`TextEncoder` + `crypto.subtle.digest`）。微信小程序真机运行时不存在这两个 API，调用即抛异常；`questionService.create()` 未做兜底，导致「去重」这一辅助能力变成「保存」主链路的硬依赖。开发者工具运行在 Chromium 环境故不复现。
+- **变更摘要**：
+  ① `client/src/utils/textHash.ts` 改为纯 JS 实现：手写 UTF-8 编码（含代理对）+ 标准 SHA-256（64 轮常量表），输出仍为 64 位 hex，与原 WebCrypto 结果逐位一致，存量 `contentHash` 继续可匹配；`normalizeForHash` 增加 `String.prototype.normalize` 存在性判断与 try/catch 兜底。
+  ② `client/src/services/questionService.ts` 的 `create()` 将哈希计算包进 try/catch：失败仅记录日志并把 `contentHash` 置空，**不再阻断图片落盘与入库**。
+- **影响模块**：客户端 `client/src/utils/textHash.ts`、`client/src/services/questionService.ts`（无服务端改动、无数据迁移、无 UI 改动）。
+- **关联文档路径**：`.trae/documents/真机保存失败修复方案.md`
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - 哈希一致性：`ts-node` 对 9 组样本（中英文/全角/多行/emoji/代理对/200 字）与 Node `crypto.createHash('sha256')` 比对 → **ALL PASS**；
+  - `npx tsc --noEmit` → 无新增错误（仅既有 node_modules 类型声明与 `React` 未使用告警）；
+  - `npm run build:weapp` → **exit 0 / 构建成功**；构建产物 `dist` 中 `TextEncoder` / `crypto.subtle` **零命中**，SHA-256 常量表已内联。
+- **回滚方式**：`git revert` 本次提交；`contentHash` 为可空字段，回滚不影响已有数据读取。
+- **遗留验证**：真机回归「识别 → 保存 → 题库可见」与「同题干二次保存弹重复提醒」需用户在真机复测确认。
+
+---

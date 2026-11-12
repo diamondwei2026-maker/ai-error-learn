@@ -59,7 +59,13 @@ export const questionService = {
 
     const now = Date.now()
     const content = input.content.trim()
-    const contentHash = await computeContentHash(content)
+    // 哈希仅服务于去重：任何异常都不能阻断主链路入库
+    let contentHash = ''
+    try {
+      contentHash = await computeContentHash(content)
+    } catch (error) {
+      console.error('[questionService] compute contentHash failed', error)
+    }
     const question: Question = {
       id,
       content,
