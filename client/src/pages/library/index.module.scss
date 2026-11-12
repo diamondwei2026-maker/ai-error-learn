@@ -138,6 +138,75 @@
   color: $color-link;
 }
 
+/* ===== 举一反三入口 ===== */
+.aiEntry {
+  display: flex;
+  align-items: center;
+  gap: 20rpx; // 10px
+  margin-top: 24rpx; // 12px
+  padding: 24rpx; // 12px
+  border-radius: 28rpx; // 14px
+  background: linear-gradient(135deg, #ffffff 0%, #f7fdfa 100%);
+  border: 1rpx solid rgba(7, 193, 96, 0.2);
+  box-shadow: 0 2rpx 4rpx rgba(17, 24, 39, 0.02), 0 20rpx 44rpx -36rpx rgba(7, 193, 96, 0.5);
+
+  &:active {
+    background: $color-primary-soft;
+  }
+}
+
+.aiEntryIco {
+  flex: none;
+  width: 72rpx; // 36px
+  height: 72rpx;
+  border-radius: 22rpx; // 11px
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  box-shadow: 0 12rpx 28rpx -16rpx rgba(7, 193, 96, 0.75);
+  @include flex-center;
+}
+
+.aiEntryText {
+  flex: 1;
+  min-width: 0;
+}
+
+.aiEntryTitle {
+  display: flex;
+  align-items: center;
+  gap: 12rpx; // 6px
+  font-size: 30rpx; // 15px
+  line-height: 42rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+
+  .aiEntryTag {
+    height: 32rpx;
+    padding: 0 10rpx;
+    border-radius: 8rpx;
+    background: $color-primary-soft;
+    color: $color-primary-ink;
+    font-size: 20rpx; // 10px
+    line-height: 32rpx;
+    font-weight: $font-weight-bold;
+    letter-spacing: 0.02em;
+  }
+}
+
+.aiEntrySub {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 24rpx; // 12px
+  line-height: 34rpx;
+  color: $color-text-tertiary;
+  @include text-ellipsis;
+}
+
+.aiEntryArrow {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
 .actionBar {
   position: fixed;
   left: 0;

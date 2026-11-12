@@ -26,6 +26,7 @@ from app.config import Settings, load_settings, set_current_settings
 from app.db import configure_database, init_db
 from app.deps.auth import get_current_user
 from app.errors import ApiError
+from app.services.ai_service import DisabledVariantGenerator, GlmVariantGenerator
 from app.services.content_security import ContentSecurityService
 from app.services.reminder_scheduler import ReminderScheduler
 from app.services.vision_recognize import VisionClient, VisionRecognizeService
@@ -66,6 +67,17 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         logging.getLogger(__name__).warning(
             "复习提醒已开启但缺少模板 ID / 微信密钥，调度器不会启动"
         )
+    if settings.ai_enabled and not settings.ai_configured:
+        logging.getLogger(__name__).warning(
+            "AI 已开启但未配置 AI_API_KEY / AI_BASE_URL，举一反三将返回 9001"
+        )
+    elif settings.ai_configured:
+        logging.getLogger(__name__).info(
+            "AI 变式生成：base=%s model=%s timeout=%ss",
+            settings.ai_base_url,
+            settings.ai_model,
+            settings.ai_timeout,
+        )
 
     vision_client = VisionClient(
         settings.vision_api_key,
@@ -83,6 +95,17 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         settings.content_security_timeout,
     )
     reminder_scheduler = ReminderScheduler(settings, wechat_service)
+    variant_generator = (
+        GlmVariantGenerator(
+            settings.ai_api_key,
+            settings.ai_base_url,
+            settings.ai_model,
+            settings.ai_enabled,
+            settings.ai_timeout,
+        )
+        if settings.ai_configured
+        else DisabledVariantGenerator()
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -123,7 +146,15 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         prefix="/api/v1",
         tags=["recognize"],
     )
-    app.include_router(create_ai_router(), prefix="/api/v1", tags=["ai"])
+    app.include_router(
+        create_ai_router(
+            variant_generator,
+            content_security,
+            auth_dep=get_current_user if settings.auth_required else None,
+        ),
+        prefix="/api/v1",
+        tags=["ai"],
+    )
     app.include_router(
         create_auth_router(wechat_service, settings), prefix="/api/v1", tags=["auth"]
     )

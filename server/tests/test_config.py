@@ -1,6 +1,10 @@
 """配置装载单测：缺省值、环境变量覆盖、非法值兜底、密钥不泄露（TDD）。"""
 
 from app.config import (
+    DEFAULT_AI_BASE_URL,
+    DEFAULT_AI_MAX_VARIANTS,
+    DEFAULT_AI_MODEL,
+    DEFAULT_AI_TIMEOUT,
     DEFAULT_MAX_IMAGE_BYTES,
     DEFAULT_VISION_BASE_URL,
     DEFAULT_VISION_MODEL,
@@ -145,3 +149,46 @@ def test_content_security_ready_flags():
 def test_content_security_callback_token_not_exposed_in_repr():
     settings = load_settings(env={"WECHAT_CALLBACK_TOKEN": "callback-topsecret"})
     assert "callback-topsecret" not in repr(settings)
+
+
+# ---------- AI 举一反三配置 ----------
+
+
+def test_ai_defaults():
+    settings = load_settings(env={})
+    assert settings.ai_enabled is False
+    assert settings.ai_api_key == ""
+    assert settings.ai_base_url == DEFAULT_AI_BASE_URL
+    assert settings.ai_model == DEFAULT_AI_MODEL
+    assert settings.ai_timeout == DEFAULT_AI_TIMEOUT
+    assert settings.ai_max_variants == DEFAULT_AI_MAX_VARIANTS
+    assert settings.ai_configured is False
+
+
+def test_ai_env_overrides_and_configured_flag():
+    settings = load_settings(
+        env={
+            "AI_ENABLED": "true",
+            "AI_API_KEY": "ai-key",
+            "AI_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "AI_MODEL": "qwen-plus",
+            "AI_TIMEOUT": "12",
+            "AI_MAX_VARIANTS": "4",
+        }
+    )
+    assert settings.ai_enabled is True
+    assert settings.ai_base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    assert settings.ai_model == "qwen-plus"
+    assert settings.ai_timeout == 12
+    assert settings.ai_max_variants == 4
+    assert settings.ai_configured is True
+
+
+def test_ai_configured_requires_key():
+    settings = load_settings(env={"AI_ENABLED": "true"})
+    assert settings.ai_configured is False
+
+
+def test_ai_key_not_exposed_in_repr():
+    settings = load_settings(env={"AI_API_KEY": "ai-topsecret"})
+    assert "ai-topsecret" not in repr(settings)

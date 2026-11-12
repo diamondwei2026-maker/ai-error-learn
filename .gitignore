@@ -39,3 +39,10 @@ todo.md
 *.pem
 .env.bak
 *.env.bak
+
+# ===== 智能体生成的规划/过程产物（方案、计划、讨论、原型、任务清单）=====
+# 只保留在本地，不入库；交付物仅为代码与配置
+.trae/docs/increments/
+.trae/documents/
+.trae/prototypes/
+.trae/todolist/

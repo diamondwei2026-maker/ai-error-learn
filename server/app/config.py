@@ -14,6 +14,12 @@ DEFAULT_VISION_TIMEOUT = 20
 # 单张图片二进制上限：10MB
 DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
+# 变式题生成模型（OpenAI 兼容 /chat/completions）：默认 GLM-4-Flash
+DEFAULT_AI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+DEFAULT_AI_MODEL = "glm-4-flash"
+DEFAULT_AI_TIMEOUT = 30
+DEFAULT_AI_MAX_VARIANTS = 3
+
 # 微信登录
 DEFAULT_WECHAT_APPID = "wxf7fbaf8d9a6f7296"
 # JWT
@@ -48,7 +54,14 @@ class Settings:
     vision_model: str = DEFAULT_VISION_MODEL
     vision_timeout: int = DEFAULT_VISION_TIMEOUT
     max_image_bytes: int = DEFAULT_MAX_IMAGE_BYTES
+
+    # 变式题生成（OpenAI 兼容文本模型）
     ai_enabled: bool = False
+    ai_api_key: str = field(default="", repr=False)
+    ai_base_url: str = DEFAULT_AI_BASE_URL
+    ai_model: str = DEFAULT_AI_MODEL
+    ai_timeout: int = DEFAULT_AI_TIMEOUT
+    ai_max_variants: int = DEFAULT_AI_MAX_VARIANTS
 
     # 微信登录
     wechat_appid: str = DEFAULT_WECHAT_APPID
@@ -92,6 +105,11 @@ class Settings:
     def vision_configured(self) -> bool:
         """是否已配置视觉模型访问密钥。"""
         return bool(self.vision_api_key and self.vision_base_url)
+
+    @property
+    def ai_configured(self) -> bool:
+        """举一反三是否可用（开关打开且已配置密钥与地址）。"""
+        return bool(self.ai_enabled and self.ai_api_key and self.ai_base_url)
 
     @property
     def wechat_configured(self) -> bool:
@@ -183,6 +201,11 @@ def load_settings(env: Optional[Mapping[str, str]] = None) -> Settings:
             source.get("VISION_MAX_IMAGE_BYTES"), DEFAULT_MAX_IMAGE_BYTES
         ),
         ai_enabled=_parse_bool(source.get("AI_ENABLED"), False),
+        ai_api_key=source.get("AI_API_KEY", "") or "",
+        ai_base_url=source.get("AI_BASE_URL", DEFAULT_AI_BASE_URL) or DEFAULT_AI_BASE_URL,
+        ai_model=source.get("AI_MODEL", DEFAULT_AI_MODEL) or DEFAULT_AI_MODEL,
+        ai_timeout=_parse_int(source.get("AI_TIMEOUT"), DEFAULT_AI_TIMEOUT),
+        ai_max_variants=_parse_int(source.get("AI_MAX_VARIANTS"), DEFAULT_AI_MAX_VARIANTS),
         wechat_appid=source.get("WECHAT_APPID", DEFAULT_WECHAT_APPID) or DEFAULT_WECHAT_APPID,
         wechat_app_secret=source.get("WECHAT_APP_SECRET", "") or "",
         jwt_secret=source.get("JWT_SECRET", "") or "",

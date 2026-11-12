@@ -16,12 +16,6 @@ export interface Question {
   updatedAt: number
   /** 标准化题干的 SHA-256（64 字符），去重用；存量题可能缺失 */
   contentHash?: string
-  /** 复习轮次（1..6 有效；≥7 视为已掌握退出队列） */
-  reviewStage?: number
-  /** 下次复习到期日 00:00（本地时区 ms）；已掌握为 null；缺省视为未排期 */
-  nextReviewAt?: number | null
-  /** 最近一次复习时间戳 */
-  lastReviewedAt?: number
 }
 
 /** 应用级元数据 */

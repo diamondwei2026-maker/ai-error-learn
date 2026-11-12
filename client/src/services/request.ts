@@ -43,6 +43,8 @@ export interface RequestOptions {
   data?: Record<string, unknown>;
   /** 是否携带 Authorization，默认 true */
   auth?: boolean;
+  /** 单次请求超时（ms），不传时使用 REQUEST_TIMEOUT（15s） */
+  timeout?: number;
 }
 
 function buildHeader(auth: boolean): Record<string, string> {
@@ -107,7 +109,7 @@ async function send(
       method: options.method || "GET",
       data: options.data,
       header: buildHeader(options.auth !== false),
-      timeout: REQUEST_TIMEOUT,
+      timeout: options.timeout ?? REQUEST_TIMEOUT,
     });
     // TODO(debug-request): 临时调试日志，排查结束后删除
     console.log("【请求成功】", {

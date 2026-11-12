@@ -11,16 +11,6 @@ import { useUserStore } from "./store/userStore";
 
 function App(props: PropsWithChildren<Record<string, never>>) {
   useEffect(() => {
-    // 存量题目回填复习排期（一次性，已排期的题目不受影响）
-    try {
-      const backfilled = questionService.backfillSchedule();
-      if (backfilled > 0) {
-        console.info("[App] review schedule backfilled =", backfilled);
-      }
-    } catch (error) {
-      console.error("[App] backfill schedule failed", error);
-    }
-
     // 存量题目回填 contentHash（去重用）
     void (async () => {
       try {

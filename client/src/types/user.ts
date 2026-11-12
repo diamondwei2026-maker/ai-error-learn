@@ -28,12 +28,6 @@ export interface SyncItem {
   deleted: boolean
   /** 标准化题干的 SHA-256（可选，兼容旧客户端） */
   contentHash?: string
-  /** 复习轮次（可选，兼容旧客户端） */
-  reviewStage?: number
-  /** 下次复习到期日 00:00（可选，兼容旧客户端） */
-  nextReviewAt?: number | null
-  /** 最近一次复习时间戳（可选，兼容旧客户端） */
-  lastReviewedAt?: number
 }
 
 /** 本地删除墓碑 */

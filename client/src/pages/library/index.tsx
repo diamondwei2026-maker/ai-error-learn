@@ -12,15 +12,27 @@ import NavBar from '@/components/NavBar';
 import PrivacySheet from '@/components/PrivacySheet';
 import QuestionCard from '@/components/QuestionCard';
 import SwipeItem from '@/components/SwipeItem';
-import { PAGE_SIZE } from '@/constants';
+import VariantSheet, { type VariantSheetState } from '@/components/VariantSheet';
+import {
+  AI_CODE,
+  AI_ERROR_MESSAGES,
+  AI_VARIANT_ENABLED,
+  AUTH_CODE,
+  PAGE_SIZE,
+} from '@/constants';
+import { aiService, type AiVariantResult } from '@/services/aiService';
 import { captureService } from '@/services/captureService';
 import { questionService } from '@/services/questionService';
 import { fileRepo } from '@/services/repo/fileRepo';
+import { ApiRequestError } from '@/services/request';
 import { useQuestionStore } from '@/store/questionStore';
+import { useUserStore } from '@/store/userStore';
 import type { Question } from '@/types/question';
 import { getFabBottom, getPageMinHeight } from '@/utils/layout';
 
 import styles from './index.module.scss';
+
+type AiState = 'idle' | VariantSheetState;
 
 const LibraryPage = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -30,9 +42,25 @@ const LibraryPage = () => {
   const [dialogVisible, setDialogVisible] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Question | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [aiVisible, setAiVisible] = useState(false);
+  const [aiState, setAiState] = useState<AiState>('idle');
+  const [aiData, setAiData] = useState<AiVariantResult | null>(null);
+  const [aiError, setAiError] = useState('');
+  const [aiEntryHidden, setAiEntryHidden] = useState(false);
 
   const pageRef = useRef(1);
+  const aiSeq = useRef(0);
   const refreshStore = useQuestionStore((state) => state.refresh);
+  const isLoggedIn = useUserStore((state) => state.isLoggedIn);
+
+  /** 切换 / 关闭详情时清空举一反三状态，并丢弃在途请求结果 */
+  const resetAi = () => {
+    aiSeq.current += 1;
+    setAiVisible(false);
+    setAiState('idle');
+    setAiData(null);
+    setAiError('');
+  };
 
   const reload = () => {
     pageRef.current = 1;
@@ -52,6 +80,7 @@ const LibraryPage = () => {
 
   /** 详情预览为无 tabBar 的独立视图（对齐原型 08/09 屏） */
   const openDetail = (question: Question) => {
+    resetAi();
     setDetail(question);
     Taro.hideTabBar({ animation: false }).catch((error) =>
       console.error('[library] hideTabBar failed', error),
@@ -59,6 +88,7 @@ const LibraryPage = () => {
   };
 
   const closeDetail = () => {
+    resetAi();
     setDetail(null);
     Taro.showTabBar({ animation: false }).catch((error) =>
       console.error('[library] showTabBar failed', error),
@@ -92,6 +122,7 @@ const LibraryPage = () => {
     setDialogVisible(false);
     setPendingDelete(null);
     setSwipedId('');
+    resetAi();
     closeDetail();
     reload();
   };
@@ -102,6 +133,75 @@ const LibraryPage = () => {
     if (!src) return;
     Taro.previewImage({ urls: [src], current: src });
   };
+
+  /** 请求变式题：保留上一轮结果，失败进入统一重试态 */
+  const requestVariants = async () => {
+    if (!detail) return;
+    const seq = aiSeq.current + 1;
+    aiSeq.current = seq;
+    setAiVisible(true);
+    setAiState('loading');
+    setAiError('');
+    try {
+      const data = await aiService.generateVariants({
+        questionId: detail.id,
+        content: detail.content,
+        answer: detail.answer,
+      });
+      if (seq !== aiSeq.current) return;
+      setAiData(data);
+      setAiState(data.variants.length > 0 ? 'success' : 'empty');
+    } catch (error) {
+      if (seq !== aiSeq.current) return;
+      const code = error instanceof ApiRequestError ? error.code : 0;
+      if (code === AI_CODE.notEnabled) {
+        // 服务端未开放：隐藏入口，本次会话不再展示
+        setAiVisible(false);
+        setAiState('idle');
+        setAiEntryHidden(true);
+        Taro.showToast({ title: AI_ERROR_MESSAGES[AI_CODE.notEnabled], icon: 'none' });
+        return;
+      }
+      if (code === AI_CODE.rateLimited) {
+        setAiVisible(false);
+        setAiState('idle');
+        Taro.showToast({ title: AI_ERROR_MESSAGES[AI_CODE.rateLimited], icon: 'none' });
+        return;
+      }
+      if (code === AUTH_CODE.unauthorized || code === AUTH_CODE.tokenInvalid) {
+        setAiState('needLogin');
+        return;
+      }
+      setAiError(
+        error instanceof Error ? error.message : AI_ERROR_MESSAGES[AI_CODE.upstreamBusy],
+      );
+      setAiState('error');
+    }
+  };
+
+  /** 入口点击：请求中防抖；已有结果直接复用；未登录不发请求 */
+  const openAiSheet = () => {
+    if (!detail || aiState === 'loading') return;
+    setAiVisible(true);
+    if (aiState !== 'idle') return;
+    if (!isLoggedIn) {
+      setAiState('needLogin');
+      return;
+    }
+    requestVariants();
+  };
+
+  /** 登录成功自动继续本次生成 */
+  const handleAiLogin = async () => {
+    try {
+      await useUserStore.getState().login();
+      await requestVariants();
+    } catch {
+      Taro.showToast({ title: '登录未完成，请重试', icon: 'none' });
+    }
+  };
+
+  const closeAiSheet = () => setAiVisible(false);
 
   const detailImage = detail ? fileRepo.resolveImageSrc(detail.imagePath) : '';
 
@@ -145,6 +245,24 @@ const LibraryPage = () => {
               <Text className={styles.sectionLabelAccent}>答案</Text>
               <Text className={styles.detailText}>{detail.answer || '（未填写答案）'}</Text>
             </View>
+
+            {AI_VARIANT_ENABLED && !aiEntryHidden ? (
+              <View className={styles.aiEntry} onClick={openAiSheet}>
+                <View className={styles.aiEntryIco}>
+                  <Icon name="sparkleWhite" size={20} />
+                </View>
+                <View className={styles.aiEntryText}>
+                  <View className={styles.aiEntryTitle}>
+                    <Text>再来三道变式</Text>
+                    <Text className={styles.aiEntryTag}>AI</Text>
+                  </View>
+                  <Text className={styles.aiEntrySub}>生成 3 道同类型题，确认是否真的掌握</Text>
+                </View>
+                <View className={styles.aiEntryArrow}>
+                  <Icon name="chevronRightMuted" size={20} />
+                </View>
+              </View>
+            ) : null}
           </View>
 
           <View className={styles.actionBar}>
@@ -168,7 +286,7 @@ const LibraryPage = () => {
             {questions.length === 0 ? (
               <Empty
                 title="还没有错题"
-                description="拍下第一道错题，建立属于你的错题卡片，随时翻面复习。"
+                description="拍下第一道错题，建立属于你的错题卡片，随时翻看题干与答案。"
                 actionText="去录入第一道错题"
                 onAction={() => setSheetVisible(true)}
               />
@@ -221,6 +339,18 @@ const LibraryPage = () => {
         description="删除后将同时清理该题的原图文件，且无法恢复。"
         onConfirm={confirmDelete}
         onCancel={() => setDialogVisible(false)}
+      />
+
+      <VariantSheet
+        visible={aiVisible}
+        state={aiState === 'idle' ? 'loading' : aiState}
+        data={aiData}
+        errorMessage={aiError}
+        onClose={closeAiSheet}
+        onRetry={requestVariants}
+        onRegenerate={requestVariants}
+        onContinue={closeAiSheet}
+        onLogin={handleAiLogin}
       />
 
       <PrivacySheet />

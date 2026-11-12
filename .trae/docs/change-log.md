@@ -840,3 +840,74 @@
 - **遗留验证**：真机回归「识别 → 保存 → 题库可见」与「同题干二次保存弹重复提醒」需用户在真机复测确认。
 
 ---
+
+## incr-20261112-AI举一反三（AI 同构变式题生成）
+
+- **编号**：incr-20261112-AI举一反三
+- **日期**：2026-11-12
+- **背景**：用户只能反复复习同一道错题，无法验证是否真正掌握该题型。本次新增「AI 举一反三」：翻面后一键生成 3 道同知识点、同题型的变式题（带答案），即时练习、不入库、不排期。
+- **变更摘要**：
+  ① **后端生成能力**：新增 `server/app/services/ai_service.py`（`GlmVariantGenerator` 直连 OpenAI 兼容 `/chat/completions`，`DisabledVariantGenerator` 兜底 9001）；Prompt 含学科/题型/知识点识别 + 同构变式 + 自检答案 + 禁止「只改数字」；容错解析（围栏剥离 → 截 JSON → `strict=False`）；错误码映射 9002/9003/9004。
+  ② **接口与装配**：`/api/v1/ai/variants` 支持注入鉴权、content 1..2000 / answer ≤4000 校验（2005）、进程内 60s/3 次限流（9006）、生成结果合并送检（risky → 9005）、`traceId` 日志串联；`main.py` 按 `ai_configured` 装配生成器并输出启动日志。
+  ③ **配置**：`config.py` 新增 `ai_api_key`（repr 隐藏）/`ai_base_url`/`ai_model`/`ai_timeout`/`ai_max_variants` 与 `ai_configured`；同步 `.env.example`、`deploy/env.production.example`。
+  ④ **前端服务层**：`RequestOptions.timeout` 可选透传（默认 15s 不变）；新增 `AI_VARIANT_ENABLED`、`AI_REQUEST_TIMEOUT=35000`、`AI_CODE`、`AI_ERROR_MESSAGES`、`AI_SUBJECT_LABELS`；新增 `aiService.generateVariants()`，错误码转可读文案。
+  ⑤ **UI**：新增 `VariantSheet`（loading/success/empty/error/needLogin 五态，骨架屏、变式卡答案折叠、状态插画、底部操作区）；刷题页翻面后展示 `.ai-entry`，实现请求防抖、关闭不中断、重开复用、切题重置、登录续跑、9001 隐藏入口、9006 Toast。
+  ⑥ **图标**：`constants/icons.ts` 新增 `sparkleWhite`/`closeMuted`/`boxMuted`/`lockGreenInk`/`chevronDownMuted`/`chevronUpMuted`。
+- **影响模块**：
+  - 服务端（`server/`）：`app/config.py`、`app/services/ai_service.py`、`app/api/ai.py`、`app/main.py`、`.env.example`、`tests/test_ai_api.py`、`tests/test_ai_service.py`（新）、`tests/test_config.py`
+  - 客户端（`client/src/`）：`services/request.ts`、`services/aiService.ts`（新）、`constants/index.ts`、`constants/icons.ts`、`components/VariantSheet/*`（新）、`pages/quiz/index.tsx`、`pages/quiz/index.module.scss`
+  - 部署：`deploy/env.production.example`
+- **关联文档路径**：`.trae/docs/increments/incr-20261112-AI举一反三/`（研讨记录、research-report、tasks、主基线固化报告、增量交付报告）
+- **是否待合并主 spec**：**否**（普通增量独立归档，未修改主 spec）
+- **验证结果**：
+  - 后端：`.venv\Scripts\python.exe -m pytest tests -q` → **163 passed**；
+  - 前端：`npm run build:weapp` → **exit 0 / Compiled successfully**（仅既有 `mini-css-extract-plugin Conflicting order` 告警）；
+  - 契约：9001/2005/9002/9003/9004/9005/9006/2001 均有单测覆盖。
+- **上线前置条件**：
+  1. `AI_ENABLED=true` 且配置 `AI_API_KEY`（默认 `glm-4-flash`，可切 `AI_BASE_URL`/`AI_MODEL`）；
+  2. 小程序后台配置 request 合法域名（AI 密钥仅存服务端，客户端不直连）；
+  3. 内容安全服务需保持可用（未就绪时降级放行）。
+- **回滚方式**：服务端置 `AI_ENABLED=false` 即返回 9001（前端自动隐藏入口）；或回退本次提交并重建；无数据库变更。
+- **遗留验证**：真机 6 条路径（成功 / 断网 / 超时 / 限流 / 未登录 / AI 关闭）需用户实机复测确认。
+
+---
+
+## incr-20261112-下线刷题入口
+
+- **编号**：incr-20261112-下线刷题入口
+- **日期**：2026-11-12
+- **变更摘要**：
+  下线刷题（复习）入口，将 AI 举一反三入口迁移到错题详情。① 移除 tabBar「刷题」项与 `pages/quiz` 页面注册；② 删除前端复习排期、tab 角标、微信订阅提醒、翻面卡片组件；③ 首页移除「今日待复习」卡片、「开始复习」入口与提醒开关，仅保留错题总数与拍照录入；④ 「再来三道变式」入口迁移至「题库 → 题目详情」答案卡片下方，复用原入口样式与五态弹层，弹层底部主按钮由「继续复习」改为「关闭」；⑤ 同步协议不再上行/下行复习字段（后端保持兼容，接口与表结构不变）。
+- **影响模块**：
+  - 客户端（`client/src/`）
+    - 删除：`pages/quiz/**`、`utils/reviewSchedule.ts`、`utils/tabBadge.ts`、`services/reminderService.ts`、`components/FlipCard/**`
+    - 修改：`app.config.ts`、`app.tsx`、`constants/index.ts`、`types/question.ts`、`types/user.ts`、`services/questionService.ts`、`services/syncService.ts`、`pages/index/index.tsx`、`pages/index/index.module.scss`、`pages/library/index.tsx`、`pages/library/index.module.scss`、`components/VariantSheet/index.tsx`
+  - 服务端（`server/`）：**不改动**（reminder 接口、调度器、数据库表与同步字段保留；`REMINDER_ENABLED` 默认关闭）
+- **关联文档路径**：`.trae/docs/increments/incr-20261112-下线刷题入口/`（研讨记录、tasks）
+- **是否待合并主 spec**：**否**（普通轻量增量，未修改主 spec）
+- **验证结果**：`npx tsc --noEmit` 无新增类型错误（仅全仓既有 `React` 未使用告警与 node_modules 声明问题）；`npm run build:weapp` → **exit 0 / Compiled successfully**，产物 `app.json` 仅含首页/题库/我的 3 个 tab。
+- **回滚方式**：恢复本次提交即可；本地已保存的复习字段不受影响，后端数据未清理。
+- **遗留风险**：后端 `REMINDER_PAGE` 仍指向已删除的 `pages/quiz/index`；当前提醒功能默认关闭，若后续重启提醒需同步调整落地页。
+
+---
+
+## fix-20261112-开发者工具wxss编译报错
+
+- **编号**：fix-20261112-开发者工具wxss编译报错
+- **日期**：2026-11-12
+- **变更摘要**：
+  修复微信开发者工具模拟器报「编译 .wxss 文件错误」（错误码 10041）。根因为工具保留了 `pages/quiz` 的过期页面表：页面已随「下线刷题入口」增量删除，但仍去读取 `client/dist/pages/quiz/index.wxss` → `ENOENT`。处置：停止写入 `dist` 的进程 → 删除 `client/dist` → `npm run build:weapp` 全量重建 → 工具侧清空编译缓存后重新编译。产物与 `app.json` 已一一对齐，无 `quiz` 残留。
+- **影响模块**：
+  - 客户端产物：`client/dist/`（整目录重建，已在 `.gitignore`）
+  - 环境：微信开发者工具编译缓存（非代码改动）
+  - 文档：`.trae/documents/微信开发者工具模拟器编译报错-wxss缺失修复方案.md`（新）
+- **关联文档路径**：`.trae/documents/微信开发者工具模拟器编译报错-wxss缺失修复方案.md`
+- **是否待合并主 spec**：**否**（环境/工具问题，无业务代码改动）
+- **验证结果**：
+  - `npm run build:weapp` → **exit 0 / Compiled successfully in 1.02m**（仅既有 `mini-css-extract-plugin Conflicting order` 告警）
+  - `client/dist/pages/` 目录（agreement/edit/index/library/profile）与 `dist/app.json` 的 6 个页面一一对应
+  - `client/dist` 全目录检索 `*quiz*` → **0 命中**
+- **待用户验证**：开发者工具「工具 → 清除缓存 → 全部清除」后重新编译，确认无 `编译 .wxss 文件错误`、模拟器正常进入首页
+- **回滚方式**：`dist/` 可随时由 `npm run build:weapp` 重建；本次无源码变更
+
+---

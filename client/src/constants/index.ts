@@ -11,8 +11,6 @@ export const STORAGE_KEYS = {
   syncCursor: "q:syncCursor",
   /** 是否已引导过「首次登录完善资料」 */
   nickPrompted: "u:nickPrompted",
-  /** 复习提醒开关本地镜像 */
-  reminderOn: "u:reminderOn",
 } as const;
 
 /** 当前数据结构版本 */
@@ -20,13 +18,6 @@ export const SCHEMA_VERSION = 3;
 
 /** 题库列表分页大小 */
 export const PAGE_SIZE = 10;
-
-/**
- * 学习提醒（复习提醒）总开关。
- * 当前阶段关闭：隐藏首页待复习卡片、刷题 tab 角标与微信订阅提醒入口；
- * 复习排期与刷题流程不受影响。恢复时改为 true。
- */
-export const REVIEW_REMINDER_ENABLED = false;
 
 /**
  * 后端服务基地址（识别与账号体系共用同一服务）。
@@ -130,3 +121,37 @@ export const NICKNAME_MAX_LENGTH = 20;
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 /** 请求超时（ms） */
 export const REQUEST_TIMEOUT = 15000;
+
+/** 举一反三入口总开关（与服务端 AI_ENABLED 双保险） */
+export const AI_VARIANT_ENABLED = true;
+
+/** 变式题生成请求超时（ms）：AI 生成约需 10-30 秒 */
+export const AI_REQUEST_TIMEOUT = 35000;
+
+/** AI 举一反三错误码（与 server/app/services/ai_service.py 对齐） */
+export const AI_CODE = {
+  notEnabled: 9001,
+  upstreamBusy: 9002,
+  unavailable: 9003,
+  parseFailed: 9004,
+  contentRisky: 9005,
+  rateLimited: 9006,
+} as const;
+
+/** AI 举一反三错误码文案 */
+export const AI_ERROR_MESSAGES: Record<number, string> = {
+  [AI_CODE.notEnabled]: "该功能暂未开放",
+  [AI_CODE.upstreamBusy]: "AI 太忙了，稍后再试",
+  [AI_CODE.unavailable]: "AI 服务暂不可用",
+  [AI_CODE.parseFailed]: "生成失败，换一道题试试",
+  [AI_CODE.contentRisky]: "生成内容不合规，已拦截",
+  [AI_CODE.rateLimited]: "操作太频繁，请稍后再试",
+};
+
+/** 学科标识 → 中文标签 */
+export const AI_SUBJECT_LABELS: Record<string, string> = {
+  math: "数学",
+  physics: "物理",
+  chemistry: "化学",
+  other: "其他",
+};

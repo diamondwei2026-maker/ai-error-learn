@@ -34,26 +34,7 @@ function questionToItem(question: Question): SyncItem {
     updatedAt: question.updatedAt,
     deleted: false,
     contentHash: question.contentHash,
-    reviewStage: question.reviewStage,
-    nextReviewAt: question.nextReviewAt,
-    lastReviewedAt: question.lastReviewedAt,
   };
-}
-
-/** 仅提取远端显式携带的排期字段，缺失时由本地保留原值 */
-function pickSchedule(
-  item: SyncItem,
-): Pick<Question, "reviewStage" | "nextReviewAt" | "lastReviewedAt"> {
-  const schedule: Pick<
-    Question,
-    "reviewStage" | "nextReviewAt" | "lastReviewedAt"
-  > = {};
-  if (item.reviewStage !== undefined) schedule.reviewStage = item.reviewStage;
-  if (item.nextReviewAt !== undefined)
-    schedule.nextReviewAt = item.nextReviewAt;
-  if (item.lastReviewedAt !== undefined)
-    schedule.lastReviewedAt = item.lastReviewedAt;
-  return schedule;
 }
 
 function tombstoneToItem(tombstone: Tombstone): SyncItem {
@@ -107,7 +88,6 @@ function mergeRemoteItems(items: SyncItem[]): void {
         createdAt: remote.createdAt,
         updatedAt: remote.updatedAt,
         contentHash: remote.contentHash,
-        ...pickSchedule(remote),
       });
       changed = true;
       return;
@@ -120,7 +100,6 @@ function mergeRemoteItems(items: SyncItem[]): void {
         answer: remote.answer,
         contentHash: remote.contentHash ?? local.contentHash,
         updatedAt: remote.updatedAt,
-        ...pickSchedule(remote),
       });
       changed = true;
     }

@@ -1,13 +1,6 @@
 import { PAGE_SIZE, SCHEMA_VERSION } from '@/constants'
 import { createId } from '@/utils/id'
 import { computeContentHash } from '@/utils/textHash'
-import {
-  calcNextReview,
-  initSchedule,
-  isDue,
-  sortDue,
-  type ReviewRating,
-} from '@/utils/reviewSchedule'
 import type { Question } from '@/types/question'
 
 import { authRepo } from './repo/authRepo'
@@ -75,7 +68,6 @@ export const questionService = {
       imageSize: imageSize || undefined,
       createdAt: now,
       updatedAt: now,
-      ...initSchedule(now),
     }
 
     const list = storageRepo.listQuestions()
@@ -200,55 +192,6 @@ export const questionService = {
     }
 
     if (changed > 0) storageRepo.saveQuestions(nextList)
-    return changed
-  },
-
-  /** 今日到期（含逾期）题数 */
-  dueCount(now: number = Date.now()): number {
-    return storageRepo.listQuestions().filter((item) => isDue(item, now)).length
-  },
-
-  /** 到期队列：逾期最久优先 */
-  listDue(now: number = Date.now()): Question[] {
-    return sortDue(storageRepo.listQuestions(), now)
-  },
-
-  /** 复习自评：推进轮次并落库，触发云端同步 */
-  markReviewed(
-    id: string,
-    rating: ReviewRating,
-    now: number = Date.now(),
-  ): Question | undefined {
-    const list = storageRepo.listQuestions()
-    const target = list.find((item) => item.id === id)
-    if (!target) return undefined
-
-    const next = calcNextReview(target.reviewStage ?? 1, rating, now)
-    const updated: Question = {
-      ...target,
-      ...next,
-      lastReviewedAt: now,
-      updatedAt: now,
-    }
-    storageRepo.saveQuestions(
-      list.map((item) => (item.id === id ? updated : item)),
-    )
-
-    syncService.scheduleSync()
-    return updated
-  },
-
-  /** 存量题目回填排期：统一第 1 轮、次日到期，避免上线当天集中到期 */
-  backfillSchedule(now: number = Date.now()): number {
-    const list = storageRepo.listQuestions()
-    let changed = 0
-    const next = list.map((item) => {
-      if (item.nextReviewAt !== undefined) return item
-      changed += 1
-      return { ...item, ...initSchedule(now) }
-    })
-
-    if (changed > 0) storageRepo.saveQuestions(next)
     return changed
   },
 }

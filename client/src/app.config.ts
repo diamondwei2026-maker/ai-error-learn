@@ -2,7 +2,6 @@ export default defineAppConfig({
   pages: [
     'pages/index/index',
     'pages/library/index',
-    'pages/quiz/index',
     'pages/profile/index',
     'pages/edit/index',
     'pages/profile/edit/index',
@@ -35,12 +34,6 @@ export default defineAppConfig({
         text: '题库',
         iconPath: 'assets/tabbar/library.png',
         selectedIconPath: 'assets/tabbar/library-selected.png',
-      },
-      {
-        pagePath: 'pages/quiz/index',
-        text: '刷题',
-        iconPath: 'assets/tabbar/quiz.png',
-        selectedIconPath: 'assets/tabbar/quiz-selected.png',
       },
       {
         pagePath: 'pages/profile/index',
