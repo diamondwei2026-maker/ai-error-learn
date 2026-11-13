@@ -911,3 +911,51 @@
 - **回滚方式**：`dist/` 可随时由 `npm run build:weapp` 重建；本次无源码变更
 
 ---
+
+## fix-20261112-错题详情AI入口间距与AI开关
+
+- **编号**：fix-20261112-错题详情AI入口间距与AI开关
+- **日期**：2026-11-12
+- **问题现象**：① 错题详情页「再来三道变式」入口与底部「删除本题」吸底操作条无间距（带安全区机型上被压住约 8px）；② 点击入口提示「该功能暂未开放」。
+- **根因**：① `detailBody` 固定预留 `224rpx`，未叠加 `env(safe-area-inset-bottom)`，而吸底条实际高度为 `172rpx + 安全区`；② 本地 `server/.env` 为 `AI_ENABLED=false` 且未配置 `AI_API_KEY`，后端装配 `DisabledVariantGenerator` 直接返回 9001。
+- **变更摘要**：
+  ① `client/src/pages/library/index.module.scss` 的 `.detailBody` 底部避让改为 `calc(224rpx + constant/env(safe-area-inset-bottom))`，有/无安全区机型均保持 ≥26px 间距；
+  ② 本地 `server/.env`（gitignored）开启 `AI_ENABLED=true`，`AI_API_KEY` 复用同文件 `VISION_API_KEY`（智谱 Key），并补齐 `AI_BASE_URL=https://open.bigmodel.cn/api/paas/v4`、`AI_MODEL=glm-4-flash`、`AI_TIMEOUT=30`、`AI_MAX_VARIANTS=3`；重启本地 uvicorn 使配置生效。
+- **影响模块**：
+  - 客户端：`client/src/pages/library/index.module.scss`（无 tsx 改动）
+  - 服务端：`server/.env`（本地配置，不入库）
+- **关联文档路径**：`.trae/documents/错题详情AI变式间距与AI功能开放修复_plan.md`
+- **是否待合并主 spec**：**否**（缺陷修复，无接口/数据模型变更）
+- **验证结果**：
+  - 后端：`.venv\Scripts\python.exe -m pytest tests -q` → **163 passed**；
+  - `GET /api/v1/health` → **200 ok**；带鉴权 `POST /api/v1/ai/variants` → **HTTP 200 / 3 条变式**；直连 `GlmVariantGenerator` 生成 3 条变式成功（无 9001/9002/9003）；
+  - 前端：`npx tsc --noEmit` 无新增错误（仅既有 node_modules 声明与 `React` 未使用告警）；`npm run build:weapp` → **exit 0 / Compiled successfully**，产物 `dist/pages/library/index.wxss` 已包含 `safe-area-inset-bottom`。
+- **回滚方式**：服务端置 `AI_ENABLED=false`（或删除 `AI_API_KEY`）即回到 9001、前端自动隐藏入口；样式回退为 `padding: 24rpx 32rpx 224rpx`。
+- **遗留验证 / 上线提醒**：开发者工具与真机需重新编译后确认间距与生成效果；若「体验版/线上」仍提示 9001，需在服务器 `/opt/error-learn/server/.env` 同步 `AI_ENABLED=true` + `AI_API_KEY` 并重启服务（本次未执行）。
+
+---
+
+## fix-20261112-真机变式仍提示未开放
+
+- **编号**：fix-20261112-真机变式仍提示未开放
+- **日期**：2026-11-12
+- **问题现象**：真机调试点击「再来三道变式」仍提示「该功能暂未开放」。
+- **根因**：① 当前 `client/dist` 为生产构建，`API_BASE=https://errorlearn.diamondwtech.com`，真机请求打到生产而非本地；② 生产后端仍是旧版「AI 接口预留」实现（固定 HTTP 501 + code 9001），且 `server/.env` 为 `AI_ENABLED=false`、未配置 `AI_API_KEY`；③ 生产虚拟环境缺少 `APScheduler`；④ 同步上去的 `app` 目录权限为 700，nginx 用户不可读导致服务启动失败。
+- **变更摘要**：
+  - 生产 `/opt/error-learn/server`：整目录备份 `app`/`.env` 后覆盖为最新 `server/app`，同步 `requirements.txt`；`pip install -r requirements.txt` 补齐 `APScheduler`；`chmod -R a+rX app` 修正读权限；
+  - 生产 `server/.env`（gitignored）：`AI_ENABLED=true`、`AI_API_KEY`（复用智谱 Key，经 stdin 写入不回显）、`AI_BASE_URL=https://open.bigmodel.cn/api/paas/v4`、`AI_MODEL=glm-4-flash`、`AI_TIMEOUT=30`、`AI_MAX_VARIANTS=3`，并显式 `CONTENT_SECURITY_ENABLED=false` 保持旧版线上行为；
+  - 客户端代码与 `dist` **不改动**（生产构建已含 AI 入口）。
+- **影响模块**：
+  - 生产：`/opt/error-learn/server/app/**`、`requirements.txt`、`.env`、依赖（APScheduler）
+  - 文档：`.trae/documents/真机调试-再来三道变式仍提示未开放-修复方案.md`、`.trae/todolist/真机调试-再来三道变式仍提示未开放.md`
+- **是否待合并主 spec**：**否**（部署/配置修复，无接口与数据模型变更）
+- **验证结果**（生产实测）：
+  - `POST /api/v1/ai/variants`（未鉴权）由旧版 `501/9001` 变为 `401/2001`，新代码已生效；
+  - 服务器内直连 `GlmVariantGenerator` → `configured=True / model=glm-4-flash / variants=3 / subject=math`；
+  - `GET /api/v1/health` → 200；`/api/v1/sync/push`、`/api/v1/recognize`（未鉴权）均返回 401/2001；
+  - `init_db()` 已幂等补列/建表：`media_check_record`、`reminder_subscription` 存在，`question_sync` 含 `content_hash` 与复习三字段；
+  - `systemctl is-active error-learn-api` → active。
+- **回滚方式**：`cd /opt/error-learn/server && rm -rf app && mv app.old app && cp -a .env.bak-20261112 .env && systemctl restart error-learn-api`；或仅 `AI_ENABLED=false` 后重启。
+- **遗留验证**：真机需重新进入题目详情点击入口确认弹层生成 3 道变式；登录/识别/同步/头像昵称需在真机各走一次回归；若后续启用内容安全，需补 `PUBLIC_BASE_URL` 与 `CONTENT_SECURITY_ENABLED=true` 再观察。
+- **本地联调说明**：当前 `dist` 为生产构建，真机走生产域名即可验证；若要改连本地后端，执行 `cd client && npm run dev:weapp`（`.env.development` → `http://192.168.60.37:8000`）并在开发者工具勾选「不校验合法域名」，上传体验版前必须重新 `npm run build:weapp`。
+

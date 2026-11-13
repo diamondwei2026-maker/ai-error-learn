@@ -59,7 +59,9 @@
 /* ===== 详情预览 ===== */
 .detailBody {
   flex: 1;
-  padding: 24rpx 32rpx 224rpx; // 底部避让吸底操作条
+  // 底部避让吸底操作条：172rpx（操作条高度）+ 52rpx（间距）+ 安全区
+  padding: 24rpx 32rpx calc(224rpx + constant(safe-area-inset-bottom));
+  padding: 24rpx 32rpx calc(224rpx + env(safe-area-inset-bottom));
 }
 
 .chipRow {
