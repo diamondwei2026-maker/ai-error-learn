@@ -64,17 +64,25 @@
   padding: 24rpx 32rpx calc(224rpx + env(safe-area-inset-bottom));
 }
 
-.chipRow {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
 .detailCard {
   @include card-surface;
 
-  margin-top: 24rpx;
   padding: 32rpx;
+}
+
+/* 元信息行：置于题干卡片下方，不占用顶部空间 */
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 24rpx;
+}
+
+.metaRow .metaChipKnowledge {
+  background: rgba(17, 24, 39, 0.028);
+  color: #4b5563;
+  font-weight: 500;
 }
 
 .detailImageCard {

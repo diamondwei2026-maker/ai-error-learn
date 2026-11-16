@@ -33,3 +33,7 @@ class QuestionSync(Base):
     review_stage: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     next_review_at: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     last_reviewed_at: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    # 识题元信息（可空：旧客户端不上行即保留库内值；知识点存 JSON 数组字符串）
+    subject: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    question_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    knowledge_points: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

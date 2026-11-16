@@ -98,11 +98,48 @@ function messageFor(code: number, fallback?: string): string {
   );
 }
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
+/** 首次请求时打印构建期环境，便于确认实际打到了哪个后端 */
+let envLogged = false;
+function logEnvOnce(): void {
+  if (envLogged) return;
+  envLogged = true;
+  console.info(
+    "[request] API_BASE =",
+    API_BASE,
+    "NODE_ENV =",
+    process.env.NODE_ENV,
+  );
+}
+
+/** 提取 Taro 网络层失败对象上的 errMsg / errno */
+function describeNetworkError(error: unknown): {
+  errMsg?: string;
+  errno?: number;
+} {
+  if (error && typeof error === "object") {
+    const { errMsg, errno } = error as { errMsg?: string; errno?: number };
+    return { errMsg, errno };
+  }
+  return {};
+}
+
+/** 响应体片段（脱敏后），用于定位非信封响应 */
+function bodySnippet(body: unknown): string {
+  try {
+    return JSON.stringify(sanitizeForLog(body)).slice(0, 200);
+  } catch {
+    return "[unserializable]";
+  }
+}
+
 /** 发一次请求，返回原始信封 */
 async function send(
   path: string,
   options: RequestOptions,
 ): Promise<{ statusCode: number; body: ApiEnvelope<unknown> }> {
+  logEnvOnce();
   try {
     const res = await Taro.request({
       url: `${API_BASE}${path}`,
@@ -123,25 +160,48 @@ async function send(
       body: (res.data || {}) as ApiEnvelope<unknown>,
     };
   } catch (error) {
+    const { errMsg, errno } = describeNetworkError(error);
     // TODO(debug-request): 临时调试日志，排查结束后删除
     console.error("【请求详情/报错】", {
       url: `${API_BASE}${path}`,
       method: options.method || "GET",
       data: sanitizeForLog(options.data),
       status: undefined, // 网络层失败时没有 statusCode
+      errMsg,
+      errno,
       err: error,
     });
-    throw new ApiRequestError(0, "网络异常，请检查网络后重试");
+    throw new ApiRequestError(
+      0,
+      // 开发态直接暴露平台拦截原因（如 url not in domain list），生产文案不变
+      IS_DEV && errMsg
+        ? `网络失败:${errMsg.slice(0, 40)}`
+        : "网络异常，请检查网络后重试",
+    );
   }
 }
 
-function unwrap<T>(statusCode: number, body: ApiEnvelope<unknown>): T {
+function unwrap<T>(
+  statusCode: number,
+  body: ApiEnvelope<unknown>,
+  url: string,
+): T {
   if (body.code === 0) {
     return (body.data ?? {}) as T;
   }
+  if (!body.message) {
+    // 非标准信封（404/405/422/502/HTML 等）：记录原始状态与响应片段
+    console.error("【响应非信封】", {
+      url,
+      statusCode,
+      body: bodySnippet(body),
+    });
+  }
   throw new ApiRequestError(
     body.code || statusCode,
-    messageFor(body.code, body.message),
+    IS_DEV && !body.message
+      ? `响应异常(HTTP ${statusCode})`
+      : messageFor(body.code, body.message),
   );
 }
 
@@ -216,7 +276,7 @@ export async function request<T>(
     const refreshed = await ensureRefreshed();
     if (refreshed) {
       const second = await send(path, options);
-      return unwrap<T>(second.statusCode, second.body);
+      return unwrap<T>(second.statusCode, second.body, `${API_BASE}${path}`);
     }
     throw new ApiRequestError(
       AUTH_CODE.tokenInvalid,
@@ -224,5 +284,5 @@ export async function request<T>(
     );
   }
 
-  return unwrap<T>(first.statusCode, first.body);
+  return unwrap<T>(first.statusCode, first.body, `${API_BASE}${path}`);
 }

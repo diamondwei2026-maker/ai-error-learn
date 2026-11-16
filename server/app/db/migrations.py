@@ -23,6 +23,13 @@ QUESTION_SYNC_HASH_COLUMNS: Dict[str, str] = {
     "content_hash": "VARCHAR(64) NULL",
 }
 
+# question_sync 识题元信息列（学科 / 题型 / 知识点 JSON）
+QUESTION_SYNC_META_COLUMNS: Dict[str, str] = {
+    "subject": "VARCHAR(16) NULL",
+    "question_type": "VARCHAR(16) NULL",
+    "knowledge_points": "VARCHAR(255) NULL",
+}
+
 
 def _missing_columns(engine: Engine, table: str, columns: Dict[str, str]) -> List[str]:
     inspector = inspect(engine)
@@ -61,6 +68,23 @@ def ensure_content_hash_column(engine: Engine) -> List[str]:
                 text(
                     f"ALTER TABLE question_sync ADD COLUMN {name} "
                     f"{QUESTION_SYNC_HASH_COLUMNS[name]}"
+                )
+            )
+    return missing
+
+
+def ensure_question_meta_columns(engine: Engine) -> List[str]:
+    """补齐 question_sync 的识题元信息列（幂等，已有行保持 NULL）。"""
+    missing = _missing_columns(engine, "question_sync", QUESTION_SYNC_META_COLUMNS)
+    if not missing:
+        return []
+
+    with engine.begin() as conn:
+        for name in missing:
+            conn.execute(
+                text(
+                    f"ALTER TABLE question_sync ADD COLUMN {name} "
+                    f"{QUESTION_SYNC_META_COLUMNS[name]}"
                 )
             )
     return missing

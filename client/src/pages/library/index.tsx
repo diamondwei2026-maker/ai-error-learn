@@ -16,6 +16,7 @@ import VariantSheet, { type VariantSheetState } from '@/components/VariantSheet'
 import {
   AI_CODE,
   AI_ERROR_MESSAGES,
+  AI_SUBJECT_LABELS,
   AI_VARIANT_ENABLED,
   AUTH_CODE,
   PAGE_SIZE,
@@ -147,10 +148,20 @@ const LibraryPage = () => {
         questionId: detail.id,
         content: detail.content,
         answer: detail.answer,
+        // 已有分类时透传，服务端据此跳过重新分类
+        subject: detail.subject,
+        questionType: detail.questionType,
+        knowledgePoints: detail.knowledgePoints,
       });
       if (seq !== aiSeq.current) return;
       setAiData(data);
       setAiState(data.variants.length > 0 ? 'success' : 'empty');
+      // 惰性回填元信息：仅填补本地缺失字段，无变更时不写盘
+      if (questionService.patchMeta(detail.id, data)) {
+        const updated = questionService.get(detail.id);
+        if (updated) setDetail(updated);
+        reload();
+      }
     } catch (error) {
       if (seq !== aiSeq.current) return;
       const code = error instanceof ApiRequestError ? error.code : 0;
@@ -216,16 +227,26 @@ const LibraryPage = () => {
       {detail ? (
         <>
           <View className={styles.detailBody}>
-            <View className={styles.chipRow}>
-              <Chip type={detail.imagePath ? 'blue' : 'neutral'}>
-                {detail.imagePath ? '含原图' : '无原图'}
-              </Chip>
-            </View>
-
             <View className={styles.detailCard}>
               <Text className={styles.sectionLabel}>题干</Text>
               <Text className={styles.detailText}>{detail.content}</Text>
             </View>
+
+            {detail.subject || detail.questionType || detail.knowledgePoints?.length ? (
+              <View className={styles.metaRow}>
+                {detail.subject ? (
+                  <Chip type="green">{AI_SUBJECT_LABELS[detail.subject] || '其他'}</Chip>
+                ) : null}
+                {detail.questionType ? (
+                  <Chip type="neutral">{detail.questionType}</Chip>
+                ) : null}
+                {detail.knowledgePoints?.map((point) => (
+                  <Chip key={point} type="neutral" className={styles.metaChipKnowledge}>
+                    {point}
+                  </Chip>
+                ))}
+              </View>
+            ) : null}
 
             {detail.imagePath ? (
               <View className={styles.detailImageCard}>

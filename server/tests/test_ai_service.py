@@ -149,3 +149,90 @@ def test_disabled_generator_raises_9001():
     with pytest.raises(AiError) as excinfo:
         DisabledVariantGenerator().generate("原题")
     assert excinfo.value.code == CODE_AI_NOT_ENABLED
+
+
+# ---------- 元信息复用 ----------
+
+def test_reuses_meta_and_skips_classification(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        captured["prompt"] = json["messages"][0]["content"]
+        return _chat_response('{"variants": [{"stem": "变式", "answer": "答"}]}')
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    result = _generator().generate(
+        "原题", "原答", 2, subject="physics", question_type="解答题",
+        knowledge_points=["受力分析"],
+    )
+    assert result.subject == "physics"
+    assert result.question_type == "解答题"
+    assert result.knowledge_points == ["受力分析"]
+    assert "已知分类" in captured["prompt"]
+    assert "受力分析" in captured["prompt"]
+
+
+def test_reuses_meta_without_knowledge_points(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        captured["prompt"] = json["messages"][0]["content"]
+        return _chat_response('{"variants": [{"stem": "变式", "answer": "答"}]}')
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    result = _generator().generate(
+        "原题", "", 1, subject="physics", question_type="解答题"
+    )
+    assert result.subject == "physics"
+    assert result.question_type == "解答题"
+    assert result.knowledge_points == []
+    assert "已知分类" in captured["prompt"]
+    assert "知识点：未提供" in captured["prompt"]
+
+
+def test_reuse_meta_overrides_model_output(monkeypatch):
+    content = (
+        '{"subject": "math", "questionType": "选择题", '
+        '"knowledgePoints": ["模型自判"], '
+        '"variants": [{"stem": "变式", "answer": "答"}]}'
+    )
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: _chat_response(content))
+
+    result = _generator().generate(
+        "原题", "", 1, subject="chemistry", question_type="填空题",
+        knowledge_points=["化学平衡"],
+    )
+    assert result.subject == "chemistry"
+    assert result.question_type == "填空题"
+    assert result.knowledge_points == ["化学平衡"]
+
+
+def test_missing_meta_falls_back_to_classification(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        captured["prompt"] = json["messages"][0]["content"]
+        return _chat_response('{"variants": [{"stem": "变式", "answer": "答"}]}')
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    _generator().generate("原题", "", 1)
+    assert "已知分类" not in captured["prompt"]
+
+
+def test_invalid_subject_normalized_before_reuse(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        captured["prompt"] = json["messages"][0]["content"]
+        return _chat_response('{"variants": [{"stem": "变式", "answer": "答"}]}')
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    result = _generator().generate(
+        "原题", "", 1, subject="biology", knowledge_points=["细胞结构"]
+    )
+    assert result.subject == "other"
+    assert "other" in captured["prompt"]

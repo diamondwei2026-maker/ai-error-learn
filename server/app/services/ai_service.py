@@ -30,6 +30,9 @@ CODE_AI_RATE_LIMITED = 9006
 _DEFAULT_COUNT = 3
 _MAX_COUNT = 5
 _SUBJECTS = ("math", "physics", "chemistry", "other")
+_QUESTION_TYPES = ("选择题", "填空题", "解答题", "证明题", "其他")
+_MAX_KNOWLEDGE_POINTS = 3
+_MAX_KNOWLEDGE_POINT_LEN = 32
 
 # 触发「额度/限流」判定的关键字（小写后命中即视为 9002）
 _QUOTA_HINTS = ("quota", "throttl", "rate limit", "limit exceeded", "too many requests")
@@ -73,8 +76,50 @@ class AiError(Exception):
 class VariantGenerator(Protocol):
     """变式题生成器协议。"""
 
-    def generate(self, stem: str, answer: str = "", count: int = _DEFAULT_COUNT) -> VariantResult:
+    def generate(
+        self,
+        stem: str,
+        answer: str = "",
+        count: int = _DEFAULT_COUNT,
+        subject: str = "",
+        question_type: str = "",
+        knowledge_points: Optional[List[str]] = None,
+    ) -> VariantResult:
         ...
+
+
+def normalize_subject(value: Any) -> str:
+    """学科归一化：缺失留空，非白名单归为 other。"""
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    return raw if raw in _SUBJECTS else "other"
+
+
+def normalize_question_type(value: Any) -> str:
+    """题型归一化：非白名单（含缺失）一律置空。"""
+    question_type = str(value or "").strip()
+    return question_type if question_type in _QUESTION_TYPES else ""
+
+
+def normalize_knowledge_points(value: Any) -> List[str]:
+    """知识点归一化：去重、单条截断 32 字、最多 3 条。"""
+    points: List[str] = []
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            label = str(item or "").strip()[:_MAX_KNOWLEDGE_POINT_LEN]
+            if label and label not in points:
+                points.append(label)
+            if len(points) >= _MAX_KNOWLEDGE_POINTS:
+                break
+    return points
+
+
+def has_reusable_meta(
+    subject: str, knowledge_points: Optional[List[str]] = None
+) -> bool:
+    """学科已知即可复用，跳过分类环节；知识点缺失不影响复用。"""
+    return bool(subject)
 
 
 def _build_prompt(stem: str, answer: str, count: int) -> str:
@@ -95,6 +140,33 @@ def _build_prompt(stem: str, answer: str, count: int) -> str:
         '{"subject": "math", "questionType": "解答题", '
         '"knowledgePoints": ["知识点1", "知识点2"], '
         '"variants": [{"stem": "...", "answer": "..."}]}\n'
+        "不要输出 JSON 之外的解释。"
+    )
+
+
+def _build_reuse_prompt(
+    stem: str,
+    answer: str,
+    count: int,
+    subject: str,
+    question_type: str,
+    knowledge_points: List[str],
+) -> str:
+    """分类已知时只生成变式，跳过重新分类，复用库内元信息。"""
+    points_label = "、".join(knowledge_points) or "未提供"
+    return (
+        "你是一名经验丰富的教师助手。下面是一道学生的错题：\n\n"
+        f"【题目】\n{stem}\n\n"
+        f"【答案/解答】\n{answer or '（未提供）'}\n\n"
+        f"【已知分类】学科：{subject}；题型：{question_type or '未知'}；"
+        f"知识点：{points_label}\n\n"
+        f"请直接生成 {count} 道【同构变式题】：\n"
+        "   - 保持与原题完全相同的题型和知识点\n"
+        "   - 改变具体数值、表述方式或情境，但考点不变\n"
+        "   - 每道题必须提供完整答案，输出前先自检答案正确性\n"
+        "   - 避免与原题过于相似（只改一个数字不算变式）\n\n"
+        "输出格式："
+        '{"variants": [{"stem": "...", "answer": "..."}]}\n'
         "不要输出 JSON 之外的解释。"
     )
 
@@ -153,22 +225,16 @@ def _parse_result(content: str, count: int) -> VariantResult:
     if not isinstance(parsed, dict):
         raise AiError(CODE_AI_PARSE_FAILED, "生成失败，换一道题试试")
 
-    subject = str(parsed.get("subject") or "other").strip().lower()
-    if subject not in _SUBJECTS:
+    subject = normalize_subject(parsed.get("subject"))
+    if not subject:
         subject = "other"
-    question_type = str(
-        parsed.get("questionType") or parsed.get("question_type") or ""
-    ).strip()
+    question_type = normalize_question_type(
+        parsed.get("questionType") or parsed.get("question_type")
+    )
 
-    raw_points = parsed.get("knowledgePoints") or parsed.get("knowledge_points") or []
-    points: List[str] = []
-    if isinstance(raw_points, list):
-        for item in raw_points:
-            label = str(item or "").strip()
-            if label and label not in points:
-                points.append(label)
-            if len(points) >= 3:
-                break
+    points = normalize_knowledge_points(
+        parsed.get("knowledgePoints") or parsed.get("knowledge_points")
+    )
 
     raw_variants = parsed.get("variants")
     if not isinstance(raw_variants, list):
@@ -217,7 +283,13 @@ class GlmVariantGenerator:
         return self._enabled and bool(self._api_key) and bool(self._base_url)
 
     def generate(
-        self, stem: str, answer: str = "", count: int = _DEFAULT_COUNT
+        self,
+        stem: str,
+        answer: str = "",
+        count: int = _DEFAULT_COUNT,
+        subject: str = "",
+        question_type: str = "",
+        knowledge_points: Optional[List[str]] = None,
     ) -> VariantResult:
         if not self.is_configured:
             raise AiError(CODE_AI_UNAVAILABLE, "AI 服务暂不可用，请稍后再试")
@@ -232,13 +304,24 @@ class GlmVariantGenerator:
             limit = _DEFAULT_COUNT
         limit = max(1, min(limit, _MAX_COUNT))
 
+        known_subject = normalize_subject(subject)
+        known_type = normalize_question_type(question_type)
+        known_points = normalize_knowledge_points(knowledge_points)
+        reuse_meta = has_reusable_meta(known_subject, known_points)
+
+        prompt = (
+            _build_reuse_prompt(
+                content, answer, limit, known_subject, known_type, known_points
+            )
+            if reuse_meta
+            else _build_prompt(content, answer, limit)
+        )
+
         url = f"{self._base_url}/chat/completions"
         payload = {
             "model": self._model,
             "temperature": 0.3,
-            "messages": [
-                {"role": "user", "content": _build_prompt(content, answer, limit)}
-            ],
+            "messages": [{"role": "user", "content": prompt}],
         }
         headers = {
             "Authorization": f"Bearer {self._api_key}",
@@ -270,13 +353,28 @@ class GlmVariantGenerator:
             body = "".join(
                 part.get("text", "") for part in body if isinstance(part, dict)
             )
-        return _parse_result(str(body), limit)
+        result = _parse_result(str(body), limit)
+        if not reuse_meta:
+            return result
+        # 复用路径：分类以库内结果为准，避免模型改写已确认的元信息
+        return VariantResult(
+            subject=known_subject,
+            question_type=known_type,
+            knowledge_points=known_points,
+            variants=result.variants,
+        )
 
 
 class DisabledVariantGenerator:
     """默认实现：AI 未启用，统一返回 9001。"""
 
     def generate(
-        self, stem: str, answer: str = "", count: int = _DEFAULT_COUNT
+        self,
+        stem: str,
+        answer: str = "",
+        count: int = _DEFAULT_COUNT,
+        subject: str = "",
+        question_type: str = "",
+        knowledge_points: Optional[List[str]] = None,
     ) -> VariantResult:
         raise AiError(CODE_AI_NOT_ENABLED, "AI 功能暂未开放")

@@ -28,6 +28,10 @@ export interface SyncItem {
   deleted: boolean
   /** 标准化题干的 SHA-256（可选，兼容旧客户端） */
   contentHash?: string
+  /** 识题元信息（可选，旧客户端不上行即保留云端值） */
+  subject?: string | null
+  questionType?: string | null
+  knowledgePoints?: string[] | null
 }
 
 /** 本地删除墓碑 */

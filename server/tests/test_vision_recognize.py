@@ -289,3 +289,72 @@ def test_service_success(monkeypatch):
     )
     outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
     assert outcome == RecognizeOutcome(stem="题干", answer="答案")
+
+
+# ---------- 元信息 ----------
+
+def test_parses_meta_and_limits_knowledge_points(monkeypatch):
+    content = json.dumps(
+        {
+            "stem": "题干",
+            "answer": "答案",
+            "subject": "physics",
+            "questionType": "解答题",
+            "knowledgePoints": ["受力分析", "牛顿第二定律", "多余1", "多余2"],
+        },
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.subject == "physics"
+    assert outcome.question_type == "解答题"
+    assert outcome.knowledge_points == ("受力分析", "牛顿第二定律", "多余1")
+
+
+def test_invalid_subject_falls_back_to_other(monkeypatch):
+    monkeypatch.setattr(
+        "httpx.post",
+        lambda *a, **k: _FakeResponse(
+            200, _payload('{"stem": "题干", "subject": "biology"}')
+        ),
+    )
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.subject == "other"
+
+
+def test_unknown_question_type_is_dropped(monkeypatch):
+    monkeypatch.setattr(
+        "httpx.post",
+        lambda *a, **k: _FakeResponse(
+            200, _payload('{"stem": "题干", "questionType": "未知题型"}')
+        ),
+    )
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.question_type == ""
+
+
+def test_missing_meta_keeps_legacy_behaviour(monkeypatch):
+    monkeypatch.setattr(
+        "httpx.post", lambda *a, **k: _FakeResponse(200, _payload('{"stem": "题干", "answer": "答案"}'))
+    )
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.subject == ""
+    assert outcome.question_type == ""
+    assert outcome.knowledge_points == ()
+
+
+def test_prompt_requests_meta(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        captured["json"] = json
+        return _FakeResponse(200, _payload('{"stem": "题干"}'))
+
+    monkeypatch.setattr("httpx.post", fake_post)
+    _client().recognize(b"abc", "image/jpeg")
+
+    content = captured["json"]["messages"][0]["content"]
+    prompt = next(p["text"] for p in content if p["type"] == "text")
+    assert "subject" in prompt
+    assert "knowledgePoints" in prompt

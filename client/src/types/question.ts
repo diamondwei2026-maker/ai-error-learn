@@ -1,5 +1,15 @@
+/** 识题元信息（识别时自动产出，存量题可能缺失） */
+export interface QuestionMeta {
+  /** 学科：math / physics / chemistry / other */
+  subject?: string
+  /** 题型：选择题 / 填空题 / 解答题 / 证明题 / 其他 */
+  questionType?: string
+  /** 知识点标签（≤3 条） */
+  knowledgePoints?: string[]
+}
+
 /** 错题记录（MVP 最小数据维度，对齐方案设计文档 §4.1） */
-export interface Question {
+export interface Question extends QuestionMeta {
   /** 唯一 ID（时间戳 + 随机串） */
   id: string
   /** 纯文本题干（必填） */

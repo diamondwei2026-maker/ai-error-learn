@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from typing import List, Optional
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from app.api.ai import create_ai_router
+from app.db.base import Base
 from app.errors import CODE_UNAUTHORIZED, ApiError
+from app.models.question_sync import QuestionSync
 from app.services.ai_service import (
     CODE_AI_NOT_ENABLED,
     CODE_AI_RATE_LIMITED,
@@ -30,8 +35,22 @@ class FakeGenerator:
             {"stem": "变式题 3", "answer": "答案 3"},
         ]
         self._error = error
+        self.last_meta = {"subject": "", "question_type": "", "knowledge_points": None}
 
-    def generate(self, stem: str, answer: str = "", count: int = 3) -> VariantResult:
+    def generate(
+        self,
+        stem: str,
+        answer: str = "",
+        count: int = 3,
+        subject: str = "",
+        question_type: str = "",
+        knowledge_points: Optional[List[str]] = None,
+    ) -> VariantResult:
+        self.last_meta = {
+            "subject": subject,
+            "question_type": question_type,
+            "knowledge_points": knowledge_points,
+        }
         if self._error is not None:
             raise self._error
         return VariantResult(
@@ -60,6 +79,7 @@ def _client(
     generator=None,
     content_security=None,
     auth_dep=None,
+    db_dep=None,
 ) -> TestClient:
     app = FastAPI()
 
@@ -71,10 +91,80 @@ def _client(
         )
 
     app.include_router(
-        create_ai_router(generator or FakeGenerator(), content_security, auth_dep),
+        create_ai_router(
+            generator or FakeGenerator(), content_security, auth_dep, db_dep
+        ),
         prefix="/api/v1",
     )
     return TestClient(app)
+
+
+class FakeUser:
+    """鉴权用户替身（查库按 id 定位）。"""
+
+    def __init__(self, user_id: int = 7, openid: str = "openid-7"):
+        self.id = user_id
+        self.openid = openid
+
+
+def _allow_user(user_id: int = 7):
+    def _dep() -> FakeUser:
+        return FakeUser(user_id)
+
+    return _dep
+
+
+def _meta_db(tmp_path):
+    """独立临时 SQLite，避免污染全局数据库配置。"""
+    engine = create_engine(
+        f"sqlite:///{(tmp_path / 'ai-meta.db').as_posix()}", future=True
+    )
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine, future=True)
+
+
+def _db_dep(factory):
+    def _dep():
+        session = factory()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    return _dep
+
+
+def _add_stored(
+    factory,
+    user_id: int = 7,
+    item_id: str = "q1",
+    subject: Optional[str] = None,
+    question_type: Optional[str] = None,
+    points: Optional[List[str]] = None,
+    deleted: bool = False,
+):
+    session = factory()
+    try:
+        session.add(
+            QuestionSync(
+                user_id=user_id,
+                item_id=item_id,
+                content="题干",
+                answer="",
+                created_at=1,
+                updated_at=1,
+                deleted=deleted,
+                synced_at=1,
+                subject=subject,
+                question_type=question_type,
+                knowledge_points=json.dumps(points, ensure_ascii=False)
+                if points
+                else None,
+            )
+        )
+        session.commit()
+    finally:
+        session.close()
 
 
 def _post(client: TestClient, **overrides):
@@ -170,3 +260,112 @@ def test_authenticated_user_passes_openid_to_content_security():
     resp = _post(_client(content_security=security, auth_dep=_allow))
     assert resp.json()["code"] == 0
     assert security.calls[0][1] == "openid-7"
+
+
+def test_complete_meta_is_forwarded():
+    generator = FakeGenerator()
+    resp = _post(
+        _client(generator),
+        subject="math",
+        questionType="解答题",
+        knowledgePoints=["二次函数", "最值"],
+    )
+    assert resp.json()["code"] == 0
+    assert generator.last_meta["subject"] == "math"
+    assert generator.last_meta["question_type"] == "解答题"
+    assert generator.last_meta["knowledge_points"] == ["二次函数", "最值"]
+
+
+def test_subject_only_meta_is_forwarded():
+    # 只有学科、没有知识点：学科已知即可复用，不再重新分类
+    generator = FakeGenerator()
+    resp = _post(_client(generator), subject="math")
+    assert resp.json()["code"] == 0
+    assert generator.last_meta["subject"] == "math"
+    assert generator.last_meta["knowledge_points"] == []
+
+
+def test_invalid_meta_is_dropped_without_error():
+    generator = FakeGenerator()
+    resp = _post(
+        _client(generator),
+        subject="not-a-subject",
+        questionType="题型" * 20,
+        knowledgePoints=["a", "b", "c", "d"],
+    )
+    assert resp.json()["code"] == 0
+    assert generator.last_meta["subject"] == ""
+    assert generator.last_meta["question_type"] == ""
+    assert generator.last_meta["knowledge_points"] is None
+
+
+def test_stored_meta_wins_over_payload(tmp_path):
+    generator = FakeGenerator()
+    factory = _meta_db(tmp_path)
+    _add_stored(
+        factory,
+        subject="physics",
+        question_type="选择题",
+        points=["受力分析"],
+    )
+    client = _client(
+        generator, auth_dep=_allow_user(), db_dep=_db_dep(factory)
+    )
+    resp = _post(
+        client,
+        questionId="q1",
+        subject="math",
+        questionType="解答题",
+        knowledgePoints=["二次函数"],
+    )
+    assert resp.json()["code"] == 0
+    assert generator.last_meta == {
+        "subject": "physics",
+        "question_type": "选择题",
+        "knowledge_points": ["受力分析"],
+    }
+
+
+def test_stored_meta_fills_missing_fields_from_payload(tmp_path):
+    generator = FakeGenerator()
+    factory = _meta_db(tmp_path)
+    _add_stored(factory, subject="physics")
+    client = _client(
+        generator, auth_dep=_allow_user(), db_dep=_db_dep(factory)
+    )
+    resp = _post(
+        client,
+        questionId="q1",
+        questionType="解答题",
+        knowledgePoints=["受力分析"],
+    )
+    assert resp.json()["code"] == 0
+    assert generator.last_meta["subject"] == "physics"
+    assert generator.last_meta["question_type"] == "解答题"
+    assert generator.last_meta["knowledge_points"] == ["受力分析"]
+
+
+def test_deleted_stored_row_is_ignored(tmp_path):
+    generator = FakeGenerator()
+    factory = _meta_db(tmp_path)
+    _add_stored(factory, subject="math", deleted=True)
+    client = _client(
+        generator, auth_dep=_allow_user(), db_dep=_db_dep(factory)
+    )
+    resp = _post(client, questionId="q1")
+    assert resp.json()["code"] == 0
+    # 库内已删除且入参未携带 → 走分类兜底链路
+    assert generator.last_meta["subject"] == ""
+
+
+def test_anonymous_request_skips_db_lookup(tmp_path):
+    generator = FakeGenerator()
+    factory = _meta_db(tmp_path)
+    _add_stored(factory, subject="physics", points=["受力分析"])
+    client = _client(generator, db_dep=_db_dep(factory))
+    resp = _post(
+        client, questionId="q1", subject="math", knowledgePoints=["二次函数"]
+    )
+    assert resp.json()["code"] == 0
+    assert generator.last_meta["subject"] == "math"
+    assert generator.last_meta["knowledge_points"] == ["二次函数"]

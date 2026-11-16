@@ -68,9 +68,9 @@ const VariantSheet = ({
     if (state === 'loading') {
       return (
         <View className={styles.metaRow}>
-          <Chip className={styles.chipLoading}>识别学科中</Chip>
-          <Chip className={styles.chipLoading}>识别题型中</Chip>
-          <Chip className={styles.chipLoading}>提取知识点</Chip>
+          <Chip className={styles.chipLoading}>理解原题</Chip>
+          <Chip className={styles.chipLoading}>生成变式</Chip>
+          <Chip className={styles.chipLoading}>校验答案</Chip>
         </View>
       );
     }
@@ -146,7 +146,7 @@ const VariantSheet = ({
                 <View className={classnames(styles.dot, styles.dot2)} />
                 <View className={classnames(styles.dot, styles.dot3)} />
               </View>
-              正在分析题型与知识点，约需 10–30 秒
+              正在生成同类型变式题，约需 10–30 秒
             </View>
           </View>
         </ScrollView>

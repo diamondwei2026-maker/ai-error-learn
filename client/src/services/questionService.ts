@@ -1,14 +1,14 @@
 import { PAGE_SIZE, SCHEMA_VERSION } from '@/constants'
 import { createId } from '@/utils/id'
 import { computeContentHash } from '@/utils/textHash'
-import type { Question } from '@/types/question'
+import type { Question, QuestionMeta } from '@/types/question'
 
 import { authRepo } from './repo/authRepo'
 import { fileRepo } from './repo/fileRepo'
 import { storageRepo } from './repo/storageRepo'
 import { syncService } from './syncService'
 
-export interface CreateQuestionInput {
+export interface CreateQuestionInput extends QuestionMeta {
   content: string
   answer: string
   /** 已压缩的临时图片路径 */
@@ -64,6 +64,11 @@ export const questionService = {
       content,
       answer: (input.answer || '').trim(),
       contentHash: contentHash || undefined,
+      subject: input.subject || undefined,
+      questionType: input.questionType || undefined,
+      knowledgePoints: input.knowledgePoints?.length
+        ? input.knowledgePoints.slice(0, 3)
+        : undefined,
       imagePath,
       imageSize: imageSize || undefined,
       createdAt: now,
@@ -85,6 +90,38 @@ export const questionService = {
     syncService.scheduleSync()
 
     return question
+  },
+
+  /** 惰性回填元信息：仅填补本地缺失字段，无变更时返回 false（不写盘、不触发同步） */
+  patchMeta(id: string, meta: QuestionMeta): boolean {
+    const list = storageRepo.listQuestions()
+    const index = list.findIndex((item) => item.id === id)
+    if (index === -1) return false
+
+    const current = list[index]
+    const next: Question = { ...current }
+    let changed = false
+
+    if (meta.subject && !next.subject) {
+      next.subject = meta.subject
+      changed = true
+    }
+    if (meta.questionType && !next.questionType) {
+      next.questionType = meta.questionType
+      changed = true
+    }
+    const points = meta.knowledgePoints?.filter((item) => Boolean(item)) || []
+    if (points.length > 0 && !(next.knowledgePoints && next.knowledgePoints.length > 0)) {
+      next.knowledgePoints = points.slice(0, 3)
+      changed = true
+    }
+    if (!changed) return false
+
+    next.updatedAt = Date.now()
+    list[index] = next
+    storageRepo.saveQuestions(list)
+    syncService.scheduleSync()
+    return true
   },
 
   /** 分页查询（按创建时间倒序），page 从 1 开始 */

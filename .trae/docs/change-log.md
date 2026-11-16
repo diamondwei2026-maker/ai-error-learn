@@ -959,3 +959,64 @@
 - **遗留验证**：真机需重新进入题目详情点击入口确认弹层生成 3 道变式；登录/识别/同步/头像昵称需在真机各走一次回归；若后续启用内容安全，需补 `PUBLIC_BASE_URL` 与 `CONTENT_SECURITY_ENABLED=true` 再观察。
 - **本地联调说明**：当前 `dist` 为生产构建，真机走生产域名即可验证；若要改连本地后端，执行 `cd client && npm run dev:weapp`（`.env.development` → `http://192.168.60.37:8000`）并在开发者工具勾选「不校验合法域名」，上传体验版前必须重新 `npm run build:weapp`。
 
+---
+
+## incr-20261113-识题元信息
+
+- **编号**：incr-20261113-识题元信息
+- **日期**：2026-11-13
+- **变更摘要**：识题时同步产出「学科 / 题型 / 知识点」元信息并随题入库；变式生成时若库内分类齐全则直接复用、跳过重复分类；详情页在题干卡下方新增元信息标签行，移除顶部「含原图 / 无原图」胶囊行；同步协议与 `question_sync` 表新增三个可空字段，旧客户端不携带即保留云端值。
+- **影响模块**：
+  - 服务端：`app/services/vision_recognize.py`、`app/api/recognize.py`、`app/models/schemas.py`、`app/services/ai_service.py`、`app/api/ai.py`、`app/models/question_sync.py`、`app/db/migrations.py`、`app/db/session.py`、`app/api/sync.py`
+  - 客户端：`types/question.ts`、`types/user.ts`、`services/recognitionService.ts`、`services/questionService.ts`、`services/syncService.ts`、`services/aiService.ts`、`pages/edit/index.tsx`、`pages/library/index.tsx`、`pages/library/index.module.scss`
+  - 测试：`tests/test_vision_recognize.py`、`tests/test_ai_api.py`、`tests/test_ai_service.py`、`tests/test_sync_api.py`
+- **关联文档路径**：`.trae/docs/increments/incr-20261113-识题元信息/`（研讨记录、tasks、主基线固化更新报告、增量交付报告）
+- **是否待合并主 spec**：**否**（增量文档独立归档）
+- **验证结果**：
+  - 服务端 `pytest -q` → **181 passed**；
+  - `ensure_question_meta_columns` 空表补列、重复执行幂等；
+  - `npx tsc --noEmit` 无新增错误（仅既有 node_modules 声明与 `React` 未使用告警）；
+  - `npm run build:weapp` → **exit 0 / Compiled successfully**（仅既有 CSS 顺序告警）。
+- **回滚方式**：回退本次服务端 9 个文件与客户端 9 个文件；`question_sync` 新增列为可空，旧代码无需回滚 DDL。
+- **遗留验证**：真机识别→保存→详情标签展示、已分类题变式 `reused_meta=true`、存量题变式成功后自动回填；生产需同步 `server/app` 并重启服务。
+
+---
+
+## incr-20261116-变式元信息查库复用
+
+- **编号**：incr-20261116-变式元信息查库复用
+- **日期**：2026-11-16
+- **变更摘要**：变式生成改为以服务端库内元信息为准——`/api/v1/ai/variants` 按 `questionId` 查 `question_sync` 的学科 / 题型 / 知识点，库内有值即直接复用并跳过模型分类，客户端入参仅按字段兜底；复用门槛由「学科 + 知识点」放宽为「学科非空即可」；存量无元信息题仍保留 AI 兜底分类与惰性回填；变式生成加载态文案去掉「识别学科中 / 识别题型中 / 提取知识点」。
+- **影响模块**：
+  - 服务端：`app/api/ai.py`、`app/services/ai_service.py`、`app/main.py`
+  - 客户端：`src/components/VariantSheet/index.tsx`、`src/services/aiService.ts`（仅注释）
+  - 测试：`tests/test_ai_api.py`、`tests/test_ai_service.py`
+- **关联文档路径**：`.trae/docs/increments/incr-20261116-变式元信息查库复用/`（研讨记录、tasks）、`.trae/documents/变式题复用库内元信息-实施方案.md`、`.trae/todolist/变式题元信息查库复用.md`
+- **是否待合并主 spec**：**否**（增量独立归档，无接口契约与数据模型变更）
+- **验证结果**：
+  - 服务端 `.venv\Scripts\python.exe -m pytest tests -q` → **186 passed**；
+  - `npx tsc --noEmit` 无新增错误（仅既有 node_modules 声明与 `React` 未使用告警）；
+  - `npm run build:weapp` → **exit 0 / Compiled successfully**（仅既有 CSS 顺序告警）；产物中旧识别文案 0 处、新文案 1 处。
+- **回滚方式**：回退上述 3 个服务端文件与 2 个客户端文件即可；无 DDL、无配置变更。
+- **遗留验证 / 上线提醒**：生产需同步 `server/app` 并重启服务；登录态对已有元信息的题生成变式，日志应为 `reused_meta=true meta_source=db`；若刚保存尚未同步，日志为 `meta_source=payload` 属预期。
+
+---
+
+## fix-20261116-真机登录网络异常
+
+- **编号**：fix-20261116-真机登录网络异常
+- **日期**：2026-11-16
+- **变更摘要**：真机调试（开发版）与模拟器点击「微信一键登录」均提示「网络异常，请稍后重试」，排查确认后端与域名侧正常（本地 `8000`、生产 `/api/v1/health`、生产 `POST /api/v1/auth/login` 均返回标准信封），根因落在客户端错误归并：`messageFor` 兜底把 404 / 405 / 422 / 403 / 502 / HTML 与网络层失败统一显示为「网络异常」，无法区分平台域名拦截与接口响应异常。本次仅增强**开发态**可诊断性——首次请求打印 `API_BASE + NODE_ENV`；网络层失败追加 `errMsg / errno`，开发态 toast 显示 `网络失败:<errMsg>`；非信封响应追加 `statusCode + 响应片段` 日志，开发态 toast 显示 `响应异常(HTTP <code>)`。生产文案零变化。
+- **影响模块**：
+  - 客户端：`src/services/request.ts`、`dist/**`（重新生产构建）
+  - 文档：`.trae/documents/真机登录网络异常-定位与修复方案.md`、`.trae/todolist/真机登录网络异常.md`
+  - **未改动**：`server/**`、`authService.ts`、`userStore.ts`、`constants/index.ts`、`project.config.json`、`project.private.config.json`、`.env.development`、`.env.production`
+- **关联文档路径**：`.trae/documents/真机登录网络异常-定位与修复方案.md`、`.trae/todolist/真机登录网络异常.md`
+- **是否待合并主 spec**：**否**（纯诊断增强 + 配置排查，无接口契约与数据模型变更）
+- **验证结果**：
+  - `npx tsc --noEmit` 无新增错误（仅既有 node_modules 声明与 `React` 未使用告警）；
+  - `npm run build:weapp` → **exit 0 / Compiled successfully in 35.59s**（仅既有 CSS 顺序告警）；产物仅含生产域名 `https://errorlearn.diamondwtech.com`，已含 `[request] API_BASE` 环境自证日志；
+  - 生产探测：`GET /api/v1/health` → `200 {"status":"ok"}`；`POST /api/v1/auth/login`（合法 JSON 假 code）→ `200 {"code":2004,"message":"微信登录凭证无效，请重试"}`，确认服务端与 CDN 链路正常。
+- **回滚方式**：`git checkout -- client/src/services/request.ts` 后重新 `npm run build:weapp`；无服务端与配置改动需回滚。
+- **遗留验证（用户侧）**：开发者工具「清除缓存 → 重新编译」后点登录，按 Console 输出判定——`errMsg` 含 `url not in domain list` 属平台域名校验（勾选「不校验合法域名」或在 MP 后台配置 `request/uploadFile/downloadFile` 为 `https://errorlearn.diamondwtech.com`）；出现 `【响应非信封】` 则按 `statusCode` 定位 CDN/路由；两者都无则回看 `[request] API_BASE` 是否与预期一致。
+

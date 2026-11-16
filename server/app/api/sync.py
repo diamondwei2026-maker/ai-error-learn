@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+import json
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -27,6 +28,13 @@ _REQUIRED_KEYS = ("id", "content", "answer", "createdAt", "updatedAt", "deleted"
 _OPTIONAL_INT_KEYS = ("reviewStage", "nextReviewAt", "lastReviewedAt")
 # 内容哈希为可选字段：旧客户端不带，服务端保留库内值
 _OPTIONAL_STR_KEYS = ("contentHash",)
+# 识题元信息为可选字段：显式携带才覆盖，缺失保留库内值
+_OPTIONAL_META_STR_KEYS = ("subject", "questionType")
+_OPTIONAL_META_LIST_KEYS = ("knowledgePoints",)
+META_STR_MAX_LENGTH = 16
+KNOWLEDGE_POINT_MAX_LENGTH = 32
+KNOWLEDGE_POINTS_MAX_COUNT = 3
+KNOWLEDGE_POINTS_COLUMN_MAX_BYTES = 255
 
 
 def _is_int(value: Any) -> bool:
@@ -46,6 +54,54 @@ def _apply_schedule(row: QuestionSync, raw: Dict[str, Any]) -> None:
         row.next_review_at = raw["nextReviewAt"]
     if "lastReviewedAt" in raw:
         row.last_reviewed_at = raw["lastReviewedAt"]
+
+
+def _has_meta(raw: Dict[str, Any]) -> bool:
+    return (
+        any(key in raw for key in _OPTIONAL_META_STR_KEYS)
+        or any(key in raw for key in _OPTIONAL_META_LIST_KEYS)
+    )
+
+
+def _dump_knowledge_points(points: List[str]) -> Optional[str]:
+    """知识点存 JSON 字符串：去重、≤3 条，超 255 字节从尾部裁剪。"""
+    labels: List[str] = []
+    for item in points or []:
+        label = str(item or "").strip()[:KNOWLEDGE_POINT_MAX_LENGTH]
+        if label and label not in labels:
+            labels.append(label)
+        if len(labels) >= KNOWLEDGE_POINTS_MAX_COUNT:
+            break
+    if not labels:
+        return None
+    for size in range(len(labels), 0, -1):
+        payload = json.dumps(labels[:size], ensure_ascii=False)
+        if len(payload.encode("utf-8")) <= KNOWLEDGE_POINTS_COLUMN_MAX_BYTES:
+            return payload
+    return None
+
+
+def _load_knowledge_points(raw: Optional[str]) -> List[str]:
+    """读取知识点；JSON 解析失败降级为空数组。"""
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [str(item) for item in parsed if str(item)]
+
+
+def _apply_meta(row: QuestionSync, raw: Dict[str, Any]) -> None:
+    """仅在请求显式携带元信息字段时覆盖，缺失保留库内值。"""
+    if "subject" in raw:
+        row.subject = (raw["subject"] or "").strip() or None
+    if "questionType" in raw:
+        row.question_type = (raw["questionType"] or "").strip() or None
+    if "knowledgePoints" in raw:
+        row.knowledge_points = _dump_knowledge_points(raw["knowledgePoints"] or [])
 
 
 def _validate_item(raw: Any) -> Dict[str, Any]:
@@ -69,6 +125,18 @@ def _validate_item(raw: Any) -> Dict[str, Any]:
     for key in _OPTIONAL_STR_KEYS:
         if key in raw and raw[key] is not None and not isinstance(raw[key], str):
             raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
+    for key in _OPTIONAL_META_STR_KEYS:
+        if key in raw and raw[key] is not None:
+            if not isinstance(raw[key], str) or len(raw[key]) > META_STR_MAX_LENGTH:
+                raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
+    for key in _OPTIONAL_META_LIST_KEYS:
+        if key in raw and raw[key] is not None:
+            points = raw[key]
+            if not isinstance(points, list) or len(points) > KNOWLEDGE_POINTS_MAX_COUNT:
+                raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
+            for item in points:
+                if not isinstance(item, str) or len(item) > KNOWLEDGE_POINT_MAX_LENGTH:
+                    raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
     return raw
 
 
@@ -84,6 +152,9 @@ def _serialize(row: QuestionSync) -> Dict[str, Any]:
         "reviewStage": row.review_stage,
         "nextReviewAt": row.next_review_at,
         "lastReviewedAt": row.last_reviewed_at,
+        "subject": row.subject,
+        "questionType": row.question_type,
+        "knowledgePoints": _load_knowledge_points(row.knowledge_points),
     }
 
 
@@ -145,6 +216,7 @@ def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
                 )
                 _apply_schedule(row, item)
                 _apply_content_hash(row, item)
+                _apply_meta(row, item)
                 db.add(row)
             else:
                 if newer:
@@ -158,7 +230,14 @@ def create_sync_router(content_security: ContentSecurityService) -> APIRouter:
                 if _has_schedule(item):
                     _apply_schedule(row, item)
                 _apply_content_hash(row, item)
-                if newer or _has_schedule(item) or "contentHash" in item:
+                # 元信息与内容解耦：显式携带才覆盖，newer 覆盖内容时不动元信息
+                _apply_meta(row, item)
+                if (
+                    newer
+                    or _has_schedule(item)
+                    or "contentHash" in item
+                    or _has_meta(item)
+                ):
                     row.synced_at = server_time
             accepted.append(item["id"])
 

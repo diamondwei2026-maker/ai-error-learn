@@ -26,7 +26,7 @@ interface PullResult {
 }
 
 function questionToItem(question: Question): SyncItem {
-  return {
+  const item: SyncItem = {
     id: question.id,
     content: question.content,
     answer: question.answer,
@@ -35,6 +35,13 @@ function questionToItem(question: Question): SyncItem {
     deleted: false,
     contentHash: question.contentHash,
   };
+  // 元信息缺失时不输出，保持旧协议语义（服务端保留库内值）
+  if (question.subject) item.subject = question.subject;
+  if (question.questionType) item.questionType = question.questionType;
+  if (question.knowledgePoints?.length) {
+    item.knowledgePoints = question.knowledgePoints;
+  }
+  return item;
 }
 
 function tombstoneToItem(tombstone: Tombstone): SyncItem {
@@ -88,6 +95,11 @@ function mergeRemoteItems(items: SyncItem[]): void {
         createdAt: remote.createdAt,
         updatedAt: remote.updatedAt,
         contentHash: remote.contentHash,
+        subject: remote.subject ?? undefined,
+        questionType: remote.questionType ?? undefined,
+        knowledgePoints: remote.knowledgePoints?.length
+          ? remote.knowledgePoints
+          : undefined,
       });
       changed = true;
       return;
@@ -99,6 +111,12 @@ function mergeRemoteItems(items: SyncItem[]): void {
         content: remote.content,
         answer: remote.answer,
         contentHash: remote.contentHash ?? local.contentHash,
+        // 云端空值不覆盖本地已有元信息
+        subject: remote.subject ?? local.subject,
+        questionType: remote.questionType ?? local.questionType,
+        knowledgePoints: remote.knowledgePoints?.length
+          ? remote.knowledgePoints
+          : local.knowledgePoints,
         updatedAt: remote.updatedAt,
       });
       changed = true;

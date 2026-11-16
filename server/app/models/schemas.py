@@ -20,6 +20,10 @@ class RecognizeResponse(BaseModel):
     splitMethod: str = ""
     wordsCount: int = 0
     message: Optional[str] = None
+    # 元信息（可选：模型未给出时由 exclude_none 省略，旧客户端无感）
+    subject: Optional[str] = None
+    questionType: Optional[str] = None
+    knowledgePoints: Optional[List[str]] = None
 
 
 class AiResponse(BaseModel):

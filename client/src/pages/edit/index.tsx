@@ -25,7 +25,7 @@ import { fileRepo } from "@/services/repo/fileRepo";
 import { securityService } from "@/services/securityService";
 import { useQuestionStore } from "@/store/questionStore";
 import { useUserStore } from "@/store/userStore";
-import type { Question } from "@/types/question";
+import type { Question, QuestionMeta } from "@/types/question";
 import { getPageMinHeight } from "@/utils/layout";
 import { computeContentHash } from "@/utils/textHash";
 
@@ -49,6 +49,8 @@ const EditPage = () => {
   const [content, setContent] = useState("");
   const [answer, setAnswer] = useState("");
   const [splitMethod, setSplitMethod] = useState<SplitMethod>("none");
+  /** 识别产出的元信息：随题干一起入库，重拍时覆盖；手输时为空 */
+  const [meta, setMeta] = useState<QuestionMeta>({});
   const [recognizeFailed, setRecognizeFailed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [imageSize, setImageSize] = useState(0);
@@ -84,11 +86,17 @@ const EditPage = () => {
       setContent(result.text);
       setAnswer(result.answer);
       setSplitMethod(result.splitMethod);
+      setMeta({
+        subject: result.subject,
+        questionType: result.questionType,
+        knowledgePoints: result.knowledgePoints,
+      });
       setRecognizeFailed(false);
     } else {
       setContent("");
       setAnswer("");
       setSplitMethod("none");
+      setMeta({});
       setRecognizeFailed(true);
       Taro.showToast({
         title: result.message || "识别失败，请手动输入",
@@ -159,6 +167,9 @@ const EditPage = () => {
         content: trimmed,
         answer,
         tempImagePath: tempPath || undefined,
+        subject: meta.subject,
+        questionType: meta.questionType,
+        knowledgePoints: meta.knowledgePoints,
       });
       refreshStore();
       // 重置 saveAnyway 标记

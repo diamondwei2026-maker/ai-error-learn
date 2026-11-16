@@ -23,7 +23,7 @@ from app.api.sync import create_sync_router
 from app.api.user import create_user_router
 from app.api.wechat_callback import create_wechat_callback_router
 from app.config import Settings, load_settings, set_current_settings
-from app.db import configure_database, init_db
+from app.db import configure_database, get_db, init_db
 from app.deps.auth import get_current_user
 from app.errors import ApiError
 from app.services.ai_service import DisabledVariantGenerator, GlmVariantGenerator
@@ -151,6 +151,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             variant_generator,
             content_security,
             auth_dep=get_current_user if settings.auth_required else None,
+            db_dep=get_db,
         ),
         prefix="/api/v1",
         tags=["ai"],

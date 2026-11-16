@@ -30,14 +30,24 @@ CODE_SERVICE_UNAVAILABLE = 1005  # 服务未开通 / 无权限 / 鉴权失败
 
 _DEFAULT_MIME = "image/jpeg"
 
-# 识别 + 拆题提示词：约束模型只输出题干与完整解答的 JSON（解答需保留解题过程）
+# 识别 + 拆题提示词：约束模型只输出题干、完整解答与元信息 JSON（解答需保留解题过程）
 _PROMPT = (
     "你是题目识别助手。请识别图片中的题目内容，并拆分为「题干」与「解答」两部分。"
     "其中「解答」需完整保留图片中给出的解题过程（含每一步推导、计算与最终结论），"
     "按原有顺序与换行输出，不要只提取最终答案；若图片只有最终答案，则只输出该答案。"
-    '仅输出 JSON：{"stem": "题干文本", "answer": "解答文本"}；'
+    "另外请判断题目元信息：学科 subject（math/physics/chemistry/other，无法判断填 other）、"
+    "题型 questionType（选择题/填空题/解答题/证明题/其他，无法判断填空字符串）、"
+    "知识点 knowledgePoints（1-3 个简短关键词数组，无法判断填空数组）。"
+    '仅输出 JSON：{"stem": "题干文本", "answer": "解答文本", "subject": "math", '
+    '"questionType": "解答题", "knowledgePoints": ["知识点1", "知识点2"]}；'
     "若图片中没有解答，answer 用空字符串。不要输出多余解释。"
 )
+
+# 元信息白名单与上限（与前端 constants / 同步接口保持一致）
+_SUBJECTS = ("math", "physics", "chemistry", "other")
+_QUESTION_TYPES = ("选择题", "填空题", "解答题", "证明题", "其他")
+_MAX_KNOWLEDGE_POINTS = 3
+_MAX_KNOWLEDGE_POINT_LEN = 32
 
 # 触发「配额/限流」判定的关键字（小写后命中即视为 1003）
 _QUOTA_HINTS = ("quota", "throttl", "rate limit", "limit exceeded", "too many requests")
@@ -64,21 +74,51 @@ class RecognizeError(Exception):
 
 @dataclass(frozen=True)
 class RecognizeOutcome:
-    """识别结果（已清洗）。"""
+    """识别结果（已清洗）。元信息缺省为空，保证旧调用方无感。"""
 
     stem: str
     answer: str
+    subject: str = ""
+    question_type: str = ""
+    knowledge_points: Tuple[str, ...] = ()
 
 
-def _parse_content(content: str) -> Tuple[str, str]:
-    """从容错地解析模型输出中的 {stem, answer}。
+def normalize_subject(value: Any) -> str:
+    """学科归一化：缺失留空，非白名单归为 other。"""
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return ""
+    return raw if raw in _SUBJECTS else "other"
+
+
+def normalize_question_type(value: Any) -> str:
+    """题型归一化：非白名单（含缺失）一律置空。"""
+    question_type = str(value or "").strip()
+    return question_type if question_type in _QUESTION_TYPES else ""
+
+
+def normalize_knowledge_points(value: Any) -> Tuple[str, ...]:
+    """知识点归一化：去重、单条截断 32 字、最多 3 条。"""
+    points: list[str] = []
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            label = str(item or "").strip()[:_MAX_KNOWLEDGE_POINT_LEN]
+            if label and label not in points:
+                points.append(label)
+            if len(points) >= _MAX_KNOWLEDGE_POINTS:
+                break
+    return tuple(points)
+
+
+def _parse_content(content: str) -> Tuple[str, str, str, str, Tuple[str, ...]]:
+    """从容错地解析模型输出中的 {stem, answer, subject, questionType, knowledgePoints}。
 
     依次尝试：去除 ```json 代码块围栏 → 截取首个 JSON 对象 → json.loads。
-    解析失败时把整段文本当作题干、answer 置空（容错优先，不抛错）。
+    解析失败时把整段文本当作题干、answer 置空、元信息留空（容错优先，不抛错）。
     """
     text = (content or "").strip()
     if not text:
-        return "", ""
+        return "", "", "", "", ()
 
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if fence:
@@ -94,14 +134,21 @@ def _parse_content(content: str) -> Tuple[str, str]:
         # 否则多行 answer 会导致 json.loads 失败、整段文本被误当作题干。
         parsed = json.loads(candidate, strict=False)
     except (TypeError, ValueError):
-        return clean_text(content), ""
+        return clean_text(content), "", "", "", ()
 
     if not isinstance(parsed, dict):
-        return clean_text(content), ""
+        return clean_text(content), "", "", "", ()
 
     stem = clean_text(str(parsed.get("stem", "") or ""))
     answer = clean_text(str(parsed.get("answer", "") or ""))
-    return stem, answer
+    subject = normalize_subject(parsed.get("subject"))
+    question_type = normalize_question_type(
+        parsed.get("questionType") or parsed.get("question_type")
+    )
+    points = normalize_knowledge_points(
+        parsed.get("knowledgePoints") or parsed.get("knowledge_points")
+    )
+    return stem, answer, subject, question_type, points
 
 
 def _map_to_error(exc: Any) -> RecognizeError:
@@ -158,10 +205,10 @@ class VisionClient:
     def is_configured(self) -> bool:
         return self._enabled and bool(self._api_key) and bool(self._base_url)
 
-    def recognize(
+    def recognize_full(
         self, image_bytes: bytes, mime_type: str = _DEFAULT_MIME
-    ) -> Tuple[str, str]:
-        """调用视觉模型，返回 (stem, answer)。"""
+    ) -> Tuple[str, str, str, str, Tuple[str, ...]]:
+        """调用视觉模型，返回 (stem, answer, subject, question_type, knowledge_points)。"""
         if not self.is_configured:
             raise RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务未配置访问密钥")
         if not image_bytes:
@@ -219,9 +266,18 @@ class VisionClient:
             )
         return _parse_content(str(content))
 
+    def recognize(
+        self, image_bytes: bytes, mime_type: str = _DEFAULT_MIME
+    ) -> Tuple[str, str]:
+        """兼容旧调用：仅返回 (stem, answer)。"""
+        stem, answer, _subject, _question_type, _points = self.recognize_full(
+            image_bytes, mime_type
+        )
+        return stem, answer
+
 
 class VisionRecognizeService:
-    """识别业务编排：调用视觉模型，返回题干 + 答案。"""
+    """识别业务编排：调用视觉模型，返回题干 + 答案 + 元信息。"""
 
     def __init__(self, client: Optional[VisionClient]):
         self._client = client
@@ -231,5 +287,13 @@ class VisionRecognizeService:
     ) -> RecognizeOutcome:
         if self._client is None or not self._client.is_configured:
             raise RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务未配置访问密钥")
-        stem, answer = self._client.recognize(image_bytes, mime_type)
-        return RecognizeOutcome(stem=stem, answer=answer)
+        stem, answer, subject, question_type, points = self._client.recognize_full(
+            image_bytes, mime_type
+        )
+        return RecognizeOutcome(
+            stem=stem,
+            answer=answer,
+            subject=subject,
+            question_type=question_type,
+            knowledge_points=points,
+        )

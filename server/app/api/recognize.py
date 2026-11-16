@@ -50,6 +50,9 @@ def create_recognize_router(
             answer=outcome.answer,
             splitMethod="vlm" if outcome.answer else "none",
             wordsCount=count_words(outcome.stem),
+            subject=getattr(outcome, "subject", "") or None,
+            questionType=getattr(outcome, "question_type", "") or None,
+            knowledgePoints=list(getattr(outcome, "knowledge_points", ()) or ()) or None,
         )
 
     return router

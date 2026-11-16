@@ -15,6 +15,7 @@ def make_item(
     updated=1,
     deleted=False,
     schedule=None,
+    meta=None,
 ):
     item = {
         "id": item_id,
@@ -26,6 +27,8 @@ def make_item(
     }
     if schedule:
         item.update(schedule)
+    if meta:
+        item.update(meta)
     return item
 
 
@@ -163,3 +166,76 @@ def test_invalid_schedule_type_returns_3001(client, auth_headers):
         headers=auth_headers,
     )
     assert resp.json()["code"] == 3001
+
+
+# ---------- 识题元信息 ----------
+
+def test_meta_round_trip(client, auth_headers):
+    meta = {
+        "subject": "math",
+        "questionType": "解答题",
+        "knowledgePoints": ["二次函数", "最值"],
+    }
+    push(client, auth_headers, [make_item(meta=meta)])
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["subject"] == "math"
+    assert items[0]["questionType"] == "解答题"
+    assert items[0]["knowledgePoints"] == ["二次函数", "最值"]
+
+
+def test_old_format_push_keeps_meta(client, auth_headers):
+    meta = {"subject": "physics", "questionType": "选择题", "knowledgePoints": ["受力分析"]}
+    push(client, auth_headers, [make_item(updated=1, meta=meta)])
+    # 旧客户端不带元信息，仅更新内容
+    push(client, auth_headers, [make_item(updated=2, content="新题干")])
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["content"] == "新题干"
+    assert items[0]["subject"] == "physics"
+    assert items[0]["questionType"] == "选择题"
+    assert items[0]["knowledgePoints"] == ["受力分析"]
+
+
+def test_empty_meta_explicitly_clears(client, auth_headers):
+    meta = {"subject": "math", "questionType": "解答题", "knowledgePoints": ["二次函数"]}
+    push(client, auth_headers, [make_item(updated=1, meta=meta)])
+    push(
+        client,
+        auth_headers,
+        [make_item(updated=2, meta={"subject": "", "questionType": "", "knowledgePoints": []})],
+    )
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["subject"] is None
+    assert items[0]["questionType"] is None
+    assert items[0]["knowledgePoints"] == []
+
+
+def test_meta_is_deduped(client, auth_headers):
+    meta = {"knowledgePoints": ["二次函数", "二次函数", "最值"]}
+    push(client, auth_headers, [make_item(meta=meta)])
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["knowledgePoints"] == ["二次函数", "最值"]
+
+
+def test_invalid_meta_returns_3001(client, auth_headers):
+    cases = [
+        {"subject": "这是一个超长超长超长超长超长的学科名称"},
+        {"knowledgePoints": ["a", "b", "c", "d"]},
+        {"knowledgePoints": ["知识点" * 20]},
+        {"knowledgePoints": [1, 2]},
+    ]
+    for meta in cases:
+        resp = push(client, auth_headers, [make_item(meta=meta)])
+        assert resp.json()["code"] == 3001
+
+
+def test_legacy_item_returns_empty_meta(client, auth_headers):
+    push(client, auth_headers, [make_item()])
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["subject"] is None
+    assert items[0]["questionType"] is None
+    assert items[0]["knowledgePoints"] == []

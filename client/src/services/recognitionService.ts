@@ -16,6 +16,12 @@ export interface RecognitionResult {
   /** 答案来源：vlm=多模态识别 / none=未识别 */
   splitMethod: SplitMethod
   wordsCount: number
+  /** 学科（math/physics/chemistry/other，可能缺失） */
+  subject?: string
+  /** 题型（可能缺失） */
+  questionType?: string
+  /** 知识点标签（≤3 条） */
+  knowledgePoints?: string[]
   message?: string
 }
 
@@ -25,6 +31,9 @@ interface RecognizeApiResponse {
   answer?: string
   splitMethod?: string
   wordsCount?: number
+  subject?: string
+  questionType?: string
+  knowledgePoints?: string[]
   message?: string
 }
 
@@ -57,6 +66,10 @@ export const recognitionService = {
           answer: body.answer || '',
           splitMethod: toSplitMethod(body.splitMethod),
           wordsCount: body.wordsCount || 0,
+          // 信任服务端白名单归一化结果，原样透传
+          subject: body.subject,
+          questionType: body.questionType,
+          knowledgePoints: body.knowledgePoints,
         }
       }
       // 2001/2002：识别接口要求登录后使用
