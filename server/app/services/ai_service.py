@@ -50,6 +50,10 @@ _PAIRWISE_THRESHOLD = 0.72
 _DRAFT_MAX_WORKERS = 3
 # 成题阶段预留规划与重写的总预算
 _DRAFT_TIMEOUT_RESERVE = 8.0
+# 单次回复 token 上限：防止超长输出吃满超时预算（3 道变式约 1200-1600 tokens）
+_MAX_TOKENS = 2048
+# 百炼 qwen3 系列默认开启思考模式，正文前先输出 reasoning，非流式调用显著变慢
+_THINKING_MODEL_PREFIX = "qwen3"
 
 _SUBJECTS = ("math", "physics", "chemistry", "other")
 _QUESTION_TYPES = ("选择题", "填空题", "解答题", "证明题", "其他")
@@ -669,7 +673,11 @@ class GlmVariantGenerator:
             "model": self._model,
             "temperature": temperature,
             "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": _MAX_TOKENS,
         }
+        if self._model.lower().startswith(_THINKING_MODEL_PREFIX):
+            # 关闭思考模式：只取正文，避免 reasoning_content 拖慢响应
+            payload["enable_thinking"] = False
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
