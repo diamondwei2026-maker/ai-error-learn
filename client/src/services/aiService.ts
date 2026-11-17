@@ -32,7 +32,7 @@ export interface GenerateVariantsParams {
   knowledgePoints?: string[];
 }
 
-/** 举一反三：根据错题生成同构变式题（不入库、不排期） */
+/** 举一反三：根据错题生成同考点变式题（不入库、不排期） */
 export const aiService = {
   async generateVariants(params: GenerateVariantsParams): Promise<AiVariantResult> {
     const data: Record<string, unknown> = {

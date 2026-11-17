@@ -28,13 +28,19 @@ from app.services.ai_service import (
 class FakeGenerator:
     """可控生成器替身。"""
 
-    def __init__(self, variants: Optional[List[dict]] = None, error: Optional[AiError] = None):
+    def __init__(
+        self,
+        variants: Optional[List[dict]] = None,
+        error: Optional[AiError] = None,
+        exam_point: str = "",
+    ):
         self._variants = variants if variants is not None else [
             {"stem": "变式题 1", "answer": "答案 1"},
             {"stem": "变式题 2", "answer": "答案 2"},
             {"stem": "变式题 3", "answer": "答案 3"},
         ]
         self._error = error
+        self._exam_point = exam_point
         self.last_meta = {"subject": "", "question_type": "", "knowledge_points": None}
 
     def generate(
@@ -58,6 +64,7 @@ class FakeGenerator:
             question_type="解答题",
             knowledge_points=["二次函数", "最值"],
             variants=self._variants[:count],
+            exam_point=self._exam_point,
         )
 
 
@@ -369,3 +376,10 @@ def test_anonymous_request_skips_db_lookup(tmp_path):
     assert resp.json()["code"] == 0
     assert generator.last_meta["subject"] == "math"
     assert generator.last_meta["knowledge_points"] == ["二次函数"]
+
+
+def test_response_includes_exam_point():
+    generator = FakeGenerator(exam_point="二次函数在闭区间上的最值")
+    resp = _post(_client(generator), subject="math")
+    assert resp.json()["code"] == 0
+    assert resp.json()["data"]["examPoint"] == "二次函数在闭区间上的最值"

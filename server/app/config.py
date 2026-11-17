@@ -14,9 +14,9 @@ DEFAULT_VISION_TIMEOUT = 20
 # 单张图片二进制上限：10MB
 DEFAULT_MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
-# 变式题生成模型（OpenAI 兼容 /chat/completions）：默认 GLM-4-Flash
-DEFAULT_AI_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
-DEFAULT_AI_MODEL = "glm-4-flash"
+# 变式题生成模型（OpenAI 兼容 /chat/completions）：默认阿里云百炼 Qwen3.7-Plus
+DEFAULT_AI_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+DEFAULT_AI_MODEL = "qwen3.7-plus"
 DEFAULT_AI_TIMEOUT = 30
 DEFAULT_AI_MAX_VARIANTS = 3
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import re
+import threading
 
 import httpx
 import pytest
@@ -236,3 +238,165 @@ def test_invalid_subject_normalized_before_reuse(monkeypatch):
     )
     assert result.subject == "other"
     assert "other" in captured["prompt"]
+
+
+# ---------- 考点驱动命题 ----------
+
+def test_prompt_asks_for_exam_point_and_variation_axes(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        captured["prompt"] = json["messages"][0]["content"]
+        captured["temperature"] = json["temperature"]
+        return _chat_response('{"variants": [{"stem": "变式", "answer": "答"}]}')
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    _generator().generate(
+        "原题", "", 3, subject="math", question_type="解答题",
+        knowledge_points=["二次函数"],
+    )
+    prompt = captured["prompt"]
+    # 任务重定义为“同考点重新命题”，不再要求同构改写
+    assert "围绕同一个考点重新命题" in prompt
+    assert "考点卡" in prompt
+    assert "变化轴" in prompt
+    assert "句式独立" in prompt
+    assert "同构" not in prompt
+    # 生成需要采样空间
+    assert captured["temperature"] >= 0.7
+
+
+def test_axis_is_kept_in_variants(monkeypatch):
+    content = (
+        '{"variants": [{"axis": "C", "axisNote": "条件与结论互换", '
+        '"stem": "变式", "answer": "答"}]}'
+    )
+    monkeypatch.setattr(httpx, "post", lambda *a, **k: _chat_response(content))
+
+    result = _generator().generate("原题", "", 1)
+    assert result.variants[0]["axis"] == "C"
+    assert result.variants[0]["stem"] == "变式"
+
+
+# ---------- 规划 → 逐题成题 流程 ----------
+
+_ORIGINAL = "已知二次函数 y = x² - 4x + 3，求它在区间 [0, 3] 上的最大值和最小值。"
+
+_PLAN_JSON = json.dumps(
+    {
+        "examPoint": "二次函数在闭区间上的最值",
+        "invariants": ["二次函数解析式", "闭区间"],
+        "ideas": [
+            {"axis": "A", "scenario": "工厂日利润", "focus": "求最大利润", "entry": "顶点式"},
+            {"axis": "B", "scenario": "商品定价", "focus": "求最值", "entry": "配方"},
+            {"axis": "C", "scenario": "已知最值反求参数", "focus": "求参数范围", "entry": "端点与顶点"},
+            {"axis": "D", "scenario": "图像读最值", "focus": "读图", "entry": "图像"},
+        ],
+    },
+    ensure_ascii=False,
+)
+
+_DRAFTS = {
+    "A": "某工厂生产一种零件的日利润 P（元）与日产量 x（件）满足 P = -2x² + 80x - 600，且 0 ≤ x ≤ 30，求日利润的最大值。",
+    "B": "某商品每件进价 20 元，售价为 x 元时每天可卖出（60 - x）件，且售价不低于 25 元、不高于 40 元，问售价定为多少元时每天利润最大。",
+    "C": "某二次函数在闭区间上的最大值为 5、最小值为 -4，请写出一个满足条件的函数解析式，并说明取到最值的位置。",
+    "D": "下图是某商品日利润随售价变化的图像，请根据图像回答：售价为多少时利润最高，最高利润是多少。",
+}
+
+
+def _axis_from_prompt(prompt: str) -> str:
+    match = re.search(r"变化轴：([A-F])", prompt)
+    return match.group(1) if match else ""
+
+
+def _routed_post(record, lock):
+    """按提示词内容分流：规划请求返回规划 JSON，成题请求返回对应轴的题目。"""
+
+    def fake_post(url, **kwargs):
+        prompt = kwargs["json"]["messages"][0]["content"]
+        with lock:
+            record.append(prompt)
+        if "命题规划师" in prompt:
+            return _chat_response(_PLAN_JSON)
+        axis = _axis_from_prompt(prompt)
+        return _chat_response(
+            json.dumps({"stem": _DRAFTS[axis], "answer": "答案"}, ensure_ascii=False)
+        )
+
+    return fake_post
+
+
+def test_pipeline_calls_plan_then_drafts(monkeypatch):
+    record: list = []
+    lock = threading.Lock()
+    monkeypatch.setattr(httpx, "post", _routed_post(record, lock))
+
+    result = _generator().generate(
+        _ORIGINAL,
+        "",
+        3,
+        subject="math",
+        question_type="解答题",
+        knowledge_points=["二次函数"],
+    )
+
+    plan_prompts = [prompt for prompt in record if "命题规划师" in prompt]
+    draft_prompts = [prompt for prompt in record if "命题规划师" not in prompt]
+    assert len(plan_prompts) == 1
+    assert len(draft_prompts) == 3
+    # 成题阶段不携带原题，避免句式锚点
+    assert all(_ORIGINAL not in prompt for prompt in draft_prompts)
+    assert [variant["axis"] for variant in result.variants] == ["A", "B", "C"]
+    assert result.exam_point == "二次函数在闭区间上的最值"
+
+
+def test_similar_variant_is_rewritten(monkeypatch):
+    record: list = []
+    lock = threading.Lock()
+
+    def fake_post(url, **kwargs):
+        prompt = kwargs["json"]["messages"][0]["content"]
+        with lock:
+            record.append(prompt)
+        if "命题规划师" in prompt:
+            return _chat_response(_PLAN_JSON)
+        if "上一版" in prompt:
+            return _chat_response(
+                json.dumps({"stem": _DRAFTS["B"], "answer": "答案"}, ensure_ascii=False)
+            )
+        return _chat_response(
+            json.dumps({"stem": _ORIGINAL, "answer": "答案"}, ensure_ascii=False)
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    result = _generator().generate(_ORIGINAL, "", 1, subject="math")
+    assert len(result.variants) == 1
+    assert result.variants[0]["stem"] == _DRAFTS["B"]
+    assert any("上一版" in prompt for prompt in record)
+
+
+def test_plan_parse_failure_falls_back(monkeypatch):
+    record: list = []
+    lock = threading.Lock()
+
+    def fake_post(url, **kwargs):
+        prompt = kwargs["json"]["messages"][0]["content"]
+        with lock:
+            record.append(prompt)
+        if "命题规划师" in prompt:
+            return _chat_response("这不是 JSON")
+        return _chat_response(
+            json.dumps(
+                {"variants": [{"stem": _DRAFTS["C"], "answer": "答案"}]},
+                ensure_ascii=False,
+            )
+        )
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    result = _generator().generate(_ORIGINAL, "", 1, subject="math")
+    assert len(result.variants) == 1
+    assert result.variants[0]["stem"] == _DRAFTS["C"]
+    assert len([prompt for prompt in record if "命题规划师" in prompt]) == 1

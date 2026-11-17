@@ -1,4 +1,4 @@
-"""AI 举一反三接口：根据错题生成同构变式题（不入库、不排期）。"""
+"""AI 举一反三接口：根据错题生成同考点变式题（不入库、不排期）。"""
 
 from __future__ import annotations
 
@@ -293,6 +293,7 @@ def create_ai_router(
                 "subject": result.subject,
                 "questionType": result.question_type,
                 "knowledgePoints": result.knowledge_points,
+                "examPoint": result.exam_point,
                 "variants": result.variants,
                 "traceId": trace_id,
             }

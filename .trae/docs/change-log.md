@@ -1020,3 +1020,64 @@
 - **回滚方式**：`git checkout -- client/src/services/request.ts` 后重新 `npm run build:weapp`；无服务端与配置改动需回滚。
 - **遗留验证（用户侧）**：开发者工具「清除缓存 → 重新编译」后点登录，按 Console 输出判定——`errMsg` 含 `url not in domain list` 属平台域名校验（勾选「不校验合法域名」或在 MP 后台配置 `request/uploadFile/downloadFile` 为 `https://errorlearn.diamondwtech.com`）；出现 `【响应非信封】` 则按 `statusCode` 定位 CDN/路由；两者都无则回看 `[request] API_BASE` 是否与预期一致。
 
+---
+
+## incr-20261116-变式考点驱动命题
+
+- **编号**：incr-20261116-变式考点驱动命题
+- **日期**：2026-11-16
+- **变更摘要**：变式生成提示词由「同构改写」改为「同考点重新命题」。新增考点卡（考点 / 本质要素 / 可变化要素 / 解题链 / 典型错误）；新增 A–F 变化轴配额（情境替换、条件变化、设问反转、表征转换、结构升级、错误辨析，一题一轴）；新增「句式独立」「题目互异」「考点一致」「答案可靠」四项自检；变式输出新增可选 `axis` / `axisNote` 字段；采样温度 0.3 → 0.8。同步新增离线评测脚本与 10 题评测数据集（句式相似度、变式互异度、轴覆盖、答案率、可选语义相似度）。
+- **影响模块**：
+  - 服务端：`app/services/ai_service.py`（提示词、Variant 结构、解析、温度）、`app/api/ai.py`（仅注释）
+  - 服务端新增：`scripts/eval_variants.py`、`scripts/data/variant_eval_dataset.json`
+  - 测试：`tests/test_ai_service.py`（新增 2 条：提示词约束、axis 解析）
+  - 客户端：`src/services/aiService.ts`（仅注释；响应新增字段不读取，无类型改动）
+- **关联文档路径**：`.trae/documents/变式题生成考点驱动-深度调研报告.md`、`.trae/todolist/变式题提示词改造与离线评测.md`
+- **是否待合并主 spec**：**否**（提示词与脚本级改造，无接口契约与数据模型变更）
+- **验证结果**：
+  - `server\.venv\Scripts\python.exe -m pytest tests -q` → **188 passed**
+  - `python scripts/eval_variants.py --mock` → 脚本链路可运行，正确输出各指标与 JSON 结果（mock 变式为脚本自检数据，指标不代表真实模型表现）
+- **回滚方式**：回退 `app/services/ai_service.py` 的提示词与 `_TEMPERATURE` 即可恢复旧行为；`axis` 为可选字段，前端不读取，无需同步回滚
+
+---
+
+## incr-20261117-变式生成流程重构（规划-成题-门禁）
+
+- **编号**：incr-20261117-变式生成流程重构
+- **日期**：2026-11-17
+- **背景**：`incr-20261116-变式考点驱动命题` 仅改提示词，真机实测句式仍高度同质。根因判断为单次调用内模型自回归复制首个变式的句式，且成题提示词携带原题干形成强锚点；仅靠口头约束无法阻断。
+- **变更摘要**：
+  ① **去锚定**：成题提示词不再包含原题题干，只携带「考点 / 不变量 / 本题设计（情境·设问·切入）/ 变化轴」；
+  ② **拆调用**：由单次生成全部变式改为「规划 → 逐题成题」两阶段——规划输出考点卡与 A–F 命题清单，成题按清单逐题独立调用（`ThreadPoolExecutor` 3 路并发，单题超时预留 8s）；
+  ③ **代码门禁**：新增 `char_ngram_jaccard` / `opening_echo` / `is_too_similar`（3-gram Jaccard 阈值 0.55、开头 10 字照抄判定），命中则带「上一版…」反馈重写一次；变式之间再做两两去重（阈值 0.72），不足时按规划备选补齐；
+  ④ **降级策略**：规划请求仅在 `9004` 解析失败时退回原单次生成；`9002/9003` 直接上抛，避免二次超时；
+  ⑤ **接口**：`/api/v1/ai/variants` 响应新增 `examPoint`（考点），前端不展示、向后兼容；
+  ⑥ **评测**：`scripts/eval_variants.py` 改为直接复用服务端相似度实现，新增 `openingEchoRate`、`tooSimilarRate` 两项指标与阈值。
+- **影响模块**：
+  - 服务端：`app/services/ai_service.py`、`app/api/ai.py`
+  - 服务端脚本：`scripts/eval_variants.py`
+  - 测试：`tests/test_ai_service.py`（新增 3 条：规划→成题链路、相似重写、规划失败降级）、`tests/test_ai_api.py`（新增 examPoint 断言）
+- **关联文档路径**：`.trae/documents/变式题生成流程改造-实施计划.md`、`.trae/todolist/变式题生成流程改造.md`
+- **是否待合并主 spec**：**否**（生成策略改造，接口仅新增可选字段）
+- **验证结果**：
+  - `server\.venv\Scripts\python.exe -m pytest tests -q` → **192 passed**
+  - `python scripts\eval_variants.py --mock --out scripts\out\mock-eval.json` → 脚本链路正常，新指标全部输出（mock 为照抄旧句式样本，`openingEchoRate/tooSimilarRate` 未达标属预期，可用于验证门禁有效性）
+- **回滚方式**：回退 `app/services/ai_service.py`、`app/api/ai.py`、`scripts/eval_variants.py` 及对应测试；无 DDL、无配置变更，`examPoint` 为新增字段，前端不读取。
+- **上线提醒**：本改动仍在本地，**未部署**。真机走生产域名，必须先把 `server/app` 同步到 ECS 并 `systemctl restart error-learn-api`，否则线上仍是旧提示词——这正是「改完提示词仍无效」的首要干扰项。部署后用 `variants[*].axis` / `examPoint` 是否存在作为生效探针，再跑真实模型评测校准阈值。
+- **遗留验证**：真实模型基线未跑（需 `server/.env` 配置 `AI_ENABLED` / `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL`）；`THRESHOLDS` 需用基线结果校准后再作为回归红线
+
+
+---
+
+## incr-20261117-变式题模型切换Qwen3.7-Plus
+
+- **编号**：incr-20261117-变式题模型切换Qwen3.7-Plus
+- **日期**：2026-11-17
+- **变更摘要**：变式题生成模型由智谱 GLM-4-Flash 切换为阿里云百炼 Qwen3.7-Plus；接入地址同步改为百炼 OpenAI 兼容端点 https://dashscope.aliyuncs.com/compatible-mode/v1。AI_API_KEY 清空待填百炼 DASHSCOPE 密钥。
+- **影响模块**：
+  - 配置：`server/.env`（运行时）、`server/app/config.py`（DEFAULT_AI_BASE_URL / DEFAULT_AI_MODEL）、`server/.env.example`、`deploy/env.production.example`
+- **关联文档路径**：`.trae/todolist/变式题生成模型切换qwen3.7-plus.md`
+- **是否待合并主 spec**：否
+- **验证结果**：`pytest tests/test_config.py tests/test_ai_service.py -q` → 37 passed
+- **回滚方式**：将 `AI_BASE_URL` 还原为 `https://open.bigmodel.cn/api/paas/v4`、`AI_MODEL` 还原为 `glm-4-flash` 并填回智谱 Key，重启后端即可
+- **上线提醒**：多模态识别（VISION_*）仍走智谱，未改动；百炼密钥未填前变式题接口返回 9001
