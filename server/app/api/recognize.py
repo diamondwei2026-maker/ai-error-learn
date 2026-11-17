@@ -53,6 +53,7 @@ def create_recognize_router(
             subject=getattr(outcome, "subject", "") or None,
             questionType=getattr(outcome, "question_type", "") or None,
             knowledgePoints=list(getattr(outcome, "knowledge_points", ()) or ()) or None,
+            examPoint=getattr(outcome, "exam_point", "") or None,
         )
 
     return router

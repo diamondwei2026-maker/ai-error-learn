@@ -1081,3 +1081,27 @@
 - **验证结果**：`pytest tests/test_config.py tests/test_ai_service.py -q` → 37 passed
 - **回滚方式**：将 `AI_BASE_URL` 还原为 `https://open.bigmodel.cn/api/paas/v4`、`AI_MODEL` 还原为 `glm-4-flash` 并填回智谱 Key，重启后端即可
 - **上线提醒**：多模态识别（VISION_*）仍走智谱，未改动；百炼密钥未填前变式题接口返回 9001
+
+---
+
+## incr-20261117-识别考点并驱动变式命题
+
+- **编号**：incr-20261117-识别考点并驱动变式命题
+- **日期**：2026-11-17
+- **变更摘要**：
+  ① **识别**：视觉识别提示词新增考点 `examPoint` 提取（一句话），响应、解析、清洗同步支持；题型增加同义词归一（单选/多选→选择题、计算/应用→解答题等），降低题型被丢空概率；
+  ② **落库**：`question_sync` 新增 `exam_point VARCHAR(255)`，同步上行/下行透传，旧客户端不携带时保留库内值；
+  ③ **生成**：题库已有考点时，改为「原题 + 解答 + 库内题型 + 库内考点 + 知识点」**单次命题**（温度 0.7），跳过规划阶段；无考点的存量题仍走「规划→成题→门禁」，生成出的考点随响应回填本地并同步入库；
+  ④ **可观测**：识别日志输出元信息摘要（不含题干），变式生成日志输出实际 `model` 与考点命中状态；
+  ⑤ **评测**：`scripts/eval_variants.py` 透传 `examPoint`，数据集 9 道题补考点，用于覆盖单次命题路径。
+- **影响模块**：
+  - 服务端：`app/services/vision_recognize.py`、`app/models/schemas.py`、`app/api/recognize.py`、`app/models/question_sync.py`、`app/db/migrations.py`、`app/api/sync.py`、`app/services/ai_service.py`、`app/api/ai.py`
+  - 客户端：`src/types/question.ts`、`src/types/user.ts`、`src/services/{recognitionService,questionService,syncService,aiService}.ts`、`src/pages/edit/index.tsx`、`src/pages/library/index.tsx`
+  - 脚本与测试：`scripts/eval_variants.py`、`scripts/data/variant_eval_dataset.json`、`tests/{test_vision_recognize,test_ai_service,test_ai_api,test_sync_api}.py`
+- **关联文档路径**：`.trae/documents/变式题识别考点与生成链路修复方案.md`、`.trae/todolist/变式题考点链路改造.md`
+- **是否待合并主 spec**：**否**
+- **验证结果**：
+  - `server\.venv\Scripts\python.exe -m pytest tests -q` → **199 passed**
+  - `client` 下 `npx tsc --noEmit`：仅全仓既有 `React` 未使用告警与 Taro 类型库报错，本次改动文件无新增类型错误
+- **回滚方式**：无破坏性 DDL（仅新增可空列，SQLite/MySQL 均可直接 `ALTER TABLE ADD COLUMN`）；回退上述文件即可，遗留 `exam_point` 列不影响旧逻辑
+- **上线提醒**：识别仍走 glm-4v-flash（本次未切模型）；真机需部署后端并重启 `error-learn-api`，可用 `/api/v1/recognize` 响应中的 `examPoint` 与生成日志 `model=qwen3.7-plus exam_point=True` 作为生效探针

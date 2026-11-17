@@ -312,6 +312,17 @@ def test_parses_meta_and_limits_knowledge_points(monkeypatch):
     assert outcome.knowledge_points == ("受力分析", "牛顿第二定律", "多余1")
 
 
+def test_parses_exam_point_and_truncates(monkeypatch):
+    content = json.dumps(
+        {"stem": "题干", "examPoint": "考点" * 150},
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert len(outcome.exam_point) == 200
+
+
 def test_invalid_subject_falls_back_to_other(monkeypatch):
     monkeypatch.setattr(
         "httpx.post",
@@ -358,3 +369,4 @@ def test_prompt_requests_meta(monkeypatch):
     prompt = next(p["text"] for p in content if p["type"] == "text")
     assert "subject" in prompt
     assert "knowledgePoints" in prompt
+    assert "examPoint" in prompt

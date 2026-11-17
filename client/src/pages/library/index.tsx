@@ -151,6 +151,7 @@ const LibraryPage = () => {
         // 已有分类时透传，服务端据此跳过重新分类
         subject: detail.subject,
         questionType: detail.questionType,
+        examPoint: detail.examPoint,
         knowledgePoints: detail.knowledgePoints,
       });
       if (seq !== aiSeq.current) return;

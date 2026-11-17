@@ -42,6 +42,7 @@ class FakeGenerator:
         self._error = error
         self._exam_point = exam_point
         self.last_meta = {"subject": "", "question_type": "", "knowledge_points": None}
+        self.last_exam_point = ""
 
     def generate(
         self,
@@ -51,12 +52,14 @@ class FakeGenerator:
         subject: str = "",
         question_type: str = "",
         knowledge_points: Optional[List[str]] = None,
+        exam_point: str = "",
     ) -> VariantResult:
         self.last_meta = {
             "subject": subject,
             "question_type": question_type,
             "knowledge_points": knowledge_points,
         }
+        self.last_exam_point = exam_point
         if self._error is not None:
             raise self._error
         return VariantResult(
@@ -148,6 +151,7 @@ def _add_stored(
     subject: Optional[str] = None,
     question_type: Optional[str] = None,
     points: Optional[List[str]] = None,
+    exam_point: Optional[str] = None,
     deleted: bool = False,
 ):
     session = factory()
@@ -167,6 +171,7 @@ def _add_stored(
                 knowledge_points=json.dumps(points, ensure_ascii=False)
                 if points
                 else None,
+                exam_point=exam_point,
             )
         )
         session.commit()
@@ -383,3 +388,29 @@ def test_response_includes_exam_point():
     resp = _post(_client(generator), subject="math")
     assert resp.json()["code"] == 0
     assert resp.json()["data"]["examPoint"] == "二次函数在闭区间上的最值"
+
+
+# ---------- 考点驱动 ----------
+
+def test_stored_exam_point_is_forwarded(tmp_path):
+    generator = FakeGenerator()
+    factory = _meta_db(tmp_path)
+    _add_stored(factory, subject="math", exam_point="二次函数在闭区间上的最值")
+    client = _client(generator, auth_dep=_allow_user(), db_dep=_db_dep(factory))
+    resp = _post(client, questionId="q1")
+    assert resp.json()["code"] == 0
+    assert generator.last_exam_point == "二次函数在闭区间上的最值"
+
+
+def test_payload_exam_point_used_when_store_missing():
+    generator = FakeGenerator()
+    resp = _post(_client(generator), examPoint="一元二次方程根的判别式")
+    assert resp.json()["code"] == 0
+    assert generator.last_exam_point == "一元二次方程根的判别式"
+
+
+def test_overlong_exam_point_is_truncated():
+    generator = FakeGenerator()
+    resp = _post(_client(generator), examPoint="考点" * 200)
+    assert resp.json()["code"] == 0
+    assert len(generator.last_exam_point) == 200

@@ -20,6 +20,8 @@ export interface RecognitionResult {
   subject?: string
   /** 题型（可能缺失） */
   questionType?: string
+  /** 考点（一句话，可能缺失） */
+  examPoint?: string
   /** 知识点标签（≤3 条） */
   knowledgePoints?: string[]
   message?: string
@@ -33,6 +35,7 @@ interface RecognizeApiResponse {
   wordsCount?: number
   subject?: string
   questionType?: string
+  examPoint?: string
   knowledgePoints?: string[]
   message?: string
 }
@@ -69,6 +72,7 @@ export const recognitionService = {
           // 信任服务端白名单归一化结果，原样透传
           subject: body.subject,
           questionType: body.questionType,
+          examPoint: body.examPoint,
           knowledgePoints: body.knowledgePoints,
         }
       }

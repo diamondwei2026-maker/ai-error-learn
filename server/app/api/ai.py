@@ -20,6 +20,7 @@ from app.services.ai_service import (
     CODE_AI_UPSTREAM_BUSY,
     AiError,
     has_reusable_meta,
+    normalize_exam_point,
     normalize_knowledge_points,
     normalize_question_type,
     normalize_subject,
@@ -39,6 +40,7 @@ ANSWER_MAX_LENGTH = 4000
 SUBJECT_MAX_LENGTH = 16
 KNOWLEDGE_POINT_MAX_LENGTH = 32
 KNOWLEDGE_POINTS_MAX_COUNT = 3
+EXAM_POINT_MAX_LENGTH = 200
 VALID_SUBJECTS = ("math", "physics", "chemistry", "other")
 
 # 进程内限流：每用户 60 秒 3 次（多 worker 不共享，单实例部署下有效）
@@ -80,10 +82,18 @@ def _parse_meta(payload: Dict[str, Any]) -> Dict[str, Any]:
         if valid:
             points = collected[:KNOWLEDGE_POINTS_MAX_COUNT]
 
+    raw_exam_point = payload.get("examPoint")
+    exam_point = (
+        normalize_exam_point(raw_exam_point)
+        if isinstance(raw_exam_point, str)
+        else ""
+    )
+
     return {
         "subject": subject,
         "questionType": question_type,
         "knowledgePoints": points,
+        "examPoint": exam_point,
     }
 
 
@@ -157,6 +167,7 @@ def _load_stored_meta(
         "subject": normalize_subject(row.subject),
         "questionType": normalize_question_type(row.question_type),
         "knowledgePoints": _load_stored_points(row.knowledge_points),
+        "examPoint": normalize_exam_point(getattr(row, "exam_point", "")),
     }
 
 
@@ -167,10 +178,11 @@ def _resolve_meta(db: Any, user: Any, fields: Dict[str, Any]) -> Dict[str, Any]:
     subject = stored.get("subject") or fields["subject"]
     question_type = stored.get("questionType") or fields["questionType"]
     points = stored.get("knowledgePoints") or fields["knowledgePoints"]
+    exam_point = stored.get("examPoint") or fields["examPoint"]
 
     if stored:
         meta_source = "db"
-    elif subject or question_type or points:
+    elif subject or question_type or points or exam_point:
         meta_source = "payload"
     else:
         meta_source = "none"
@@ -179,6 +191,7 @@ def _resolve_meta(db: Any, user: Any, fields: Dict[str, Any]) -> Dict[str, Any]:
         "subject": subject,
         "question_type": question_type,
         "knowledge_points": points,
+        "exam_point": exam_point,
         "meta_source": meta_source,
     }
 
@@ -246,7 +259,7 @@ def create_ai_router(
         )
         try:
             if reused_meta:
-                # 元信息已知时只生成变式，跳过重新分类（库内值优先）
+                # 元信息已知时只生成变式，跳过重新分类（库内值优先，考点驱动命题）
                 result = generator.generate(
                     fields["content"],
                     fields["answer"],
@@ -254,10 +267,14 @@ def create_ai_router(
                     subject=meta["subject"],
                     question_type=meta["question_type"],
                     knowledge_points=meta["knowledge_points"],
+                    exam_point=meta["exam_point"],
                 )
             else:
                 result = generator.generate(
-                    fields["content"], fields["answer"], settings.ai_max_variants
+                    fields["content"],
+                    fields["answer"],
+                    settings.ai_max_variants,
+                    exam_point=meta["exam_point"],
                 )
         except AiError as exc:
             raise ApiError(exc.code, exc.message) from exc
@@ -281,12 +298,15 @@ def create_ai_router(
                 raise ApiError(CODE_AI_CONTENT_RISKY, "生成内容不合规，请换一道题试试")
 
         logger.info(
-            "ai variants ok trace=%s question=%s count=%s reused_meta=%s meta_source=%s",
+            "ai variants ok trace=%s question=%s count=%s reused_meta=%s meta_source=%s "
+            "model=%s exam_point=%s",
             trace_id,
             fields["questionId"],
             len(result.variants),
             reused_meta,
             meta["meta_source"],
+            getattr(generator, "model", ""),
+            bool(meta["exam_point"]),
         )
         return ok(
             {

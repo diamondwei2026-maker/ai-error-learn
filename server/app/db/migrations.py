@@ -23,11 +23,12 @@ QUESTION_SYNC_HASH_COLUMNS: Dict[str, str] = {
     "content_hash": "VARCHAR(64) NULL",
 }
 
-# question_sync 识题元信息列（学科 / 题型 / 知识点 JSON）
+# question_sync 识题元信息列（学科 / 题型 / 考点 / 知识点 JSON）
 QUESTION_SYNC_META_COLUMNS: Dict[str, str] = {
     "subject": "VARCHAR(16) NULL",
     "question_type": "VARCHAR(16) NULL",
     "knowledge_points": "VARCHAR(255) NULL",
+    "exam_point": "VARCHAR(255) NULL",
 }
 
 

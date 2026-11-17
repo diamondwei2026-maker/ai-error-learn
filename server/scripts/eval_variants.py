@@ -188,6 +188,7 @@ class _MockGenerator:
         subject: str = "",
         question_type: str = "",
         knowledge_points: Optional[List[str]] = None,
+        exam_point: str = "",
     ) -> VariantResult:
         changed = re.sub(r"\d+", lambda match: str(int(match.group()) + 1), stem)
         variants = [
@@ -267,6 +268,7 @@ def main() -> int:
                 subject=item.get("subject", ""),
                 question_type=item.get("questionType", ""),
                 knowledge_points=item.get("knowledgePoints") or [],
+                exam_point=item.get("examPoint", ""),
             )
         except Exception as exc:  # noqa: BLE001 - 单题失败不影响整体评测
             print(f"[失败] {item.get('id', '')}: {type(exc).__name__}: {exc}", file=sys.stderr)

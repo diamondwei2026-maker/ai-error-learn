@@ -66,6 +66,7 @@ export const questionService = {
       contentHash: contentHash || undefined,
       subject: input.subject || undefined,
       questionType: input.questionType || undefined,
+      examPoint: input.examPoint || undefined,
       knowledgePoints: input.knowledgePoints?.length
         ? input.knowledgePoints.slice(0, 3)
         : undefined,
@@ -108,6 +109,10 @@ export const questionService = {
     }
     if (meta.questionType && !next.questionType) {
       next.questionType = meta.questionType
+      changed = true
+    }
+    if (meta.examPoint && !next.examPoint) {
+      next.examPoint = meta.examPoint
       changed = true
     }
     const points = meta.knowledgePoints?.filter((item) => Boolean(item)) || []

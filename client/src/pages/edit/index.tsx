@@ -89,6 +89,7 @@ const EditPage = () => {
       setMeta({
         subject: result.subject,
         questionType: result.questionType,
+        examPoint: result.examPoint,
         knowledgePoints: result.knowledgePoints,
       });
       setRecognizeFailed(false);

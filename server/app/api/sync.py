@@ -32,6 +32,7 @@ _OPTIONAL_STR_KEYS = ("contentHash",)
 _OPTIONAL_META_STR_KEYS = ("subject", "questionType")
 _OPTIONAL_META_LIST_KEYS = ("knowledgePoints",)
 META_STR_MAX_LENGTH = 16
+EXAM_POINT_MAX_LENGTH = 200
 KNOWLEDGE_POINT_MAX_LENGTH = 32
 KNOWLEDGE_POINTS_MAX_COUNT = 3
 KNOWLEDGE_POINTS_COLUMN_MAX_BYTES = 255
@@ -60,6 +61,7 @@ def _has_meta(raw: Dict[str, Any]) -> bool:
     return (
         any(key in raw for key in _OPTIONAL_META_STR_KEYS)
         or any(key in raw for key in _OPTIONAL_META_LIST_KEYS)
+        or "examPoint" in raw
     )
 
 
@@ -102,6 +104,8 @@ def _apply_meta(row: QuestionSync, raw: Dict[str, Any]) -> None:
         row.question_type = (raw["questionType"] or "").strip() or None
     if "knowledgePoints" in raw:
         row.knowledge_points = _dump_knowledge_points(raw["knowledgePoints"] or [])
+    if "examPoint" in raw:
+        row.exam_point = (raw["examPoint"] or "").strip()[:EXAM_POINT_MAX_LENGTH] or None
 
 
 def _validate_item(raw: Any) -> Dict[str, Any]:
@@ -137,6 +141,12 @@ def _validate_item(raw: Any) -> Dict[str, Any]:
             for item in points:
                 if not isinstance(item, str) or len(item) > KNOWLEDGE_POINT_MAX_LENGTH:
                     raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
+    if "examPoint" in raw and raw["examPoint"] is not None:
+        if (
+            not isinstance(raw["examPoint"], str)
+            or len(raw["examPoint"]) > EXAM_POINT_MAX_LENGTH
+        ):
+            raise ApiError(CODE_SYNC_PAYLOAD_INVALID, "同步数据格式错误")
     return raw
 
 
@@ -155,6 +165,7 @@ def _serialize(row: QuestionSync) -> Dict[str, Any]:
         "subject": row.subject,
         "questionType": row.question_type,
         "knowledgePoints": _load_knowledge_points(row.knowledge_points),
+        "examPoint": row.exam_point,
     }
 
 

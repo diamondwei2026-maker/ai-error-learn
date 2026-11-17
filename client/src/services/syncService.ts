@@ -38,6 +38,7 @@ function questionToItem(question: Question): SyncItem {
   // 元信息缺失时不输出，保持旧协议语义（服务端保留库内值）
   if (question.subject) item.subject = question.subject;
   if (question.questionType) item.questionType = question.questionType;
+  if (question.examPoint) item.examPoint = question.examPoint;
   if (question.knowledgePoints?.length) {
     item.knowledgePoints = question.knowledgePoints;
   }
@@ -97,6 +98,7 @@ function mergeRemoteItems(items: SyncItem[]): void {
         contentHash: remote.contentHash,
         subject: remote.subject ?? undefined,
         questionType: remote.questionType ?? undefined,
+        examPoint: remote.examPoint ?? undefined,
         knowledgePoints: remote.knowledgePoints?.length
           ? remote.knowledgePoints
           : undefined,
@@ -114,6 +116,7 @@ function mergeRemoteItems(items: SyncItem[]): void {
         // 云端空值不覆盖本地已有元信息
         subject: remote.subject ?? local.subject,
         questionType: remote.questionType ?? local.questionType,
+        examPoint: remote.examPoint ?? local.examPoint,
         knowledgePoints: remote.knowledgePoints?.length
           ? remote.knowledgePoints
           : local.knowledgePoints,

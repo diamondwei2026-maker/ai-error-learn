@@ -37,17 +37,31 @@ _PROMPT = (
     "按原有顺序与换行输出，不要只提取最终答案；若图片只有最终答案，则只输出该答案。"
     "另外请判断题目元信息：学科 subject（math/physics/chemistry/other，无法判断填 other）、"
     "题型 questionType（选择题/填空题/解答题/证明题/其他，无法判断填空字符串）、"
+    "考点 examPoint（一句话，说明本题真正考查的可迁移能力或规律，"
+    "如“二次函数在闭区间上的最值”，无法判断填空字符串）、"
     "知识点 knowledgePoints（1-3 个简短关键词数组，无法判断填空数组）。"
     '仅输出 JSON：{"stem": "题干文本", "answer": "解答文本", "subject": "math", '
-    '"questionType": "解答题", "knowledgePoints": ["知识点1", "知识点2"]}；'
+    '"questionType": "解答题", "examPoint": "考点", "knowledgePoints": ["知识点1", "知识点2"]}；'
     "若图片中没有解答，answer 用空字符串。不要输出多余解释。"
 )
 
 # 元信息白名单与上限（与前端 constants / 同步接口保持一致）
 _SUBJECTS = ("math", "physics", "chemistry", "other")
 _QUESTION_TYPES = ("选择题", "填空题", "解答题", "证明题", "其他")
+# 视觉模型常见的题型近义词：先映射再走白名单，避免因措辞差异把题型丢空
+_QUESTION_TYPE_ALIASES = {
+    "单选题": "选择题",
+    "多选题": "选择题",
+    "选择": "选择题",
+    "填空": "填空题",
+    "计算题": "解答题",
+    "应用题": "解答题",
+    "解答": "解答题",
+    "证明": "证明题",
+}
 _MAX_KNOWLEDGE_POINTS = 3
 _MAX_KNOWLEDGE_POINT_LEN = 32
+_MAX_EXAM_POINT_LEN = 200
 
 # 触发「配额/限流」判定的关键字（小写后命中即视为 1003）
 _QUOTA_HINTS = ("quota", "throttl", "rate limit", "limit exceeded", "too many requests")
@@ -81,6 +95,7 @@ class RecognizeOutcome:
     subject: str = ""
     question_type: str = ""
     knowledge_points: Tuple[str, ...] = ()
+    exam_point: str = ""
 
 
 def normalize_subject(value: Any) -> str:
@@ -92,9 +107,16 @@ def normalize_subject(value: Any) -> str:
 
 
 def normalize_question_type(value: Any) -> str:
-    """题型归一化：非白名单（含缺失）一律置空。"""
+    """题型归一化：先做常见同义词映射，非白名单（含缺失）一律置空。"""
     question_type = str(value or "").strip()
+    question_type = _QUESTION_TYPE_ALIASES.get(question_type, question_type)
     return question_type if question_type in _QUESTION_TYPES else ""
+
+
+def normalize_exam_point(value: Any) -> str:
+    """考点归一化：折叠空白、去首尾引号、截断 200 字（与库表列宽兼容）。"""
+    raw = re.sub(r"\s+", " ", str(value or "")).strip().strip("\"'“”")
+    return raw[:_MAX_EXAM_POINT_LEN]
 
 
 def normalize_knowledge_points(value: Any) -> Tuple[str, ...]:
@@ -110,15 +132,15 @@ def normalize_knowledge_points(value: Any) -> Tuple[str, ...]:
     return tuple(points)
 
 
-def _parse_content(content: str) -> Tuple[str, str, str, str, Tuple[str, ...]]:
-    """从容错地解析模型输出中的 {stem, answer, subject, questionType, knowledgePoints}。
+def _parse_content(content: str) -> Tuple[str, str, str, str, str, Tuple[str, ...]]:
+    """从容错地解析模型输出中的 {stem, answer, subject, questionType, examPoint, knowledgePoints}。
 
     依次尝试：去除 ```json 代码块围栏 → 截取首个 JSON 对象 → json.loads。
     解析失败时把整段文本当作题干、answer 置空、元信息留空（容错优先，不抛错）。
     """
     text = (content or "").strip()
     if not text:
-        return "", "", "", "", ()
+        return "", "", "", "", "", ()
 
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if fence:
@@ -134,10 +156,10 @@ def _parse_content(content: str) -> Tuple[str, str, str, str, Tuple[str, ...]]:
         # 否则多行 answer 会导致 json.loads 失败、整段文本被误当作题干。
         parsed = json.loads(candidate, strict=False)
     except (TypeError, ValueError):
-        return clean_text(content), "", "", "", ()
+        return clean_text(content), "", "", "", "", ()
 
     if not isinstance(parsed, dict):
-        return clean_text(content), "", "", "", ()
+        return clean_text(content), "", "", "", "", ()
 
     stem = clean_text(str(parsed.get("stem", "") or ""))
     answer = clean_text(str(parsed.get("answer", "") or ""))
@@ -145,10 +167,13 @@ def _parse_content(content: str) -> Tuple[str, str, str, str, Tuple[str, ...]]:
     question_type = normalize_question_type(
         parsed.get("questionType") or parsed.get("question_type")
     )
+    exam_point = normalize_exam_point(
+        parsed.get("examPoint") or parsed.get("exam_point")
+    )
     points = normalize_knowledge_points(
         parsed.get("knowledgePoints") or parsed.get("knowledge_points")
     )
-    return stem, answer, subject, question_type, points
+    return stem, answer, subject, question_type, exam_point, points
 
 
 def _map_to_error(exc: Any) -> RecognizeError:
@@ -207,8 +232,8 @@ class VisionClient:
 
     def recognize_full(
         self, image_bytes: bytes, mime_type: str = _DEFAULT_MIME
-    ) -> Tuple[str, str, str, str, Tuple[str, ...]]:
-        """调用视觉模型，返回 (stem, answer, subject, question_type, knowledge_points)。"""
+    ) -> Tuple[str, str, str, str, str, Tuple[str, ...]]:
+        """调用视觉模型，返回 (stem, answer, subject, question_type, exam_point, knowledge_points)。"""
         if not self.is_configured:
             raise RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务未配置访问密钥")
         if not image_bytes:
@@ -270,8 +295,8 @@ class VisionClient:
         self, image_bytes: bytes, mime_type: str = _DEFAULT_MIME
     ) -> Tuple[str, str]:
         """兼容旧调用：仅返回 (stem, answer)。"""
-        stem, answer, _subject, _question_type, _points = self.recognize_full(
-            image_bytes, mime_type
+        stem, answer, _subject, _question_type, _exam_point, _points = (
+            self.recognize_full(image_bytes, mime_type)
         )
         return stem, answer
 
@@ -287,8 +312,15 @@ class VisionRecognizeService:
     ) -> RecognizeOutcome:
         if self._client is None or not self._client.is_configured:
             raise RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务未配置访问密钥")
-        stem, answer, subject, question_type, points = self._client.recognize_full(
-            image_bytes, mime_type
+        stem, answer, subject, question_type, exam_point, points = (
+            self._client.recognize_full(image_bytes, mime_type)
+        )
+        logger.info(
+            "recognize meta: subject=%s type=%s points=%s exam_point=%s",
+            subject or "-",
+            question_type or "-",
+            len(points),
+            bool(exam_point),
         )
         return RecognizeOutcome(
             stem=stem,
@@ -296,4 +328,5 @@ class VisionRecognizeService:
             subject=subject,
             question_type=question_type,
             knowledge_points=points,
+            exam_point=exam_point,
         )

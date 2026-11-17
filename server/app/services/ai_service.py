@@ -40,6 +40,9 @@ _MAX_IDEAS = 8
 # 规划与成题分两次采样：规划要稳，成题要放得开
 _PLAN_TEMPERATURE = 0.7
 _DRAFT_TEMPERATURE = 0.9
+# 考点已知时的单次命题温度：理科答案正确率优先
+_SINGLE_TEMPERATURE = 0.7
+_MAX_EXAM_POINT_LEN = 200
 # 门禁阈值：与原题字符 3-gram 重合度、开头照抄、变式两两重合度
 SIMILARITY_THRESHOLD = 0.55
 OPENING_ECHO_LEN = 10
@@ -142,6 +145,7 @@ class VariantGenerator(Protocol):
         subject: str = "",
         question_type: str = "",
         knowledge_points: Optional[List[str]] = None,
+        exam_point: str = "",
     ) -> VariantResult:
         ...
 
@@ -177,6 +181,12 @@ def normalize_axis(value: Any) -> str:
     """把模型输出的变化轴（如 “C”“C 设问反转”）归一为单个大写字母。"""
     match = re.search(r"[A-Fa-f]", str(value or ""))
     return match.group(0).upper() if match else ""
+
+
+def normalize_exam_point(value: Any) -> str:
+    """考点归一化：折叠空白、去首尾引号、截断 200 字（与库表列宽兼容）。"""
+    raw = re.sub(r"\s+", " ", str(value or "")).strip().strip("\"'“”")
+    return raw[:_MAX_EXAM_POINT_LEN]
 
 
 def has_reusable_meta(
@@ -299,16 +309,24 @@ def _build_reuse_prompt(
     subject: str,
     question_type: str,
     knowledge_points: List[str],
+    exam_point: str = "",
 ) -> str:
-    """分类已知时只生成变式，跳过重新分类，复用库内元信息。"""
+    """分类已知时只生成变式，跳过重新分类，复用库内元信息（含考点）。"""
     points_label = "、".join(knowledge_points) or "未提供"
+    exam_section = (
+        f"【考点】{exam_point}\n"
+        "（本题考点已确定，不得替换为相邻考点；所有变式必须围绕它命题。）\n\n"
+        if exam_point
+        else ""
+    )
     return (
         "你是一名命题教师。下面是一道学生的错题。\n"
         "你的任务不是改写这道题，而是围绕同一个考点重新命题。\n\n"
-        f"【题目】\n{stem}\n\n"
+        f"【题目】（仅供理解考点与难度，严禁照抄句式）\n{stem}\n\n"
         f"【答案/解答】\n{answer or '（未提供）'}\n\n"
         f"【已知分类】学科：{subject}；题型：{question_type or '未知'}；"
         f"知识点：{points_label}\n\n"
+        f"{exam_section}"
         f"{_EXAM_POINT_CARD}"
         f"{_variation_brief(count)}"
     )
@@ -636,6 +654,11 @@ class GlmVariantGenerator:
     def is_configured(self) -> bool:
         return self._enabled and bool(self._api_key) and bool(self._base_url)
 
+    @property
+    def model(self) -> str:
+        """当前生效的模型名（供启动/请求日志确认实际调用）。"""
+        return self._model
+
     def _chat(self, prompt: str, temperature: float, timeout: float) -> str:
         """单次对话请求，返回模型文本内容（异常统一映射为业务错误码）。"""
         if not self.is_configured:
@@ -689,16 +712,18 @@ class GlmVariantGenerator:
         known_type: str,
         known_points: List[str],
         reuse_meta: bool,
+        exam_point: str = "",
     ) -> VariantResult:
-        """降级路径：沿用单次生成（规划不可用时保证仍能出题）。"""
+        """单次生成：考点已知时的主路径（规划不可用时的降级路径）。"""
         prompt = (
             _build_reuse_prompt(
-                stem, answer, limit, known_subject, known_type, known_points
+                stem, answer, limit, known_subject, known_type, known_points, exam_point
             )
             if reuse_meta
             else _build_prompt(stem, answer, limit)
         )
-        body = self._chat(prompt, _DRAFT_TEMPERATURE, self._timeout)
+        temperature = _SINGLE_TEMPERATURE if exam_point else _DRAFT_TEMPERATURE
+        body = self._chat(prompt, temperature, self._timeout)
         result = _parse_result(body, limit)
         if not reuse_meta:
             return result
@@ -707,7 +732,7 @@ class GlmVariantGenerator:
             question_type=known_type,
             knowledge_points=known_points,
             variants=result.variants,
-            exam_point=result.exam_point,
+            exam_point=exam_point or result.exam_point,
         )
 
     def _draft_one(
@@ -817,6 +842,7 @@ class GlmVariantGenerator:
         subject: str = "",
         question_type: str = "",
         knowledge_points: Optional[List[str]] = None,
+        exam_point: str = "",
     ) -> VariantResult:
         content = (stem or "").strip()
         if not content:
@@ -834,6 +860,20 @@ class GlmVariantGenerator:
         known_type = normalize_question_type(question_type)
         known_points = normalize_knowledge_points(knowledge_points)
         reuse_meta = has_reusable_meta(known_subject, known_points)
+
+        # 考点已知（识别阶段已落库）：按「原题 + 题型 + 考点」单次命题，跳过规划
+        known_exam_point = normalize_exam_point(exam_point)
+        if known_exam_point:
+            return self._generate_single(
+                content,
+                answer,
+                limit,
+                known_subject,
+                known_type,
+                known_points,
+                reuse_meta=True,
+                exam_point=known_exam_point,
+            )
 
         fallback_subject = known_subject or "other"
 
@@ -922,5 +962,6 @@ class DisabledVariantGenerator:
         subject: str = "",
         question_type: str = "",
         knowledge_points: Optional[List[str]] = None,
+        exam_point: str = "",
     ) -> VariantResult:
         raise AiError(CODE_AI_NOT_ENABLED, "AI 功能暂未开放")

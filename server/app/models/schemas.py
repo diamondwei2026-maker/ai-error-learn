@@ -24,6 +24,7 @@ class RecognizeResponse(BaseModel):
     subject: Optional[str] = None
     questionType: Optional[str] = None
     knowledgePoints: Optional[List[str]] = None
+    examPoint: Optional[str] = None
 
 
 class AiResponse(BaseModel):

@@ -267,6 +267,29 @@ def test_prompt_asks_for_exam_point_and_variation_axes(monkeypatch):
     assert captured["temperature"] >= 0.7
 
 
+def test_exam_point_uses_single_pass_with_original_question(monkeypatch):
+    calls = []
+
+    def fake_post(url, json=None, headers=None, timeout=None):  # noqa: A002
+        calls.append(json)
+        return _chat_response('{"variants": [{"stem": "变式", "answer": "答"}]}')
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    result = _generator().generate(
+        "原题题干", "原答案", 2, subject="math", question_type="解答题",
+        knowledge_points=["二次函数"], exam_point="二次函数在闭区间上的最值",
+    )
+    # 考点已知：跳过规划，单次命题
+    assert len(calls) == 1
+    prompt = calls[0]["messages"][0]["content"]
+    assert "【考点】二次函数在闭区间上的最值" in prompt
+    assert "原题题干" in prompt
+    assert "已知分类" in prompt
+    assert calls[0]["temperature"] == 0.7
+    assert result.exam_point == "二次函数在闭区间上的最值"
+
+
 def test_axis_is_kept_in_variants(monkeypatch):
     content = (
         '{"variants": [{"axis": "C", "axisNote": "条件与结论互换", '

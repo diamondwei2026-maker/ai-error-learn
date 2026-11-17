@@ -4,6 +4,8 @@ export interface QuestionMeta {
   subject?: string
   /** 题型：选择题 / 填空题 / 解答题 / 证明题 / 其他 */
   questionType?: string
+  /** 考点（一句话，识别阶段产出，用于变式题命题锚点） */
+  examPoint?: string
   /** 知识点标签（≤3 条） */
   knowledgePoints?: string[]
 }

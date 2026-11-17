@@ -13,6 +13,8 @@ export interface AiVariantResult {
   subject: string;
   questionType: string;
   knowledgePoints: string[];
+  /** 考点（生成结果会回填到本地题记录） */
+  examPoint?: string;
   variants: AiVariant[];
   traceId?: string;
 }
@@ -30,6 +32,8 @@ export interface GenerateVariantsParams {
   questionType?: string;
   /** 已知知识点（≤3 条，同上兜底） */
   knowledgePoints?: string[];
+  /** 已知考点（库内优先，本字段为未同步时的兜底） */
+  examPoint?: string;
 }
 
 /** 举一反三：根据错题生成同考点变式题（不入库、不排期） */
@@ -46,6 +50,7 @@ export const aiService = {
     if (params.knowledgePoints?.length) {
       data.knowledgePoints = params.knowledgePoints;
     }
+    if (params.examPoint) data.examPoint = params.examPoint;
     try {
       return await request<AiVariantResult>('/api/v1/ai/variants', {
         method: 'POST',

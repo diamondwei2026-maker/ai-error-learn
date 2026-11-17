@@ -32,6 +32,7 @@ export interface SyncItem {
   subject?: string | null
   questionType?: string | null
   knowledgePoints?: string[] | null
+  examPoint?: string | null
 }
 
 /** 本地删除墓碑 */

@@ -37,3 +37,4 @@ class QuestionSync(Base):
     subject: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     question_type: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
     knowledge_points: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    exam_point: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)

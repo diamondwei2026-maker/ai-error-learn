@@ -197,6 +197,22 @@ def test_old_format_push_keeps_meta(client, auth_headers):
     assert items[0]["knowledgePoints"] == ["受力分析"]
 
 
+def test_exam_point_round_trip(client, auth_headers):
+    meta = {"examPoint": "二次函数在闭区间上的最值"}
+    push(client, auth_headers, [make_item(meta=meta)])
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["examPoint"] == "二次函数在闭区间上的最值"
+
+
+def test_old_format_push_keeps_exam_point(client, auth_headers):
+    push(client, auth_headers, [make_item(updated=1, meta={"examPoint": "根的判别式"})])
+    push(client, auth_headers, [make_item(updated=2, content="新题干")])
+
+    items = pull(client, auth_headers).json()["data"]["items"]
+    assert items[0]["examPoint"] == "根的判别式"
+
+
 def test_empty_meta_explicitly_clears(client, auth_headers):
     meta = {"subject": "math", "questionType": "解答题", "knowledgePoints": ["二次函数"]}
     push(client, auth_headers, [make_item(updated=1, meta=meta)])
@@ -226,6 +242,7 @@ def test_invalid_meta_returns_3001(client, auth_headers):
         {"knowledgePoints": ["a", "b", "c", "d"]},
         {"knowledgePoints": ["知识点" * 20]},
         {"knowledgePoints": [1, 2]},
+        {"examPoint": "考点" * 101},
     ]
     for meta in cases:
         resp = push(client, auth_headers, [make_item(meta=meta)])
