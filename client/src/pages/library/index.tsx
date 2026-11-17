@@ -220,7 +220,7 @@ const LibraryPage = () => {
   return (
     <View className={styles.page} style={{ minHeight: getPageMinHeight() }}>
       <NavBar
-        title={detail ? '题目详情' : '题库'}
+        title={detail ? '题目详情' : '错题库'}
         showBack={Boolean(detail)}
         onBack={closeDetail}
       />

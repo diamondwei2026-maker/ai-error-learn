@@ -31,7 +31,7 @@ export default defineAppConfig({
       },
       {
         pagePath: 'pages/library/index',
-        text: '题库',
+        text: '错题库',
         iconPath: 'assets/tabbar/library.png',
         selectedIconPath: 'assets/tabbar/library-selected.png',
       },

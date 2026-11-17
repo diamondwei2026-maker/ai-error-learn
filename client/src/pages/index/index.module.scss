@@ -49,6 +49,29 @@
 
   border-radius: 32rpx; // 16px
   padding: 32rpx;
+  transition: transform $transition-fast;
+
+  &:active {
+    transform: scale(0.995);
+  }
+}
+
+.statHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statAction {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+
+.statActionText {
+  font-size: 24rpx;
+  line-height: 32rpx;
+  color: $color-text-secondary;
 }
 
 .statLabel {

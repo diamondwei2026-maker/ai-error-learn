@@ -1105,3 +1105,46 @@
   - `client` 下 `npx tsc --noEmit`：仅全仓既有 `React` 未使用告警与 Taro 类型库报错，本次改动文件无新增类型错误
 - **回滚方式**：无破坏性 DDL（仅新增可空列，SQLite/MySQL 均可直接 `ALTER TABLE ADD COLUMN`）；回退上述文件即可，遗留 `exam_point` 列不影响旧逻辑
 - **上线提醒**：识别仍走 glm-4v-flash（本次未切模型）；真机需部署后端并重启 `error-learn-api`，可用 `/api/v1/recognize` 响应中的 `examPoint` 与生成日志 `model=qwen3.7-plus exam_point=True` 作为生效探针
+
+---
+
+## incr-20261117-变式生成关闭思考模式修复超时
+
+- **编号**：incr-20261117-变式生成关闭思考模式修复超时
+- **日期**：2026-11-17
+- **变更摘要**：
+  ① 百炼 qwen3 系列默认开启思考模式，响应含 `reasoning_content`，在 30s 的 `AI_TIMEOUT` 内无法完成 3 道变式生成，表现为 `ReadTimeout` → `AiError: 生成超时，请重试`；
+  ② `_chat` 对模型名以 `qwen3` 开头的请求传 `enable_thinking=False`，关闭思考模式，仅使用正文；
+  ③ `_chat` 统一传入 `max_tokens=2048`，为输出加刹车，防止偶发超长解析吃满超时预算（正常 3 道变式约 1200–1600 tokens）；
+  ④ 不调整服务端 `AI_TIMEOUT=30` 与客户端 `AI_REQUEST_TIMEOUT=35000`，避免小程序重新发布。
+- **影响模块**：`server/app/services/ai_service.py`（常量区与 `GlmVariantGenerator._chat`）
+- **关联文档路径**：`.trae/todolist/云服务器配置百炼Key与后端部署.md`
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - 本地 `pytest tests/test_ai_service.py tests/test_ai_api.py -q` → **45 passed**
+  - 线上直连探针（`exam_point` 快路径）：`count=1 elapsed=8.9s`、`count=3 elapsed=7.2s`，均远低于 30s 上限
+- **回滚方式**：还原 `server/app/services/ai_service.py`（删除 `_MAX_TOKENS` / `_THINKING_MODEL_PREFIX` 与 payload 中 4 行）；服务器上保留 `ai_service.py.bak-*` 可直接回退
+- **上线提醒**：仅对 qwen3 系列下发 `enable_thinking`，换回 glm 系模型不受影响；若后续换模型出现 400 提示该参数不支持，需把判断改为显式白名单
+
+---
+
+## incr-20261117-错题库改名与首页联动
+
+- **编号**：incr-20261117-错题库改名与首页联动
+- **日期**：2026-11-17
+- **变更摘要**：
+  ① 用户可见文案「题库」统一改名为「错题库」：底部 Tab 文案、错题库页面 `navigationBarTitleText`、页面内自定义 `NavBar` 标题；
+  ② 首页「错题总数」统计卡片支持点击，通过 `Taro.switchTab` 跳转到错题库 Tab 页，并补充「查看 ›」弱提示与按压反馈；
+  ③ 不改页面路径 `pages/library/index`、接口与数据字段，不涉及登录态判断（游客可直接进入）。
+- **影响模块**：
+  - `client/src/app.config.ts`（tabBar 文案）
+  - `client/src/pages/library/index.config.ts`、`client/src/pages/library/index.tsx`（页面标题）
+  - `client/src/pages/index/index.tsx`、`client/src/pages/index/index.module.scss`（统计卡片点击与样式）
+- **关联文档路径**：`.trae/documents/题库改名错题库与首页错题总数跳转.md`、`.trae/todolist/题库改名错题库与首页错题总数跳转.md`
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - `client` 下 `npx tsc --noEmit`：仅全仓既有的 node_modules 类型库报错与 `React` 未使用告警，本次改动文件无新增类型错误
+  - `npm run build:weapp` → **编译成功**（仅既有 chunk 样式顺序告警）；产物 `dist/app.json` 中 Tab 文案已为「错题库」
+- **回滚方式**：还原上述 5 个文件（Tab 文案与页面标题回 `题库`，移除 `statCard` 的 `onClick` 与 `openLibrary`）后重新构建即可
+
+---

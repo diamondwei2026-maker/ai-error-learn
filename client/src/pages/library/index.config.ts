@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '题库',
+  navigationBarTitleText: '错题库',
   navigationStyle: 'custom',
 });

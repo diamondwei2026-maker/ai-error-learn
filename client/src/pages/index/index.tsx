@@ -56,6 +56,13 @@ const IndexPage = () => {
     Taro.navigateTo({ url: '/pages/profile/edit/index' });
   };
 
+  /** 点击错题总数进入错题库 Tab */
+  const openLibrary = () => {
+    Taro.switchTab({ url: '/pages/library/index' }).catch((error) =>
+      console.error('[index] switchTab library failed', error),
+    );
+  };
+
   const handleLogin = async () => {
     if (loginBusy) return;
     setLoginBusy(true);
@@ -87,8 +94,14 @@ const IndexPage = () => {
           <Mascot width={104} height={104} className={styles.heroMascot} />
         </View>
 
-        <View className={styles.statCard}>
-          <Text className={styles.statLabel}>错题总数</Text>
+        <View className={styles.statCard} onClick={openLibrary}>
+          <View className={styles.statHead}>
+            <Text className={styles.statLabel}>错题总数</Text>
+            <View className={styles.statAction}>
+              <Text className={styles.statActionText}>查看</Text>
+              <Icon name="chevronRightMuted" size={16} />
+            </View>
+          </View>
           <View className={styles.statValue}>
             <Text className={styles.statNumber}>{total}</Text>
             <Text className={styles.statUnit}>道</Text>
