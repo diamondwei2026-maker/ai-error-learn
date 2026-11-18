@@ -150,14 +150,18 @@ def _is_meta_description_stem(stem: str) -> bool:
 def _looks_multi_question(
     stem: str, answer: str, model_flag: bool, question_count: int = 0
 ) -> bool:
-    """判定图片是否含多题 —— 四步判定链：
+    """判定图片是否含多题 —— 六步判定链：
 
     1. 模型显式 multiQuestion=true（最高优先级）
     2. 模型 questionCount ≥ 2
     3. stem 是图片/多题描述句（meta 描述兜底，覆盖模型把场景描述塞进 stem 却忘了置 flag 的情况）
-    4. 长 stem（>200 字）+ 行首题号 ≥2（原始启发式兜底）
+    4. stem 和 answer 各自都有行首题号（极强信号：模型把两道题分别塞进了两个字段）
+    5. 跨字段总题号 ≥2 且 stem+answer 合并长度 ≥40（放宽的跨字段兜底）
+    6. 长 stem（>200 字）+ stem 内行首题号 ≥2（原始启发式兜底）
 
-    answer 不参与判定：解答里的「1. 2.」是步骤编号，不代表多题。
+    Step 4/5 是对「模型把多题分别塞进 stem/answer 两个字段」场景的核心修复：
+    上一次四步判定链里题号检测只在 stem 上做，answer 完全没参与，
+    导致 stem 有 "1."、answer 有 "2." 这种极强信号全部漏过。
     """
     if model_flag:
         return True
@@ -165,8 +169,24 @@ def _looks_multi_question(
         return True
     if _is_meta_description_stem(stem):
         return True
-    if len(stem) > _MULTI_QUESTION_MIN_STEM_LEN and len(_HEADING_RE.findall(stem)) >= 2:
+
+    stem_headings = _HEADING_RE.findall(stem)
+    answer_headings = _HEADING_RE.findall(answer)
+    total_headings = len(stem_headings) + len(answer_headings)
+    combined_len = len(stem) + len(answer)
+
+    # Step 4（核心新增）: stem 和 answer 各自都有行首题号 → 命中
+    if len(stem_headings) >= 1 and len(answer_headings) >= 1:
         return True
+
+    # Step 5（放宽兜底）: 跨字段总题号 >= 2 且合并长度 >= 40 → 命中
+    if total_headings >= 2 and combined_len >= 40:
+        return True
+
+    # Step 6（保留原逻辑）: 长 stem 且 stem 内有多个题号
+    if len(stem) > _MULTI_QUESTION_MIN_STEM_LEN and len(stem_headings) >= 2:
+        return True
+
     return False
 
 

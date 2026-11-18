@@ -498,3 +498,46 @@ def test_question_count_propagated_from_parse():
     assert stem == "题干"
     assert m_multi is False
     assert qc == 5
+
+
+# ---------- 跨字段题号多题漏判修复 ----------
+
+def test_cross_field_headings_trigger_multi(monkeypatch):
+    """修复跨字段题号漏判：stem 有 "1."，answer 有 "2." → 多题命中。
+
+    模型把两道题分别塞进 stem/answer 两个字段时，
+    旧四步判定链里题号检测只在 stem 上做，answer 完全没参与 → 漏判。
+    新规则 Step 4：stem 和 answer 各自都有行首题号 → 直接命中。
+    """
+    content = json.dumps(
+        {
+            "stem": "1. 已知函数 f(x)=x²+2x+1，求其最小值",
+            "answer": "2. 计算定积分 ∫(0,1) x² dx",
+            "multiQuestion": False,
+            "questionCount": 1,
+        },
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr(
+        "httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content))
+    )
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is True
+
+
+def test_cross_field_chinese_headings_trigger_multi(monkeypatch):
+    """中文题号跨字段也能命中（一、 和 二、 分别在 stem 和 answer）。"""
+    content = json.dumps(
+        {
+            "stem": "一、求函数极值",
+            "answer": "二、解方程 x²-1=0",
+            "multiQuestion": False,
+            "questionCount": 1,
+        },
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr(
+        "httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content))
+    )
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is True
