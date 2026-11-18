@@ -1,0 +1,98 @@
+// 与 DuplicateWarning 保持同一对话框规格（本组件仅替换图标与文案）
+@use '@/styles/variables.scss' as *;
+
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  background: $color-mask;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+.wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog {
+  width: 600rpx; // 300px
+  border-radius: 32rpx;
+  overflow: hidden;
+  background: $color-bg-card;
+  border: 1rpx solid $color-border;
+  box-shadow: $shadow-dialog;
+}
+
+.body {
+  padding: 48rpx 44rpx 32rpx;
+}
+
+.warnIco {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  margin: 0 auto 20rpx;
+  background: $color-error-soft;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title {
+  display: block;
+  text-align: center;
+  font-size: 34rpx;
+  line-height: 52rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.desc {
+  display: block;
+  margin-top: 16rpx;
+  text-align: center;
+  font-size: 26rpx;
+  line-height: 40rpx;
+  color: $color-text-secondary;
+}
+
+.foot {
+  display: flex;
+  border-top: 1rpx solid $color-divider;
+  align-items: stretch;
+}
+
+.btn,
+.btnPrimary {
+  flex: 1;
+  height: 100rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+}
+
+.btn {
+  color: $color-text-secondary;
+}
+
+.btnPrimary {
+  color: $color-primary;
+  font-weight: $font-weight-semibold;
+}
+
+.divider {
+  width: 1rpx;
+  background: $color-divider;
+}

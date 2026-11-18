@@ -370,3 +370,131 @@ def test_prompt_requests_meta(monkeypatch):
     assert "subject" in prompt
     assert "knowledgePoints" in prompt
     assert "examPoint" in prompt
+    assert "multiQuestion" in prompt
+    # 修复整页多题漏判：提示词必须包含「宁可 true 也不猜测单题」的强约束
+    assert "宁可" in prompt
+    assert "严禁把" in prompt
+
+
+# ---------- 多题判定 ----------
+
+def test_model_multi_question_flag_is_trusted(monkeypatch):
+    content = json.dumps(
+        {"stem": "题干", "answer": "答案", "multiQuestion": True},
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is True
+
+
+def test_question_count_ge_two_marks_multi(monkeypatch):
+    content = json.dumps(
+        {"stem": "题干", "questionCount": 3, "multiQuestion": False},
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is True
+
+
+def test_long_stem_with_two_headings_falls_back_to_multi(monkeypatch):
+    stem = "1. " + "甲" * 120 + "\n2. " + "乙" * 120
+    content = json.dumps({"stem": stem, "answer": ""}, ensure_ascii=False)
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is True
+
+
+def test_single_question_with_sub_items_is_not_multi(monkeypatch):
+    stem = "1. 已知函数 f(x)，回答下列问题：\n（1）求单调区间；\n（2）求最值。" + "说" * 200
+    content = json.dumps({"stem": stem, "answer": "答案"}, ensure_ascii=False)
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is False
+
+
+def test_short_stem_numbering_is_not_multi(monkeypatch):
+    content = json.dumps(
+        {"stem": "1. 第一行\n2. 第二行", "answer": ""}, ensure_ascii=False
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is False
+
+
+def test_meta_description_stem_triggers_multi(monkeypatch):
+    """修复整页多题漏判：模型把场景描述塞进 stem 时（如用户截图），
+    即便 multiQuestion=false + questionCount=1，也要判为多题。"""
+    content = json.dumps(
+        {
+            "stem": "图片中包含多个数学问题，包括几何图形的计算和代数方程的求解。",
+            "answer": "无法提供解答",
+            "multiQuestion": False,
+            "questionCount": 1,
+        },
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is True
+
+
+@pytest.mark.parametrize(
+    "hint",
+    [
+        "有多道数学题",
+        "几道数学题需要解答",
+        "多道题目并排",
+        "图片中有数道题目",
+    ],
+)
+def test_meta_description_variants_trigger_multi(monkeypatch, hint):
+    """覆盖 meta hint 表里的各类短语"""
+    content = json.dumps(
+        {"stem": hint, "multiQuestion": False, "questionCount": 1},
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is True
+
+
+def test_normal_short_single_question_is_not_multi(monkeypatch):
+    """修复不能误伤正常短单题"""
+    content = json.dumps(
+        {
+            "stem": "已知 f(x)=x²+2x+1，求其最小值",
+            "answer": "解...",
+            "multiQuestion": False,
+            "questionCount": 1,
+        },
+        ensure_ascii=False,
+    )
+    monkeypatch.setattr("httpx.post", lambda *a, **k: _FakeResponse(200, _payload(content)))
+    outcome = VisionRecognizeService(_client()).recognize(b"img", "image/jpeg")
+    assert outcome.multi_question is False
+
+
+def test_question_count_propagated_from_parse():
+    """_parse_content 第 8 元组位 question_count 正确透出"""
+    from app.services import vision_recognize as vr
+
+    stem, answer, subject, qtype, ep, pts, m_multi, qc = vr._parse_content(
+        json.dumps(
+            {
+                "stem": "题干",
+                "answer": "",
+                "subject": "math",
+                "questionType": "解答题",
+                "examPoint": "",
+                "knowledgePoints": [],
+                "multiQuestion": False,
+                "questionCount": 5,
+            },
+            ensure_ascii=False,
+        )
+    )
+    assert stem == "题干"
+    assert m_multi is False
+    assert qc == 5

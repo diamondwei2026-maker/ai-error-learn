@@ -24,6 +24,8 @@ export interface RecognitionResult {
   examPoint?: string
   /** 知识点标签（≤3 条） */
   knowledgePoints?: string[]
+  /** 图片是否包含两道及以上完整题目（命中时前端不回填） */
+  multiQuestion?: boolean
   message?: string
 }
 
@@ -37,6 +39,7 @@ interface RecognizeApiResponse {
   questionType?: string
   examPoint?: string
   knowledgePoints?: string[]
+  multiQuestion?: boolean
   message?: string
 }
 
@@ -74,6 +77,7 @@ export const recognitionService = {
           questionType: body.questionType,
           examPoint: body.examPoint,
           knowledgePoints: body.knowledgePoints,
+          multiQuestion: body.multiQuestion === true,
         }
       }
       // 2001/2002：识别接口要求登录后使用

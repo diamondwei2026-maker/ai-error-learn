@@ -1148,3 +1148,56 @@
 - **回滚方式**：还原上述 5 个文件（Tab 文案与页面标题回 `题库`，移除 `statCard` 的 `onClick` 与 `openLibrary`）后重新构建即可
 
 ---
+
+## incr-20261117-整页多题拦截
+
+- **编号**：incr-20261117-整页多题拦截
+- **日期**：2026-11-17
+- **变更摘要**：
+  ① 识别接口新增 `multiQuestion` 字段：模型提示词要求输出 `questionCount` 与 `multiQuestion`，服务端解析容错（布尔/数字/字符串），并在模型漏判时用「题干 >200 字且行首题号 ≥2」启发式兜底（不匹配「（1）」小问与「1.5」小数）；
+  ② 命中多题时前端**不回填**题干/答案/元信息，弹出阻断弹窗「这张图里有多道题」，遮罩点击不关闭，提供「重新拍摄」（复用既有录入方式 ActionSheet）与「手动输入」（保留空表单与原图卡）两个出口；
+  ③ 手动输入时题干提示切换为「请手动输入题干」，答案字段隐藏提示；保存按钮沿用 `canSave` 自然禁用；
+  ④ 不改数据库、同步协议、题目去重与单题识别主流程。
+- **影响模块**：
+  - 后端（`server/`）
+    - 修改：`app/services/vision_recognize.py`（`_PROMPT`、`_parse_content` 返回 7 元组、`_looks_multi_question`、`RecognizeOutcome.multi_question`）、`app/models/schemas.py`（`RecognizeResponse.multiQuestion`）、`app/api/recognize.py`（透传）
+    - 测试：`tests/test_vision_recognize.py`、`tests/test_recognize_api.py`（新增 5 条多题判定用例，修正 2 处精确报文断言）
+  - 前端（`client/`）
+    - 新增：`src/components/MultiQuestionWarning/index.tsx`、`index.module.scss`
+    - 修改：`src/services/recognitionService.ts`（透传 `multiQuestion`）、`src/pages/edit/index.tsx`（阻断状态、两个出口、字段提示）
+- **关联文档路径**：`.trae/docs/increments/incr-20261117-整页多题拦截/`（`研讨记录.md`、`tasks.md`、`主基线固化更新报告.md`、`增量交付报告.md`、`prototype/{skeleton,visual}/`）
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - 后端：`.venv\Scripts\python.exe -m pytest -q` → **205 passed**（含新增多题判定用例）
+  - 前端：`npm run build:weapp` → **编译成功**（仅既有 chunk 样式顺序告警）
+  - `npx tsc --noEmit` 仍为全仓既有基线报错（node_modules 类型库 + `React` 未使用），本次改动文件无新增类型错误
+- **回滚方式**：还原上述后端 3 个文件与前端 3 处改动即可；`multiQuestion` 为新增可选字段，服务端回退后旧客户端不受影响
+
+---
+
+## incr-20261117-整页多题拦截 · 漏判修复
+
+- **编号**：incr-20261117-整页多题拦截 · 漏判修复
+- **日期**：2026-11-17
+- **变更摘要**：
+  模拟器实测发现整页多题照**未触发阻断弹窗**，文本反而被当作单题回填。根因有三：
+  ① 模型提示词约束不够强 —— 模型看到多题后把场景描述「图片中包含多个数学问题...」塞进 stem 同时 `multiQuestion=false`；
+  ② 后端启发式只覆盖了「多题被拉进长 stem 且有题号」这一条路径（要求 stem>200 字且行首题号≥2），本次现场 stem 只有 30 字且无题号，两个分支都漏掉；
+  ③ 完全没有识别「stem 本身是图片描述而非题干」。
+  修复：
+  - 重写提示词 multiQuestion 段落：加「宁可 true 也不猜测是单题」强约束、明确禁止把「图片中有 X 道题」描述句当 stem、JSON 示例里把 `multiQuestion` 提至 stem 之前强化顺序暗示；
+  - 新增 `_MULTI_QUESTION_META_HINTS`（`包含多个` / `有多道` / `多道题目` / `图片中包含` 等 8 个窄范围短语）与 `_is_meta_description_stem`；
+  - `_looks_multi_question` 升级为四步判定链：模型 flag → questionCount → meta 描述 → 长 stem + 题号兜底；
+  - `_parse_content` 改为 8 元组透出 `question_count`（为 P1 切题铺路），判定下沉到 `VisionRecognizeService`；
+  - 判定日志升级为 `model_multi / qc / final_multi` 三段输出，便于线上追踪命中分支。
+- **影响模块**：
+  - `server/app/services/vision_recognize.py`（`_PROMPT`、新增常量与辅助函数、`_parse_content` 签名、`_looks_multi_question` 签名与逻辑、`VisionClient.recognize_full` 签名、`VisionRecognizeService.recognize`）
+  - `server/tests/test_vision_recognize.py`（新增 6 条用例：提示词强约束断言、meta 描述命中、参数化变体、误伤保护、question_count 透出）
+- **关联文档路径**：`.trae/documents/修复整页多题未触发弹窗_plan.md`
+- **是否待合并主 spec**：否
+- **验证结果**：
+  - 后端：`pytest tests/test_vision_recognize.py tests/test_recognize_api.py -v` → **52 passed**；`pytest -q` 全量 → 无失败（205+）
+  - 前端：`npm run build:weapp` → **编译成功**（本次前端未改动）
+- **回滚方式**：还原 `vision_recognize.py`（提示词、常量、`_parse_content` 回 7 元组、`_looks_multi_question` 回两步链、`VisionClient.recognize_full` 回 7 元组）。仅后端改动，无需前端联动
+
+---

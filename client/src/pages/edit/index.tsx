@@ -9,6 +9,7 @@ import Chip from "@/components/Chip";
 import DuplicateWarning from "@/components/DuplicateWarning";
 import Icon from "@/components/Icon";
 import Mascot from "@/components/Mascot";
+import MultiQuestionWarning from "@/components/MultiQuestionWarning";
 import NavBar from "@/components/NavBar";
 import PrivacySheet from "@/components/PrivacySheet";
 import {
@@ -61,6 +62,10 @@ const EditPage = () => {
   const [duplicateVisible, setDuplicateVisible] = useState(false);
   /** 命中重复后是否跳过检查直接保存 */
   const [saveAnyway, setSaveAnyway] = useState(false);
+  /** 识别命中整页多题：阻断回填并弹窗引导 */
+  const [multiQuestionVisible, setMultiQuestionVisible] = useState(false);
+  /** 用户选择手动输入：仅切换字段提示文案 */
+  const [manualInput, setManualInput] = useState(false);
 
   const startedRef = useRef("");
   const refreshStore = useQuestionStore((state) => state.refresh);
@@ -69,6 +74,7 @@ const EditPage = () => {
   const runRecognize = async (path: string) => {
     setPhase("recognizing");
     setRecognizeFailed(false);
+    setManualInput(false);
     setProgress(0);
 
     const timer = setInterval(() => {
@@ -83,16 +89,26 @@ const EditPage = () => {
     setProgress(100);
 
     if (result.ok) {
-      setContent(result.text);
-      setAnswer(result.answer);
-      setSplitMethod(result.splitMethod);
-      setMeta({
-        subject: result.subject,
-        questionType: result.questionType,
-        examPoint: result.examPoint,
-        knowledgePoints: result.knowledgePoints,
-      });
-      setRecognizeFailed(false);
+      if (result.multiQuestion) {
+        // 整页多题：不回填题干/答案/元信息，改为弹窗引导重拍单题
+        setContent("");
+        setAnswer("");
+        setSplitMethod("none");
+        setMeta({});
+        setRecognizeFailed(false);
+        setMultiQuestionVisible(true);
+      } else {
+        setContent(result.text);
+        setAnswer(result.answer);
+        setSplitMethod(result.splitMethod);
+        setMeta({
+          subject: result.subject,
+          questionType: result.questionType,
+          examPoint: result.examPoint,
+          knowledgePoints: result.knowledgePoints,
+        });
+        setRecognizeFailed(false);
+      }
     } else {
       setContent("");
       setAnswer("");
@@ -121,6 +137,18 @@ const EditPage = () => {
     setTempPath(path);
     startedRef.current = "";
     await runRecognize(path);
+  };
+
+  /** 多题阻断：重新拍摄复用现有录入方式弹层 */
+  const handleMultiQuestionRetake = () => {
+    setMultiQuestionVisible(false);
+    setSheetVisible(true);
+  };
+
+  /** 多题阻断：手动输入，保留空表单与原图卡 */
+  const handleMultiQuestionManualInput = () => {
+    setMultiQuestionVisible(false);
+    setManualInput(true);
   };
 
   const handleSave = async () => {
@@ -325,7 +353,11 @@ const EditPage = () => {
           </Text>
           <View className={styles.fieldActions}>
             <Text className={styles.fieldTip}>
-              {recognizeFailed ? "识别失败 · 请手动输入" : "AI 已识别 · 请校对"}
+              {manualInput
+                ? "请手动输入题干"
+                : recognizeFailed
+                  ? "识别失败 · 请手动输入"
+                  : "AI 已识别 · 请校对"}
             </Text>
           </View>
         </View>
@@ -351,7 +383,9 @@ const EditPage = () => {
 
         <View className={styles.fieldHead}>
           <Text className={styles.fieldLabel}>答案</Text>
-          <Text className={styles.fieldTip}>{answerTip}</Text>
+          {manualInput ? null : (
+            <Text className={styles.fieldTip}>{answerTip}</Text>
+          )}
         </View>
         <View className={styles.inputBox}>
           <Textarea
@@ -412,6 +446,12 @@ const EditPage = () => {
         onView={handleDuplicateView}
         onSaveAnyway={handleDuplicateSaveAnyway}
         onCancel={handleDuplicateCancel}
+      />
+
+      <MultiQuestionWarning
+        visible={multiQuestionVisible}
+        onRetake={handleMultiQuestionRetake}
+        onManualInput={handleMultiQuestionManualInput}
       />
 
       <PrivacySheet />

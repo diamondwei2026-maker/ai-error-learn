@@ -47,6 +47,7 @@ def test_recognize_success_returns_stem_and_answer():
         "answer": "42",
         "splitMethod": "vlm",
         "wordsCount": 2,
+        "multiQuestion": False,
     }
     assert service.received == b"fake-image-bytes"
     assert service.received_mime == "image/jpeg"
@@ -64,7 +65,19 @@ def test_recognize_success_without_answer():
         "answer": "",
         "splitMethod": "none",
         "wordsCount": 4,
+        "multiQuestion": False,
     }
+
+
+def test_recognize_multi_question_passthrough():
+    service = StubService(
+        outcome=RecognizeOutcome(stem="题干", answer="", multi_question=True)
+    )
+    resp = make_client(service).post(
+        "/api/v1/recognize", files={"file": ("q.jpg", b"fake-image-bytes", "image/jpeg")}
+    )
+    assert resp.status_code == 200
+    assert resp.json()["multiQuestion"] is True
 
 
 def test_recognize_empty_file_returns_1004():

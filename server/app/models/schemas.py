@@ -25,6 +25,8 @@ class RecognizeResponse(BaseModel):
     questionType: Optional[str] = None
     knowledgePoints: Optional[List[str]] = None
     examPoint: Optional[str] = None
+    # 图片是否包含两道及以上完整题目（默认 false，旧客户端忽略即可）
+    multiQuestion: bool = False
 
 
 class AiResponse(BaseModel):

@@ -40,9 +40,31 @@ _PROMPT = (
     "考点 examPoint（一句话，说明本题真正考查的可迁移能力或规律，"
     "如“二次函数在闭区间上的最值”，无法判断填空字符串）、"
     "知识点 knowledgePoints（1-3 个简短关键词数组，无法判断填空数组）。"
-    '仅输出 JSON：{"stem": "题干文本", "answer": "解答文本", "subject": "math", '
-    '"questionType": "解答题", "examPoint": "考点", "knowledgePoints": ["知识点1", "知识点2"]}；'
+    "请判断图片中能看到多少道独立数学题目 questionCount，并据此设置 multiQuestion："
+    "- 图片中能看到两道及以上独立题目时，无论是否成功提取到某一题的完整题干，"
+    "multiQuestion 必须为 true，questionCount ≥ 2；"
+    "- 只有当图片中明显只有一道题时 multiQuestion 才为 false，questionCount = 1；"
+    "- 如果图片模糊、被遮挡、或无法分辨题目数量，宁可 multiQuestion=true 也不要猜测是单题；"
+    "- multiQuestion 为 true 时 stem 仍可尝试提取其中一道，但严禁把「图片中有 X 道题」"
+    "这类描述句当作 stem 输出。"
+    '仅输出 JSON：{"multiQuestion": false, "questionCount": 1, '
+    '"stem": "题干文本", "answer": "解答文本", "subject": "math", '
+    '"questionType": "解答题", "examPoint": "考点", '
+    '"knowledgePoints": ["知识点1", "知识点2"]}；'
     "若图片中没有解答，answer 用空字符串。不要输出多余解释。"
+)
+
+# 多题启发式兜底 1：模型漏判但 stem 里含有这些图片描述特征词时，说明模型没有真正
+# 提取出题干、而是把场景描述塞进 stem，一律视为多题（窄范围避免误伤真实题干）
+_MULTI_QUESTION_META_HINTS = (
+    "包含多个", "有多道", "几道数学题", "多道题目",
+    "图片中包含", "图片中有", "多张题目", "数道题目",
+)
+# 多题启发式兜底 2：题干超过该长度且出现多个行首题号
+_MULTI_QUESTION_MIN_STEM_LEN = 200
+# 行首题号：1. / 1、 / 1) / 一、 （不匹配「（1）」这类小问，也不匹配 1.5 这类小数）
+_HEADING_RE = re.compile(
+    r"^\s*(?:\d{1,2}|[一二三四五六七八九十]{1,2})\s*[.、)．](?!\d)", re.M
 )
 
 # 元信息白名单与上限（与前端 constants / 同步接口保持一致）
@@ -96,6 +118,56 @@ class RecognizeOutcome:
     question_type: str = ""
     knowledge_points: Tuple[str, ...] = ()
     exam_point: str = ""
+    # 图片是否包含两道及以上完整题目（默认 False，旧调用方无感）
+    multi_question: bool = False
+
+
+def _parse_bool(value: Any) -> bool:
+    """容错解析模型返回的布尔值（True / "true" / 1 / "是"）。"""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    return str(value or "").strip().lower() in ("true", "1", "yes", "是")
+
+
+def _parse_question_count(value: Any) -> int:
+    """容错解析题目数量，无法解析时返回 0。"""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 0
+
+
+def _is_meta_description_stem(stem: str) -> bool:
+    """stem 如果包含明显的「图片中有几道题」类描述词，说明模型没有成功提取单题，
+    而是把场景描述塞进了 stem —— 这种情况一律视为多题命中。"""
+    if not stem:
+        return False
+    return any(hint in stem for hint in _MULTI_QUESTION_META_HINTS)
+
+
+def _looks_multi_question(
+    stem: str, answer: str, model_flag: bool, question_count: int = 0
+) -> bool:
+    """判定图片是否含多题 —— 四步判定链：
+
+    1. 模型显式 multiQuestion=true（最高优先级）
+    2. 模型 questionCount ≥ 2
+    3. stem 是图片/多题描述句（meta 描述兜底，覆盖模型把场景描述塞进 stem 却忘了置 flag 的情况）
+    4. 长 stem（>200 字）+ 行首题号 ≥2（原始启发式兜底）
+
+    answer 不参与判定：解答里的「1. 2.」是步骤编号，不代表多题。
+    """
+    if model_flag:
+        return True
+    if question_count >= 2:
+        return True
+    if _is_meta_description_stem(stem):
+        return True
+    if len(stem) > _MULTI_QUESTION_MIN_STEM_LEN and len(_HEADING_RE.findall(stem)) >= 2:
+        return True
+    return False
 
 
 def normalize_subject(value: Any) -> str:
@@ -132,15 +204,19 @@ def normalize_knowledge_points(value: Any) -> Tuple[str, ...]:
     return tuple(points)
 
 
-def _parse_content(content: str) -> Tuple[str, str, str, str, str, Tuple[str, ...]]:
-    """从容错地解析模型输出中的 {stem, answer, subject, questionType, examPoint, knowledgePoints}。
+def _parse_content(
+    content: str,
+) -> Tuple[str, str, str, str, str, Tuple[str, ...], bool, int]:
+    """从容错地解析模型输出中的 {stem, answer, subject, questionType, examPoint, knowledgePoints, multiQuestion, questionCount}。
 
-    依次尝试：去除 ```json 代码块围栏 → 截取首个 JSON 对象 → json.loads。
-    解析失败时把整段文本当作题干、answer 置空、元信息留空（容错优先，不抛错）。
+    返回 8 元组：(stem, answer, subject, question_type, exam_point, knowledge_points, model_multi, question_count)
+
+    注意：最后两位 `model_multi` 与 `question_count` 是模型原始返回值，
+    真正的多题判定由上层 `_looks_multi_question` 统一完成。
     """
     text = (content or "").strip()
     if not text:
-        return "", "", "", "", "", ()
+        return "", "", "", "", "", (), False, 0
 
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if fence:
@@ -156,10 +232,10 @@ def _parse_content(content: str) -> Tuple[str, str, str, str, str, Tuple[str, ..
         # 否则多行 answer 会导致 json.loads 失败、整段文本被误当作题干。
         parsed = json.loads(candidate, strict=False)
     except (TypeError, ValueError):
-        return clean_text(content), "", "", "", "", ()
+        return clean_text(content), "", "", "", "", (), False, 0
 
     if not isinstance(parsed, dict):
-        return clean_text(content), "", "", "", "", ()
+        return clean_text(content), "", "", "", "", (), False, 0
 
     stem = clean_text(str(parsed.get("stem", "") or ""))
     answer = clean_text(str(parsed.get("answer", "") or ""))
@@ -173,7 +249,17 @@ def _parse_content(content: str) -> Tuple[str, str, str, str, str, Tuple[str, ..
     points = normalize_knowledge_points(
         parsed.get("knowledgePoints") or parsed.get("knowledge_points")
     )
-    return stem, answer, subject, question_type, exam_point, points
+    model_multi = _parse_bool(
+        parsed.get("multiQuestion")
+        if "multiQuestion" in parsed
+        else parsed.get("multi_question")
+    )
+    question_count = _parse_question_count(
+        parsed.get("questionCount")
+        if "questionCount" in parsed
+        else parsed.get("question_count")
+    )
+    return stem, answer, subject, question_type, exam_point, points, model_multi, question_count
 
 
 def _map_to_error(exc: Any) -> RecognizeError:
@@ -232,8 +318,8 @@ class VisionClient:
 
     def recognize_full(
         self, image_bytes: bytes, mime_type: str = _DEFAULT_MIME
-    ) -> Tuple[str, str, str, str, str, Tuple[str, ...]]:
-        """调用视觉模型，返回 (stem, answer, subject, question_type, exam_point, knowledge_points)。"""
+    ) -> Tuple[str, str, str, str, str, Tuple[str, ...], bool, int]:
+        """调用视觉模型，返回 8 元组：(stem, answer, subject, question_type, exam_point, knowledge_points, model_multi, question_count)。"""
         if not self.is_configured:
             raise RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务未配置访问密钥")
         if not image_bytes:
@@ -295,7 +381,7 @@ class VisionClient:
         self, image_bytes: bytes, mime_type: str = _DEFAULT_MIME
     ) -> Tuple[str, str]:
         """兼容旧调用：仅返回 (stem, answer)。"""
-        stem, answer, _subject, _question_type, _exam_point, _points = (
+        stem, answer, _subject, _question_type, _exam_point, _points, _model_multi, _qc = (
             self.recognize_full(image_bytes, mime_type)
         )
         return stem, answer
@@ -312,15 +398,19 @@ class VisionRecognizeService:
     ) -> RecognizeOutcome:
         if self._client is None or not self._client.is_configured:
             raise RecognizeError(CODE_RECOGNIZE_FAILED, "识别服务未配置访问密钥")
-        stem, answer, subject, question_type, exam_point, points = (
+        stem, answer, subject, question_type, exam_point, points, model_multi, qc = (
             self._client.recognize_full(image_bytes, mime_type)
         )
+        multi_question = _looks_multi_question(stem, answer, model_multi, qc)
         logger.info(
-            "recognize meta: subject=%s type=%s points=%s exam_point=%s",
+            "recognize meta: subject=%s type=%s points=%s exam_point=%s model_multi=%s qc=%s final_multi=%s",
             subject or "-",
             question_type or "-",
             len(points),
             bool(exam_point),
+            model_multi,
+            qc,
+            multi_question,
         )
         return RecognizeOutcome(
             stem=stem,
@@ -329,4 +419,5 @@ class VisionRecognizeService:
             question_type=question_type,
             knowledge_points=points,
             exam_point=exam_point,
+            multi_question=multi_question,
         )
